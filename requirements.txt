@@ -1,4 +1,7 @@
 numpy
-pandas 
+matplotlib
+pandas
+scipy
 mhar
-torch
+ternary
+composition_stats
