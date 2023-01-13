@@ -1,0 +1,65 @@
+from typing import Optional
+
+import numpy as np
+from composition_stats import ilr, ilr_inv
+
+
+def ilr_transform(x : np.ndarray, noise: bool=True, sigma: float = 1e-5):
+    """isometric log-transformation of a given input vector.
+        Can be used to transform d-dimensional points from a d-1 dimensional
+        simplex to the (d-1) dimensional subspace of fully rank.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        input vector of shape (n_samples, n_classes)
+    noise: bool
+            whether to add small noise to the data. can be used if the data contains 
+            zeros and a log-ratio transform cannot be applied.
+    sigma: float
+            variance of the white noise
+
+    Returns
+    -------
+    np.ndarray
+        transformed point
+    """
+    if noise:
+        n_samples, n_classes = x.shape
+        eps = np.random.normal(0, sigma,size= (n_samples, n_classes)) # random noise
+        x = x + np.abs(eps)
+        print(x)
+
+    assert np.all((x>0)), "all entries of the input data need to be larger than 0 to perform a log-ratio transformation"
+
+    x_transformed = ilr(x)
+
+    return x_transformed
+
+def inv_ilr(x_trans: np.ndarray):
+    """inverse log ratio transform
+
+    Parameters
+    ----------
+    x_trans : np.ndarray
+        _description_
+
+    Returns
+    -------
+    
+        _description_
+    """
+
+    x = ilr_inv(x_trans)
+
+    return x
+
+
+if __name__ == "__main__":
+    x_test = np.array([[1, 0 ,0], [0,0.5,0.5], [0,0,1]])
+    x_transf = ilr_transform(x_test, noise=True)
+    print(x_transf)
+    x_back = inv_ilr(x_transf)
+    print(x_back)
+
+
