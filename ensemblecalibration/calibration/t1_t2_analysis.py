@@ -141,7 +141,7 @@ def main_t1_t2():
         for r in res_h0:
             res.append(list(res_h0[r]))
         results.append(res)
-        res_h11 = _simulation_ha(tests, *s, None, False)
+        res_h11 = _simulation_ha(tests, *s)
         res = []
         res.extend(s)
         res.append("M2")
