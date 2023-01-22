@@ -54,7 +54,8 @@ def transform_points(x: np.ndarray, transform: str = 'sqrt'):
     if x.ndim == 1:
         x = x[np.newaxis, :]
     if transform == 'sqrt':
-        assert x.shape[1] == 3, "sqrt transformation only suitbale for 3 dimensional data"
+        assert x.shape[1] == 3, f"""sqrt transformation only suitbale for 3 dimensional data,
+                                    but it is {x.shape[1]} dimensional"""
         x_trans = project_points2D(x)
     elif transform == 'additive':
         x_trans = alr_transform(x)

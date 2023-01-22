@@ -32,7 +32,7 @@ def uniform_weight_sampling(P: np.ndarray):
     return preds_new
 
 def multinomial_label_sampling(probs: np.ndarray):
-    """draws a sampüle y from the categorical distribution
+    """draws a sample y from the categorical distribution
     defined by a probaibility vector.
 
     Parameters
@@ -51,9 +51,33 @@ def multinomial_label_sampling(probs: np.ndarray):
 
     return y
 
+def sample_m(p):
+    try:
+        y = np.argmax(multinomial(1,p).rvs(size=1)[0,:])
+    except ValueError as e:
+        y = np.argmax(p)
+
+    return y
+
+def sample_l(P):
+    # take convex combination of ensemble predictions
+    l = dirichlet([1]*P.shape[1]).rvs(size=1)[0,:]
+    P_bar = np.matmul(np.swapaxes(P,1,2),l)
+        
+    return P_bar
+
+
 
 if __name__ == "__main__":
-    P = np.random.dirichlet([1]*10, size=(100, 5))
+    P = np.random.dirichlet([1]*3, size=(100, 5))
+    print(P.shape)
     p_2 = uniform_weight_sampling(P)
+    print(p_2.shape)
     y = np.apply_along_axis(multinomial_label_sampling, 1, p_2)
     print(y)
+
+    P_bar_b = sample_l(P)
+    print(P_bar_b.shape)
+    y_b = np.apply_along_axis(sample_m, 1, P_bar_b)
+    print(y_b.shape)
+

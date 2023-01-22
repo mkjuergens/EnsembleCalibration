@@ -44,7 +44,7 @@ def h_ij(p_i: np.ndarray, p_j: np.ndarray, y_i: np.ndarray, y_j: np.ndarray, dis
 
     return h_ij
 
-def skce_ul_arr(P_bar: np.ndarray, y: np.ndarray, dist_fct, sigma: float + 2.0):
+def skce_ul_arr(P_bar: np.ndarray, y: np.ndarray, dist_fct, sigma: float = 2.0):
     """calculates the skce_ul calibration error used as a test statistic in Mortier et  al, 2022.
 
     Parameters
@@ -64,19 +64,14 @@ def skce_ul_arr(P_bar: np.ndarray, y: np.ndarray, dist_fct, sigma: float + 2.0):
         _description_
     """
 
-    N, M, K = P_bar.shape # p is of shape (n_samples, m_predictors, n_classes)
-    # number of samples to be summed over
-    n = round(N/2) 
-    # one-hot encoding  of y ( over all samples)
-    y_one_hot = np.eye(M)[y, :]
-    
+    n = round(P_bar.shape[0]/2)
+    # transform y to one-hot encoded labels
+    yoh = np.eye(P_bar.shape[1])[y,:]
     stats = np.zeros(n)
+    for i in range(0,n):
+        stats[i] = h_ij(P_bar[(2*i),:], P_bar[(2*i)+1,:], yoh[(2*i),:], yoh[(2*i)+1,:], dist_fct=dist_fct,
+        sigma=sigma)
 
-    for i in range(0, n):
-        # compute entries h_ij in the summation term
-        stats[i] = h_ij(P_bar[(2*i), :], P_bar[(2*i)+1, :], y_one_hot[(2*i), :], y_one_hot[(2*i)+1, :],
-                        dist_fct=dist_fct, sigma=sigma)
-        
     return stats
 
 def skce_uq_arr(P_bar: np.ndarray, y: np.ndarray,dist_fct, sigma: float = 2.0):
@@ -99,7 +94,7 @@ def skce_uq_arr(P_bar: np.ndarray, y: np.ndarray,dist_fct, sigma: float = 2.0):
         _description_
     """
 
-    N, M, K = P_bar.shape # p is of shape (n_samples, m_predictors, n_classes)
+    N, M = P_bar.shape[0], P_bar.shape[1] # p is of shape (n_samples, m_predictors, n_classes)
     # one-hot encoding
     y_one_hot =np.eye(M)[y, :]
 

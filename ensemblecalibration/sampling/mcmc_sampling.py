@@ -7,6 +7,7 @@ from mhar import walk
 
 from ensemblecalibration.transformations import transform_points, inv_transform_points
 from ensemblecalibration.transformations.projections_2d import project_points2D, planes_to_coordinates3D
+from ensemblecalibration.sampling.lambda_sampling import multinomial_label_sampling
 
 # goal is to sample predictions P_bar using a matrix P of shape (N, M, K )
 
@@ -70,6 +71,7 @@ def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
         array containing generated samples
     """
     # get polytope equations
+    print(f' Transform: {transform}')
     A, b = get_polytope_equations(p, transform=transform)
     # use a convex combination to find an inner point of the polytope as a starting point
     x_0 = find_inner_point(p)
@@ -95,7 +97,7 @@ def find_inner_point(P: np.ndarray):
 
     Returns
     -------
-    np.nadrray
+    np.ndarray
         convex combination of the point predictions lying in the polytope
     """
 
@@ -105,10 +107,46 @@ def find_inner_point(P: np.ndarray):
 
     return new_p
 
+def mhar_sampling_p(P: np.ndarray, transform: str = 'sqrt'):
+    """Given an array of shape (N, M, K), this function samples for every n in 1, ..., N
 
+    Parameters
+    ----------
+    P : np.ndarray of shape (N, M, K)
+        array containing the point predictions for every of the M predcitors and every sample
+    transform : str, optional
+        needs to be in [sqrt, additive ], by default 'sqrt'
 
+    Returns
+    -------
+    np.ndarray of shape (N, K)
+        array of sampled predictions for each sample n in 1, ..., N
+        
+    """
+
+    P_hat = np.zeros((P.shape[0], P.shape[2])) 
+    for i in range(P.shape[0]):
+        # sample one sample from mhar algorithm
+        x_sample = mhar_sampling(P[i], transform=transform, n_samples=1)
+        P_hat[i] = x_sample
+
+    return P_hat
 
 if __name__ == "__main__":
     P = np.random.dirichlet([1]*3, size=10)
     x_out = mhar_sampling(P, transform='sqrt')
-    print(x_out.shape)
+
+    # now for real P
+    P = np.random.dirichlet([1]*3, size=(100, 10))
+    print(P.shape)
+    P_hat = np.zeros((P.shape[0], 3))
+    for i in range(P.shape[0]):
+        x_sample = mhar_sampling(P[i], transform='sqrt', n_samples=1)
+        P_hat[i] = x_sample
+    print(P_hat.shape)
+    
+
+
+
+
+    

@@ -9,7 +9,7 @@ def rejectance_sample(P, x_0, v: np.ndarray):
 
     Parameters
     ----------
-    P : np.ndarray of shape (M, K) with M number of predictive models, K number of different classes
+    P : np.ndarray of shape (M, K) or (N, M, K) with M number of predictive models, K number of different classes
         
     x_0 : np.ndarray of shape (K, 1) or (K,)
         starting point
@@ -48,8 +48,10 @@ def rejectance_sampling(P: np.ndarray, x_0: np.ndarray, n_steps: int):
     list
         list of all the (accepted) samples
     """
-
-    M, K = P.shape
+    if P.ndim == 3:
+        N, M, K = P.shape
+    elif P.ndim == 2:
+        M, K = P.shape
     samples = [x_0]
     curr_x = x_0
     for i in range(n_steps):

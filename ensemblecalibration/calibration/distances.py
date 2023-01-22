@@ -58,7 +58,7 @@ def matrix_kernel(p: np.ndarray, q: np.ndarray, dist_fct, sigma: float = 2.0):
 
     Returns
     -------
-    _type_
+    np.ndarray
         _description_
     """
     p = p.squeeze()
