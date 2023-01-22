@@ -1,3 +1,5 @@
+import sys
+
 import random
 import numpy as np
 import pandas as pd
@@ -6,6 +8,7 @@ from scipy.stats import multinomial
 from scipy.optimize import linprog
 from tqdm import tqdm
 
+sys.path.append('../..')
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
 from ensemblecalibration.calibration.config import config_tests, settings
 
