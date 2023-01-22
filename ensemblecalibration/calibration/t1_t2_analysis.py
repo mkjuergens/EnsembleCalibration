@@ -63,7 +63,7 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     return results
 
 
-def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
+def _simulation_ha(tests, N: int, M: int, K: int, R: int):
     results = {}
     for test in tests:
         results[test] = []
