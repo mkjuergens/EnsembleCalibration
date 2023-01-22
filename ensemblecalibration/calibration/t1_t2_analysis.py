@@ -53,7 +53,6 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         P = np.stack(P)
         y = np.array(y)
         for test in tests:
-            print(f'Perform test {test}')
             results[test].append(tests[test]["test"](P, y, alpha, tests[test]["params"]))
     for test in tests:
         results[test] = np.array(results[test])
@@ -130,7 +129,9 @@ def main_t1_t2():
     tests = config_tests
     results = []
     for s in tqdm(settings_parser(settings)):
+        print(f'Setting: {s}')
         res_h0 = _simulation_h0(tests, *s)
+        print(f'Results H0: {res_h0}')
         res = []
         res.extend(s)
         res.append("M1")
