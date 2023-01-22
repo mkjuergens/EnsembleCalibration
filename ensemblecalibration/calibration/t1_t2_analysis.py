@@ -63,7 +63,7 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     return results
 
 
-def _simulation_ha(tests, N: int, M: int, K: int, R: int):
+def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
     results = {}
     for test in tests:
         results[test] = []
@@ -159,7 +159,7 @@ def main_t1_t2():
     results_df = pd.DataFrame(results)
     colnames = [s for s in settings]+["H"]+[t for t in tests]
     results_df.columns = colnames
-    results_df.to_csv("./final_results_experiments_t1t2_cobyla_big.csv", index=False)
+    results_df.to_csv("./final_results_experiments_t1t2_cobyla_big_mcmc.csv", index=False)
 
 
 if __name__ == "__main__":

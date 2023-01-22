@@ -1,2 +1,3 @@
 from ensemblecalibration.sampling.lambda_sampling import multinomial_label_sampling, uniform_weight_sampling
 from ensemblecalibration.sampling.mcmc_sampling import mhar_sampling_p
+from ensemblecalibration.sampling.rejectance_sampling import rejectance_sampling_p

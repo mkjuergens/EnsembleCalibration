@@ -8,39 +8,40 @@ config_tests= {
     "SKCEul":{
         "test": _npbe_test,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "rejectance", # other options: mcmc, rejectance,
             "optim": "cobyla",
             "n_resamples": 100,
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel
             "obj": skce_ul_obj,
             "test": skceul,
+            "transform": 'additive'
  }
     },
 
     "CONFECE":{
         "test": _npbe_test,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "rejectance", # other options: mcmc, rejectance,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 15,
             "obj": confece_obj,
             "test": confece,
-            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
             }
     },
     "CLASSECE":{
         "test": _npbe_test,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "rejectance", # other options: mcmc, rejectance,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 15,
             "obj": classece_obj,
             "test": classece,
-            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
     }
@@ -51,7 +52,7 @@ settings = {
     "M": [10],
     "K": [3],
     "R": [1000],
-    "u": [0.01, 0.1, 0.5],
+    "u": [0.01],
     "alpha": [0.05, 0.20, 0.50]
 }
 

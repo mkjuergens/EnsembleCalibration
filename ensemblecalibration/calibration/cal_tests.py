@@ -7,7 +7,7 @@ from pycalib.metrics import conf_ECE, classwise_ECE
 
 from ensemblecalibration.calibration.calibration_measures import skce_ul_arr, skce_uq_arr
 from ensemblecalibration.calibration.helpers import sample_l, sample_m, dec_bounds, constr, c1_constr, c2_constr
-from ensemblecalibration.sampling import mhar_sampling_p, multinomial_label_sampling, uniform_weight_sampling
+from ensemblecalibration.sampling import mhar_sampling_p, multinomial_label_sampling, uniform_weight_sampling, rejectance_sampling_p
 
 _MAX_RNORM = np.max(halfnorm.rvs(size=1000*10000).reshape(-1,10000),axis=0)
 
@@ -260,12 +260,13 @@ def npbe_test(P: np.ndarray, y: np.ndarray, params: dict):
         elif params["sampling"] == "mcmc":
             P_bar_b = mhar_sampling_p(P_b, transform=params["transform"])
         elif params["sampling"] == "rejectance":
-            raise NotImplementedError
+            P_bar_b = rejectance_sampling_p(P_b)
         else:
             raise NameError("check sampling method in configuration dictionary")
         # round to 5 decimal digits for numerical stability
-        P_bar_b = np.around(P_bar_b, 5)
+        #P_bar_b = np.trunc(P_bar_b*10**3)/(10**3)
         P_bar_b = np.clip(P_bar_b, 0, 1)
+        P_bar_b = P_bar_b[~np.isnan(P_bar_b).any(axis=1)]
         # sample the labels from teh categorical distribution defined by teh predictions
         y_b = np.apply_along_axis(multinomial_label_sampling, 1, P_bar_b)
         # apply test for the bootstrap samples

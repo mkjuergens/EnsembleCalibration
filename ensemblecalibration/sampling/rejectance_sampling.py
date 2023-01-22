@@ -2,6 +2,7 @@ import numpy as np
 from numpy.random import dirichlet
 
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
+from ensemblecalibration.sampling.mcmc_sampling import find_inner_point
 
 def rejectance_sample(P, x_0, v: np.ndarray):
     """yields the next sample in acceptance-rejectance sampling given a matrix P which 
@@ -31,7 +32,7 @@ def rejectance_sample(P, x_0, v: np.ndarray):
 
     return x_new
 
-def rejectance_sampling(P: np.ndarray, x_0: np.ndarray, n_steps: int):
+def rejectance_sampling(P: np.ndarray, n_samples: int):
     """_summary_
 
     Parameters
@@ -41,37 +42,55 @@ def rejectance_sampling(P: np.ndarray, x_0: np.ndarray, n_steps: int):
     x_0 : np.ndarray of shape (K,)
         initial statrting point for sampling
     n_steps : int
-        number of steps in the sampling
+        number of samples
 
     Returns
     -------
-    list
-        list of all the (accepted) samples
+    np.ndarray of shape (n_samples, K)
+         of all the (accepted) samples
     """
+    x_0 = find_inner_point(P)
     if P.ndim == 3:
         N, M, K = P.shape
     elif P.ndim == 2:
         M, K = P.shape
-    samples = [x_0]
+    samples = []
     curr_x = x_0
-    for i in range(n_steps):
+    count = 0
+    while count < n_samples:
 
         v = dirichlet([1]* K, size=None) # sample one weight vector uniformly from simplex as proposal point; needs to be of shape (M,)
         x_new = rejectance_sample(P, curr_x, v)
         if not np.array_equal(x_new, curr_x): # check if vectors are the same, if not, append it to the list
             samples.append(x_new)
             x_new = curr_x
+            count+=1
 
-    return samples
+    x_out = np.stack(samples)
+    return x_out
+
+def rejectance_sampling_p(P: np.ndarray):
+
+    P_hat = np.zeros((P.shape[0], P.shape[2])) 
+    for i in range(P.shape[0]):
+        # sample one sample from mhar algorithm
+        x_sample = rejectance_sampling(P[i], n_samples=1)
+        P_hat[i] = x_sample
+
+    return P_hat
+
 
 if __name__ == "__main__":
     # test for K = 3, M = 4
     predicts = [(0,0,1), (0, 1/2, 1/2), (1,0,0), (0, 1, 0)] # point predictions of three predictive models
     # as array
     predicts_array = np.stack([np.asarray(predicts[i]) for i in range(len(predicts))])
-    x_0 = np.array([1, 0, 0])
-    samples = rejectance_sampling(predicts_array, x_0, n_steps=10)
-    print(np.concatenate(samples, axis=1))
+    samples = rejectance_sampling(predicts_array, n_samples=10)
+    print(samples.shape)
+
+    P = np.random.dirichlet([1]*3, size=(1000, 10))
+    P_hat = rejectance_sampling_p(P)
+    print(np.sum(P_hat, axis=1))
 
 
 
