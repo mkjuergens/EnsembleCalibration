@@ -458,9 +458,9 @@ def npbetest(P, y, params):
         for factor in range(len(bnds)):
             lower, upper = bnds[factor]
             lo = {'type': 'ineq',
-                    'fun': lambda x, lb=lower, i=factor: x[i] - lb}
+                 'fun': lambda x, lb=lower, i=factor: x[i] - lb}
             up = {'type': 'ineq',
-                    'fun': lambda x, ub=upper, i=factor: ub - x[i]}
+                 'fun': lambda x, ub=upper, i=factor: ub - x[i]}
             cons.append(lo)
             cons.append(up)
         solution = minimize(params["obj"],l,(P, y, params),method='COBYLA',constraints=cons)
