@@ -264,7 +264,7 @@ def npbe_test(P: np.ndarray, y: np.ndarray, params: dict):
         else:
             raise NameError("check sampling method in configuration dictionary")
         # round to 5 decimal digits for numerical stability
-        #P_bar_b = np.trunc(P_bar_b*10**3)/(10**3)
+        P_bar_b = np.trunc(P_bar_b*10**3)/(10**3)
         P_bar_b = np.clip(P_bar_b, 0, 1)
         P_bar_b = P_bar_b[~np.isnan(P_bar_b).any(axis=1)]
         # sample the labels from teh categorical distribution defined by teh predictions

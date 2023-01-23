@@ -40,7 +40,7 @@ def rejectance_sampling(P: np.ndarray, n_samples: int):
     P : np.ndarray of shape (M, K)
         matrix containing the vectors who are spanning the polytope. Here, M is the number of (ensemble) predictors, K the number of classes.
     x_0 : np.ndarray of shape (K,)
-        initial statrting point for sampling
+        initial starting point for sampling
     n_steps : int
         number of samples
 

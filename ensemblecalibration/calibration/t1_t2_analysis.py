@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 sys.path.append('../..')
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.config import config_tests, settings
+from ensemblecalibration.calibration.config import config_tests, settings, config_2, settings_2, settings_3
 
 def get_ens_alpha(K, u, a0):
     p0 = np.random.dirichlet(a0,1)[0,:]
@@ -79,10 +79,7 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
             else:
                 Pm = np.random.dirichlet(a, M)
             # pick class and sample ground-truth outside credal set 
-            if not random:
-                c = np.argmax(mu)
-            else:
-                c = np.random.randint(0,K,1)[0]
+            c = np.argmax(mu)
             yc = np.eye(K)[c,:]
             # get boundary
             if M==1:
@@ -90,8 +87,7 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
             else:
                 yb = getBoundary(Pm, mu, yc)
             # get random convex combination
-            if l is None:
-                l = np.random.rand(1)[0]
+            l = np.random.rand(1)[0]
             l = l*yc+(1-l)*yb
             # sample instance
             try: 
@@ -128,8 +124,8 @@ def settings_parser(settings):
 
     return ret_list
 
-def main_t1_t2():
-    tests = config_tests
+def main_t1_t2(test_h1: bool = True, settings=settings):
+    tests = config_2
     results = []
     for s in tqdm(settings_parser(settings)):
         print(f'Setting: {s}')
@@ -141,29 +137,32 @@ def main_t1_t2():
         for r in res_h0:
             res.append(list(res_h0[r]))
         results.append(res)
-        res_h11 = _simulation_ha(tests, *s)
-        res = []
-        res.extend(s)
-        res.append("M2")
-        for r in res_h0:
-            res.append(list(res_h11[r]))
-        results.append(res)
-        res_h12 = _simulation_ha(tests, *s, None, True)
-        res = []
-        res.extend(s)
-        res.append("M3")
-        for r in res_h0:
-            res.append(list(res_h12[r]))
-        results.append(res)
+
+        # tests for when h1 hypothesis is true
+        if test_h1:
+            res_h11 = _simulation_ha(tests, *s)
+            res = []
+            res.extend(s)
+            res.append("M2")
+            for r in res_h0:
+                res.append(list(res_h11[r]))
+            results.append(res)
+            res_h12 = _simulation_ha(tests, *s)
+            res = []
+            res.extend(s)
+            res.append("M3")
+            for r in res_h0:
+                res.append(list(res_h12[r]))
+            results.append(res)
 
     results_df = pd.DataFrame(results)
     colnames = [s for s in settings]+["H"]+[t for t in tests]
     results_df.columns = colnames
-    results_df.to_csv("./final_results_experiments_t1t2_cobyla_big_mcmc.csv", index=False)
+    results_df.to_csv("./final_results_experiments_t1t2_lambda_h0_r=1000_new.csv", index=False)
 
 
 if __name__ == "__main__":
-    main_t1_t2()
+    main_t1_t2(test_h1=False)
 
 
             
