@@ -69,7 +69,7 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     results = {}
     for test in tests:
         results[test] = np.zeros(len(alpha))
-    for _ in tqdm(range(R):
+    for _ in tqdm(range(R)):
         P, y = [], []
         for _ in range(N):
             a = get_ens_alpha(K, u, [1/K]*K)
