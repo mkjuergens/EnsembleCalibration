@@ -296,9 +296,71 @@ def npbe_test(P: np.ndarray, y: np.ndarray, params: dict):
 
     return decision, l
 
+def npbetest_alpha(P, y, params):
+    """
+    updated, faster version of the npbe test:  calculate sampling distribution on,ly ocne, tehn use it for every alpha
+    """
+    stats = np.zeros(params["n_resamples"])
+    for b in range(params["n_resamples"]):
+        # extract bootstrap sample
+        P_b = random.sample(P.tolist(), P.shape[0])
+        P_b = np.stack(P_b)
+        # take convex combination of ensemble predictions
+        P_bar_b = sample_l(P_b, params)
+        # randomly sample labels from P_bar
+        y_b = np.apply_along_axis(sample_m, 1, P_bar_b)
+        # perform test
+        stats[b] = params["test"](P_bar_b, y_b, params)
+    # calculate 1-alpha quantile from sampling distribution
+    q_alpha = np.quantile(stats,1-(np.array(params["alpha"])))
+    if params["optim"] == "neldermead":
+        l = np.array([1/P.shape[1]]*P.shape[1])
+        bnds = tuple([tuple([0,1]) for _ in range(P.shape[1])])
+        cons = ({'type': 'eq', 'fun': constr})
+        solution = minimize(params["obj"],l,(P, y, params),method='Nelder-Mead',bounds=bnds,constraints=cons)
+        l = np.array(solution.x)
+    elif params["optim"] == "cobyla":
+        l = np.array([1/P.shape[1]]*P.shape[1])
+        bnds = tuple([tuple([0,1]) for _ in range(P.shape[1])])
+        cons = [{'type': 'ineq', 'fun': c1_constr}, {'type': 'ineq', 'fun': c2_constr}]
+        # bounds must be included as constraints for COBYLA
+        for factor in range(len(bnds)):
+            lower, upper = bnds[factor]
+            lo = {'type': 'ineq',
+                 'fun': lambda x, lb=lower, i=factor: x[i] - lb}
+            up = {'type': 'ineq',
+                 'fun': lambda x, ub=upper, i=factor: ub - x[i]}
+            cons.append(lo)
+            cons.append(up)
+        solution = minimize(params["obj"],l,(P, y, params),method='COBYLA',constraints=cons)
+        l = np.array(solution.x)   
+    else:
+        if "l_prior" not in params:
+            L = np.random.dirichlet([1/P.shape[1]]*P.shape[1], params["n_resamples"])
+        else:
+            L = np.random.dirichlet([params["l_prior"]]*P.shape[1], params["n_resamples"])
+        min_l = np.array([1/P.shape[1]]*P.shape[1])
+        min_l_stat = sys.maxsize
+        for li in L:
+            li_ev = params["obj"](li, P, y, params)
+            if li_ev <= min_l_stat:
+                min_l = li
+                min_l_stat = li_ev
+        l = min_l
+    minstat = params["obj"](l, P, y, params)
+    decision = list(map(int,np.abs(minstat)>q_alpha))
+
+    return decision, l
+
 def _npbe_test(P, y, alpha, params):
     params["alpha"] = alpha
     dec, l = npbe_test(P, y, params)
+
+    return dec
+
+def _npbetest_alpha(P, y, alpha, params):
+    params["alpha"] = alpha
+    dec, l = npbetest_alpha(P, y, params)
 
     return dec
 
