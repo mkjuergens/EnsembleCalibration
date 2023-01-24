@@ -52,7 +52,7 @@ config_tests= {
  }
     },
 
-    "CONFECE":{
+    "CONFECE15":{
         "test": _npbe_test,
         "params": {
             "sampling": "lambda", # other options: mcmc, rejectance,
@@ -65,7 +65,7 @@ config_tests= {
                                 # only to be used for mcmc sampling
             }
     },
-    "CLASSECE":{
+    "CLASSECE15":{
         "test": _npbe_test,
         "params": {
             "sampling": "lambda", # other options: mcmc, rejectance,
