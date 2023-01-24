@@ -496,7 +496,7 @@ def npbetest_alpha(P, y, params):
         # perform test
         stats[b] = params["test"](P_bar_b, y_b, params)
     # calculate 1-alpha quantile from sampling distribution
-    q_alpha = np.quantile(stats,1-(params["alpha"]))
+    q_alpha = np.quantile(stats,1-(np.array(params["alpha"])))
     if params["optim"] == "neldermead":
         l = np.array([1/P.shape[1]]*P.shape[1])
         bnds = tuple([tuple([0,1]) for _ in range(P.shape[1])])
