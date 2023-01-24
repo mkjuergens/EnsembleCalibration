@@ -10,7 +10,7 @@ from scipy.optimize import linprog
 
 sys.path.append('../..')
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.config import config_tests, settings, config_2, settings_2, settings_3
+from ensemblecalibration.calibration.config import config_tests
 
 def get_ens_alpha(K, u, a0):
     p0 = np.random.dirichlet(a0,1)[0,:]
@@ -106,8 +106,8 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         
     return results
 
-def main_t1_t2(args, config=config_2, test_h1: bool = True):
-    tests = config
+def main_t1_t2(args, config=config_tests, test_h1: bool = True):
+    tests = config_tests
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.79, 0.87, 0.95]
     N = args.N
@@ -138,10 +138,12 @@ def main_t1_t2(args, config=config_2, test_h1: bool = True):
             res.append(list(res_h12[r]))
         results.append(res)
 
+    sampling = list(tests.keys())["params"]["sampling"]
+
     results_df = pd.DataFrame(results)
     colnames = [t for t in tests]
     results_df.columns = colnames
-    results_df.to_csv("./final_results_experiments_t1t2_alpha_{}_{}_{}_{}.csv".format(N,M,K,u), index=False)
+    results_df.to_csv("./final_results_experiments_t1t2_alpha_{}_{}_{}_{}_{}.csv".format(N,M,K,u, sampling), index=False)
 
 
 if __name__ == "__main__":
@@ -149,7 +151,7 @@ if __name__ == "__main__":
     # data args
     parser.add_argument("-N", dest="N", type=int, default=100)
     parser.add_argument("-M", dest="M", type=int, default=10)
-    parser.add_argument("-K", dest="K", type=int, default=10)
+    parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     args = parser.parse_args()
     main_t1_t2(args, test_h1=False)

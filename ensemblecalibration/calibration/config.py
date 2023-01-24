@@ -1,47 +1,16 @@
 from ensemblecalibration.calibration.distances import tv_distance, l2_distance
 from ensemblecalibration.calibration.cal_tests import skceul, skceuq, confece, classece
 from ensemblecalibration.calibration.cal_tests import skce_ul_obj, skce_uq_obj, confece_obj, classece_obj
-from ensemblecalibration.calibration.cal_tests import _npbe_test
-
-config_2 = {
-    "CONFECE15":{
-        "test": _npbe_test,
-        "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
-            "optim": "cobyla",
-            "n_resamples": 100,
-            "n_bins": 15,
-            "obj": confece_obj,
-            "test": confece,
-            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
-                                # only to be used for mcmc sampling
-            }
-    },
-    "CLASSECE15":{
-        "test": _npbe_test,
-        "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
-            "optim": "cobyla",
-            "n_resamples": 100,
-            "n_bins": 15,
-            "obj": classece_obj,
-            "test": classece,
-            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
-                                # only to be used for mcmc sampling
-        }
-    }
-    } 
-
-
+from ensemblecalibration.calibration.cal_tests import _npbe_test, _npbetest_alpha
 
 
 config_tests= {
 
 
     "SKCEul":{
-        "test": _npbe_test,
+        "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", #  options: lambda, mcmc, rejectance,
+            "sampling": "mcmc", #  options: lambda, mcmc, rejectance,
             "optim": "cobyla",
             "n_resamples": 100,
             "dist": tv_distance,
@@ -53,9 +22,9 @@ config_tests= {
     },
 
     "CONFECE15":{
-        "test": _npbe_test,
+        "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "mcmc", # other options: mcmc, rejectance,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 15,
@@ -66,9 +35,9 @@ config_tests= {
             }
     },
     "CLASSECE15":{
-        "test": _npbe_test,
+        "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "mcmc", # other options: mcmc, rejectance,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 15,
@@ -108,4 +77,4 @@ settings_3 = {
 }
 
 if __name__ == "__main__":
-    test = 'CONFECE'
+    print(list(config_tests.keys())[0])

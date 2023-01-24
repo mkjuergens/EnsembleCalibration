@@ -305,8 +305,20 @@ def npbetest_alpha(P, y, params):
         # extract bootstrap sample
         P_b = random.sample(P.tolist(), P.shape[0])
         P_b = np.stack(P_b)
-        # take convex combination of ensemble predictions
-        P_bar_b = sample_l(P_b, params)
+        # sample predictions using a predefined sampling method
+        if params["sampling"] == "lambda":
+            # sample convex combinations of ensemle predictions
+            P_bar_b = uniform_weight_sampling(P_b) # of shape (N, M)
+        elif params["sampling"] == "mcmc":
+            P_bar_b = mhar_sampling_p(P_b, transform=params["transform"])
+        elif params["sampling"] == "rejectance":
+            P_bar_b = rejectance_sampling_p(P_b)
+        else:
+            raise NameError("check sampling method in configuration dictionary")
+        # round to 5 decimal digits for numerical stability
+        P_bar_b = np.trunc(P_bar_b*10**3)/(10**3)
+        P_bar_b = np.clip(P_bar_b, 0, 1)
+        # P_bar_b = P_bar_b[~np.isnan(P_bar_b).any(axis=1)]
         # randomly sample labels from P_bar
         y_b = np.apply_along_axis(sample_m, 1, P_bar_b)
         # perform test
