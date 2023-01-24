@@ -75,7 +75,7 @@ def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
     # use a convex combination to find an inner point of the polytope as a starting point
     x_0 = find_inner_point(p)
     # transform x_0 to (K-1) dimensions using the predefined transformation
-    x_0_trans = torch.from_numpy(transform_points(x_0)).view(-1, 1).type(torch.FloatTensor)
+    x_0_trans = torch.from_numpy(transform_points(x_0, transform=transform)).view(-1, 1).type(torch.FloatTensor)
 
     x_sample = walk(z=n_samples, ai=A, bi=b, ae=torch.empty(0), be=torch.empty(0), x_0= x_0_trans,
     T=1, device=device, warm=0, seed=None, thinning=None, check=False) # note that x_sample is still in (K-1) dimensions
@@ -122,7 +122,6 @@ def mhar_sampling_p(P: np.ndarray, transform: str = 'sqrt'):
         array of sampled predictions for each sample n in 1, ..., N
         
     """
-
     P_hat = np.zeros((P.shape[0], P.shape[2])) 
     for i in range(P.shape[0]):
         # sample one sample from mhar algorithm
