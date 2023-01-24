@@ -139,7 +139,7 @@ def main_t1_t2(args, config=config_tests, test_h1: bool = True):
             res.append(list(res_h12[r]))
         results.append(res)
 
-    sampling = list(tests.keys())["params"]["sampling"]
+    sampling = tests[list(tests.keys())[0]]["params"]["sampling"]
 
     results_df = pd.DataFrame(results)
     colnames = [t for t in tests]
