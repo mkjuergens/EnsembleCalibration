@@ -4,6 +4,7 @@ import argparse
 import random
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from scipy.stats import multinomial
 from scipy.optimize import linprog
@@ -36,7 +37,7 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     results = {}
     for test in tests:
         results[test] = np.zeros(len(alpha))
-    for _ in range(R):
+    for _ in tqdm(range(R)):
         l = np.random.dirichlet([1/M]*M,1)[0,:]
         L = np.repeat(l.reshape(-1,1),K,axis=1)
         P, y = [], []
@@ -68,7 +69,7 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     results = {}
     for test in tests:
         results[test] = np.zeros(len(alpha))
-    for _ in range(R):
+    for _ in tqdm(range(R):
         P, y = [], []
         for _ in range(N):
             a = get_ens_alpha(K, u, [1/K]*K)

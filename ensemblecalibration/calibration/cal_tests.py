@@ -85,14 +85,14 @@ def classece_obj(x, P, y, params):
 CALIBRATION TESTS
 """
 
-def hltest(P, y, n_bins: int):
+def hltest(P, y, params):
     """ Hosmer & Lemeshow test for strong classifier calibration
 
     Arguments
     ---------
         P : ndarray of shape (n_samples, n_classes) containing probs
         y : ndarray of shape (n_samples,) containing labels in {0,...,K-1}
-        n_bins: integer defining number of bins used
+        params: parameters of the test
         
     Return
     ------
@@ -104,7 +104,7 @@ def hltest(P, y, n_bins: int):
     # get idx for complement of reference probs in increasing order of prob
     idx = np.argsort(1-P[:,0])[::-1]
     # split idx array in nbins bins of roughly equal size
-    idx_splitted = np.array_split(idx, n_bins)
+    idx_splitted = np.array_split(idx, params["nbins"])
     # run over different cells and calculate stat
     stat = 0
     for k in range(P.shape[1]):
@@ -114,9 +114,27 @@ def hltest(P, y, n_bins: int):
             dev_bk = ((o_bk-p_bk)**2)/p_bk
             stat += dev_bk
     # and finally calculate righttail P-value
-    pval = 1-chi2.cdf(stat,df=(n_bins-2)*(P.shape[1]-1))
+    pval = 1-chi2.cdf(stat,df=(params["nbins"]-2)*(P.shape[1]-1))
     
     return stat, pval
+
+def hl(P, y, params):
+    # calculate test statistic
+    stat = 0
+    # get idx for complement of reference probs in increasing order of prob
+    idx = np.argsort(1-P[:,0])[::-1]
+    # split idx array in nbins bins of roughly equal size
+    idx_splitted = np.array_split(idx, params["nbins"])
+    # run over different cells and calculate stat
+    stat = 0
+    for k in range(P.shape[1]):
+        for bin_bk in idx_splitted:
+            o_bk = np.sum((y==k)[bin_bk])
+            p_bk = np.sum(P[bin_bk,k])
+            dev_bk = ((o_bk-p_bk)**2)/p_bk
+            stat += dev_bk
+
+    return stat
     
 def skceultest(P, y, params):
     """ SKCE_ul test statistic for strong classifier calibration.

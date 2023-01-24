@@ -1,16 +1,39 @@
-from ensemblecalibration.calibration.distances import tv_distance, l2_distance
-from ensemblecalibration.calibration.cal_tests import skceul, skceuq, confece, classece
-from ensemblecalibration.calibration.cal_tests import skce_ul_obj, skce_uq_obj, confece_obj, classece_obj
-from ensemblecalibration.calibration.cal_tests import _npbe_test, _npbetest_alpha
+from ensemblecalibration.calibration.distances import tv_distance
+from ensemblecalibration.calibration.cal_tests import skceul, confece, classece, hl
+from ensemblecalibration.calibration.cal_tests import skce_ul_obj, confece_obj, classece_obj, hl_obj
+from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
 
 
 config_tests= {
 
+    "HL5": {
+            "test": _npbetest_alpha,
+            "params": {
+                "sampling": "lambda",
+                "l_prior": 1,
+                "optim": "cobyla", 
+                "n_resamples": 100, 
+                "nbins": 5,
+                "test": hl, 
+                "obj": hl_obj},
+        },
+    "HL10": {
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "lambda",
+            "l_prior": 1,
+            "optim": "cobyla", 
+            "n_resamples": 100, 
+            "nbins": 10,
+            "test": hl, 
+            "obj": hl_obj},
 
+        }, 
     "SKCEul":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", #  options: lambda, mcmc, rejectance,
+            "sampling": "lambda", #  options: lambda, mcmc, rejectance,
+            "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "dist": tv_distance,
@@ -21,31 +44,62 @@ config_tests= {
  }
     },
 
-    "CONFECE15":{
+    "CONFECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
+            "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_bins": 15,
+            "n_bins": 5,
             "obj": confece_obj,
             "test": confece,
             "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
             }
     },
-    "CLASSECE15":{
+    "CLASSECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
+            "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_bins": 15,
+            "n_bins": 5,
             "obj": classece_obj,
             "test": classece,
             "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
+    },
+
+    "CLASSECE10":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "lambda", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "obj": classece_obj,
+            "test": classece,
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+        }
+    },
+    "CONFECE10":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "lambda", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "obj": confece_obj,
+            "test": confece,
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+            }
     }
     } 
 
