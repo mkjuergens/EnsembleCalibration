@@ -9,30 +9,36 @@ config_tests= {
     "HL5": {
             "test": _npbetest_alpha,
             "params": {
-                "sampling": "lambda",
+                "sampling": "mcmc",
                 "l_prior": 1,
                 "optim": "cobyla", 
                 "n_resamples": 100, 
                 "nbins": 5,
                 "test": hl, 
-                "obj": hl_obj},
+                "obj": hl_obj,
+                "transform": "additive"
+                
+                },
         },
     "HL10": {
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda",
+            "sampling": "mcmc",
             "l_prior": 1,
             "optim": "cobyla", 
             "n_resamples": 100, 
             "nbins": 10,
             "test": hl, 
-            "obj": hl_obj},
+            "obj": hl_obj,
+            "transform": "additive"
+            
+    },
 
         }, 
     "SKCEul":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", #  options: lambda, mcmc, rejectance,
+            "sampling": "mcmc", #  options: mcmc, mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -47,7 +53,7 @@ config_tests= {
     "CONFECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "mcmc", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -61,7 +67,7 @@ config_tests= {
     "CLASSECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "mcmc", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -76,7 +82,7 @@ config_tests= {
     "CLASSECE10":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "mcmc", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -90,7 +96,7 @@ config_tests= {
     "CONFECE10":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
+            "sampling": "mcmc", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -131,4 +137,4 @@ settings_3 = {
 }
 
 if __name__ == "__main__":
-    print(list(config_tests.keys())[0])
+    print(list(config_tests.keys())[0])["params"]["sampling"]
