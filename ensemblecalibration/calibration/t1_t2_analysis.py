@@ -1,7 +1,8 @@
 import sys
-
+import time
 import argparse
 import random
+
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -11,7 +12,7 @@ from scipy.optimize import linprog
 
 sys.path.append('../..')
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.config import config_tests
+from ensemblecalibration.calibration.config import config_tests, config_tests_reduced
 
 def get_ens_alpha(K, u, a0):
     p0 = np.random.dirichlet(a0,1)[0,:]
@@ -37,11 +38,12 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     results = {}
     for test in tests:
         results[test] = np.zeros(len(alpha))
-    for _ in tqdm(range(R)):
+    times_tests = np.zeros((R, N, len(tests)))
+    for r in tqdm(range(R)):
         l = np.random.dirichlet([1/M]*M,1)[0,:]
         L = np.repeat(l.reshape(-1,1),K,axis=1)
         P, y = [], []
-        for _ in range(N):
+        for n in range(N):
             a = get_ens_alpha(K, u, [1/K]*K)
             while np.any(a<=0):
                 a = get_ens_alpha(K, u, [1/K]*K)
@@ -56,8 +58,17 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
             y.append(yl)
         P = np.stack(P)
         y = np.array(y)
-        for test in tests:
+        for count, test in enumerate(tests):
+            time_test = time.time()
             results[test] += np.array(tests[test]["test"](P, y, alpha, tests[test]["params"]))
+            time_test_1 = time.time()
+            total_time = time_test_1 - time_test
+            times_tests[r, n, count] = total_time
+    
+    avg_times = times_tests.mean(axis=(0,1))
+    for i, test in enumerate(tests):
+        print(f'Average time for testing {test}: {avg_times[i]}')
+
     for test in tests:
         # calculate mean
         results[test] = results[test]/R 
@@ -101,6 +112,7 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         P = np.stack(P)
         y = np.array(y)
         for test in tests:
+            time = time.time()
             results[test] += (1-np.array(tests[test]["test"](P, y, alpha, tests[test]["params"])))
     for test in tests:
         results[test] = results[test]/R
@@ -108,9 +120,9 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     return results
 
 def main_t1_t2(args, config=config_tests, test_h1: bool = True):
-    tests = config_tests
+    tests = config
     results = []
-    alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.79, 0.87, 0.95]
+    alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
     N = args.N
     M = args.M
     K = args.K
@@ -155,7 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     args = parser.parse_args()
-    main_t1_t2(args, test_h1=False)
+    main_t1_t2(args, config=config_tests_reduced, test_h1=False)
 
 
             

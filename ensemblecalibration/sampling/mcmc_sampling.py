@@ -1,3 +1,5 @@
+import sys, os
+
 import numpy as np
 import torch
 
@@ -10,6 +12,14 @@ from ensemblecalibration.transformations.projections_2d import project_points2D,
 from ensemblecalibration.sampling.lambda_sampling import multinomial_label_sampling
 
 # goal is to sample predictions P_bar using a matrix P of shape (N, M, K )
+
+# first we define blocks for disabling/enabling printing for convenience
+
+def block_print():
+    sys.stdout = open(os.devnull, 'w')
+
+def enable_print():
+    sys.stdout = sys.__stdout__
 
 def get_polytope_equations(points: np.ndarray, transform: str= 'sqrt'):
     """function exrtacting the hyperplane inequality constraints 
@@ -77,9 +87,11 @@ def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
     # transform x_0 to (K-1) dimensions using the predefined transformation
     x_0_trans = torch.from_numpy(transform_points(x_0, transform=transform)).view(-1, 1).type(torch.FloatTensor)
 
+    block_print()
     x_sample = walk(z=n_samples, ai=A, bi=b, ae=torch.empty(0), be=torch.empty(0), x_0= x_0_trans,
     T=1, device=device, warm=0, seed=None, thinning=None, check=False) # note that x_sample is still in (K-1) dimensions
     # to numpy
+    enable_print()
     x_sample = x_sample.cpu().numpy()
     # transform it back to K dimensions
     x_out = inv_transform_points(x_sample, transform=transform)

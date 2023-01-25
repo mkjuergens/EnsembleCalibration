@@ -109,6 +109,67 @@ config_tests= {
     }
     } 
 
+config_tests_reduced = {
+
+    "CONFECE5":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "obj": confece_obj,
+            "test": confece,
+            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+            }
+    },
+    "CLASSECE5":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "obj": classece_obj,
+            "test": classece,
+            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+        }
+    },
+
+    "CLASSECE10":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "obj": classece_obj,
+            "test": classece,
+            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+        }
+    },
+    "CONFECE10":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "obj": confece_obj,
+            "test": confece,
+            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+            }
+    }
+    } 
+
 settings = {
     "N": [100],
     "M": [10],
@@ -137,4 +198,5 @@ settings_3 = {
 }
 
 if __name__ == "__main__":
-    print(list(config_tests.keys())[0])["params"]["sampling"]
+    print(config_tests[list(config_tests.keys())[0]]["params"]["sampling"])
+    print(len(config_tests))
