@@ -121,7 +121,7 @@ config_tests_reduced = {
             "n_bins": 5,
             "obj": confece_obj,
             "test": confece,
-            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
             }
     },
@@ -135,7 +135,7 @@ config_tests_reduced = {
             "n_bins": 5,
             "obj": classece_obj,
             "test": classece,
-            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
     },
@@ -150,7 +150,7 @@ config_tests_reduced = {
             "n_bins": 10,
             "obj": classece_obj,
             "test": classece,
-            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
     },
@@ -164,7 +164,7 @@ config_tests_reduced = {
             "n_bins": 10,
             "obj": confece_obj,
             "test": confece,
-            "transform": 'sqrt' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
             }
     }
