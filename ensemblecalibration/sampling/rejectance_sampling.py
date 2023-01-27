@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from numpy.random import dirichlet
 
@@ -70,6 +72,18 @@ def rejectance_sampling(P: np.ndarray, n_samples: int):
     return x_out
 
 def rejectance_sampling_p(P: np.ndarray):
+    """perform rejecatnce sampling for a tensor of shape (N, M, K). The output is
+
+    Parameters
+    ----------
+    P : np.ndarray of shape (N, M, K)
+        array containing M point rpedictions of length K for each sample x
+
+    Returns
+    -------
+    np.ndarray
+        array of samples
+    """
 
     P_hat = np.zeros((P.shape[0], P.shape[2])) 
     for i in range(P.shape[0]):
@@ -88,9 +102,13 @@ if __name__ == "__main__":
     samples = rejectance_sampling(predicts_array, n_samples=10)
     print(samples.shape)
 
+    t_0 = time.time()
     P = np.random.dirichlet([1]*3, size=(1000, 10))
     P_hat = rejectance_sampling_p(P)
+    t_1 = time.time()
     print(np.sum(P_hat, axis=1))
+    print(f'Time for one sampling: {t_1-t_0}')
+
 
 
 

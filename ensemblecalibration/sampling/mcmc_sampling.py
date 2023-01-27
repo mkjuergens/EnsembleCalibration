@@ -16,9 +16,15 @@ from ensemblecalibration.sampling.lambda_sampling import multinomial_label_sampl
 # first we define blocks for disabling/enabling printing for convenience
 
 def block_print():
+    """
+    function for blocking print statements returned by any function.
+    """
     sys.stdout = open(os.devnull, 'w')
 
 def enable_print():
+    """
+    fucnntion for (re)enabling print statements of functions.
+    """
     sys.stdout = sys.__stdout__
 
 def get_polytope_equations(points: np.ndarray, transform: str= 'sqrt'):
@@ -117,6 +123,28 @@ def find_inner_point(P: np.ndarray):
     new_p = l_weight @ P
 
     return new_p
+
+def find_random_inner_point(P: np.ndarray):
+    """function for (randomly) sampling an inner points of the polytope given by a number of points.
+
+    Parameters
+    ----------
+    P : np.ndarray of shape(n_predictors, n_classes)
+        containing point predcitions which span the polytope
+
+    Returns
+    -------
+    np.ndaray of shape (n_classes,)
+        _description_
+    """
+
+    M, K = P.shape
+    # sample weights from dirichlet distribution
+    weights = dirichlet([1]*M, size=1).squeeze()
+    new_p = weights @ P
+
+    return new_p
+
 
 def mhar_sampling_p(P: np.ndarray, transform: str = 'sqrt'):
     """Given an array of shape (N, M, K), this function samples for every n in 1, ..., N
