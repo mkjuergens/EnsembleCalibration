@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 from numpy import random
@@ -69,13 +71,14 @@ def sample_l(P):
 
 
 if __name__ == "__main__":
-    P = np.random.dirichlet([1]*3, size=(100, 5))
+    P = np.random.dirichlet([1]*3, size=(1000, 10))
     print(P.shape)
+    t_0 = time.time()
     p_2 = uniform_weight_sampling(P)
+    t_1 = time.time()
+    print(f'Time for sampling 1000 times: {t_1-t_0}')
     print(p_2.shape)
     y = np.apply_along_axis(multinomial_label_sampling, 1, p_2)
-    print(y)
-
     P_bar_b = sample_l(P)
     print(P_bar_b.shape)
     y_b = np.apply_along_axis(sample_m, 1, P_bar_b)

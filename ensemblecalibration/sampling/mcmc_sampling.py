@@ -1,4 +1,5 @@
 import sys, os
+import time
 
 import numpy as np
 import torch
@@ -64,7 +65,7 @@ def get_polytope_equations(points: np.ndarray, transform: str= 'sqrt'):
 
 
 def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
-                    device: str= 'cpu'):
+                    device: str= 'cpu', random_start_point: bool = True):
     """samples uniformly from a polytope by using the Matrix Hit and Run Algoirithm defined in 
     Vazquez et al, 2021.   
 
@@ -74,12 +75,14 @@ def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
         matrix containing predeictions/ arrays whose convex hull 
         defines the respective polytope
     transform : str, optional
-        trasnform to be used to map the points on the (K-1) dimensional subspace
+        transform to be used to map the points on the (K-1) dimensional subspace
         needs to be in [sqrt, isometric, additive], by default 'sqrt'
     n_samples : int, optional
         number of samples to be drawn from the MCMC, by default 100
     device : str, optional
         needs to be in [cpu, cuda], by default 'cpu'
+    random_start_point: boolean, optional
+        whether to sample the start point by using a random convex combination
 
     Returns
     -------
@@ -89,14 +92,19 @@ def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
     # get polytope equations
     A, b = get_polytope_equations(p, transform=transform)
     # use a convex combination to find an inner point of the polytope as a starting point
-    x_0 = find_inner_point(p)
+    if random_start_point:
+        x_0 = find_random_inner_point(p) # UPDATE: use random inner point insteas of fixed inner point
+    else:
+        x_0 = find_inner_point(p)
     # transform x_0 to (K-1) dimensions using the predefined transformation
     x_0_trans = torch.from_numpy(transform_points(x_0, transform=transform)).view(-1, 1).type(torch.FloatTensor)
 
+    # block the print statements of the algorithm
     block_print()
     x_sample = walk(z=n_samples, ai=A, bi=b, ae=torch.empty(0), be=torch.empty(0), x_0= x_0_trans,
-    T=1, device=device, warm=0, seed=None, thinning=None, check=False) # note that x_sample is still in (K-1) dimensions
-    # to numpy
+                T=1, device=device, warm=0, seed=None, thinning=None, check=False) # note that x_sample is still in (K-1) dimensions
+
+    # enable printing again
     enable_print()
     x_sample = x_sample.cpu().numpy()
     # transform it back to K dimensions
@@ -173,7 +181,6 @@ def mhar_sampling_p(P: np.ndarray, transform: str = 'sqrt'):
 if __name__ == "__main__":
     P = np.random.dirichlet([1]*3, size=10)
     x_out = mhar_sampling(P, transform='sqrt')
-
     # now for real P
     P = np.random.dirichlet([1]*3, size=(1000, 10))
     print(P.shape)
@@ -182,8 +189,10 @@ if __name__ == "__main__":
         x_sample = mhar_sampling(P[i], transform='sqrt', n_samples=1)
         P_hat[i] = x_sample
     print(P_hat.shape)
+    t_0 = time.time()
     P_hat = mhar_sampling_p(P)
-    print(np.sum(P_hat, axis=1))
+    t_1 = time.time()
+    print(f'Time for sampling 1000 times: {t_1-t_0}')
     
 
 

@@ -106,8 +106,7 @@ if __name__ == "__main__":
     P = np.random.dirichlet([1]*3, size=(1000, 10))
     P_hat = rejectance_sampling_p(P)
     t_1 = time.time()
-    print(np.sum(P_hat, axis=1))
-    print(f'Time for one sampling: {t_1-t_0}')
+    print(f'Time for one sampling 1000 times: {t_1-t_0}')
 
 
 
