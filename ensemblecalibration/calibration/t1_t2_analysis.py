@@ -34,6 +34,30 @@ def getBoundary(P, mu, yc):
     return yb
 
 def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
+    """Simulation of the test if the Null Hypothesis is true.
+
+    Parameters
+    ----------
+    tests : dictionary
+        dictionary with tests and parameters
+    N : int
+        nuber of featuers
+    M : int
+        number of point predictors
+    K : int
+        number of different classes to predcit the probability for
+    R : int
+        number of resamplings/different datasets
+    u : float
+        parameter which controls the uncertainty/spread in the datasets
+    alpha : float
+        confidence level of the test
+
+    Returns
+    -------
+    dictionary
+        dictionary containing results
+    """
 
     results = {}
     for test in tests:
@@ -66,8 +90,10 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
             times_tests[r, n, count] = total_time
     
     avg_times = times_tests.mean(axis=(0,1))
+    total_times = times_tests.sum(axis=(0, 1))
     for i, test in enumerate(tests):
-        print(f'Average time for testing {test}: {avg_times[i]}')
+        print(f'Average time for testing {test} in the H0 setting: {avg_times[i]}')
+        print(f'Total time for testing: {test} in the H0 setting: {total_times[i]}')
 
     for test in tests:
         # calculate mean
@@ -76,13 +102,42 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     return results
 
 
-def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
+def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float, 
+                    random: bool = False):
+    """Simulation of the test in a setting where the alternative hypothesis is true.
+
+    Parameters
+    ----------
+    tests : dictionary
+        _description_
+    N : int
+        number of samples for each dataset
+    M : int
+        number of point predictors
+    K : int
+        number of (different) classes
+    R : int
+        number of resamplings/different datasets
+    u : float
+        parameter which controls the uncertainty/ spread in the sampled datasets
+    alpha : float
+        confidence level of the tests
+    random: bool
+        whether to randomly chose the corner the outside distribution is sampled from
+
+    Returns
+    -------
+    dictionary
+        results of the test
+    """
     results = {}
     for test in tests:
         results[test] = np.zeros(len(alpha))
-    for _ in tqdm(range(R)):
+    
+    times_tests = np.zeros((R, N, len(tests))) # array for saving computation times
+    for r in tqdm(range(R)):
         P, y = [], []
-        for _ in range(N):
+        for n in range(N):
             a = get_ens_alpha(K, u, [1/K]*K)
             while np.any(a<=0):
                 a = get_ens_alpha(K, u, [1/K]*K)
@@ -92,7 +147,10 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
             else:
                 Pm = np.random.dirichlet(a, M)
             # pick class and sample ground-truth outside credal set 
-            c = np.argmax(mu)
+            if not random:
+                c = np.argmax(mu)
+            else:
+                c = np.random.randint(0, K, 1)[0]
             yc = np.eye(K)[c,:]
             # get boundary
             if M==1:
@@ -111,9 +169,20 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
             y.append(yl)
         P = np.stack(P)
         y = np.array(y)
-        for test in tests:
-            time = time.time()
+        for count, test in enumerate(tests):
+            time_test = time.time()
             results[test] += (1-np.array(tests[test]["test"](P, y, alpha, tests[test]["params"])))
+            time_test_1 = time.time()
+            total_time = time_test_1 - time_test
+            times_tests[r, n, count] = total_time
+
+    avg_times = times_tests.mean(axis=(0,1))
+    total_times = times_tests.sum(axis=(0, 1))
+    for i, test in enumerate(tests):
+        print(f'Average time for testing {test} in the H1 setting: {avg_times[i]}')
+        print(f'Total time for testing: {test} in the H1 setting: {total_times[i]}')
+
+    
     for test in tests:
         results[test] = results[test]/R
         
@@ -145,7 +214,7 @@ def main_t1_t2(args, config=config_tests, test_h1: bool = True):
             res.append(list(res_h11[r]))
         results.append(res)
         print("Start second Ha simulation")
-        res_h12 = _simulation_ha(tests, N, M, K, R, u, alpha)
+        res_h12 = _simulation_ha(tests, N, M, K, R, u, alpha, random=True)
         res = []
         for r in res_h0:
             res.append(list(res_h12[r]))
@@ -167,7 +236,7 @@ if __name__ == "__main__":
     parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     args = parser.parse_args()
-    main_t1_t2(args, config=config_tests_reduced, test_h1=False)
+    main_t1_t2(args, config=config_tests_reduced, test_h1=True)
 
 
             
