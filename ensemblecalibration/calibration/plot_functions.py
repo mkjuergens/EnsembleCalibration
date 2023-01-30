@@ -43,12 +43,16 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CL
     else:
         fig, ax = plt.subplots(len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True)
         for i in range(len(list_errors)):
+            ax[i, 0].set_ylabel(f'{list_errors[i]}')
             for j in range(len(df)):
                 ax[i, j].plot(alphas, literal_eval(df[list_errors[i]][j]))
-                ax[i, j].plot(alphas, alphas, '--')
-                ax[i, j].set_title(f'{list_errors[i]}')
+                if j == 0:
+                    ax[i, j].plot(alphas, alphas, '--')
                 ax[i, j].spines[['right', 'top']].set_visible(False)
                 ax[i, j].grid()
+
+        for i in range(len(df)):
+            ax[0, i].set_title(f'S_{i}')
 
     fig.supxlabel(r'$\alpha$')
     fig.supylabel(r'Type $1$/$2$ error')
