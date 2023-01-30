@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CLASSECE'], sampling_method: str = 'lambda',
-                            take_avg: bool = True, plot_ha: bool = False, figsize: tuple = (8, 12), title: Optional[str] = None):
+                            take_avg: bool = False, plot_ha: bool = False, figsize: tuple = (8, 12), title: Optional[str] = None):
 
     if 'alpha' in df:
         alphas = df['alpha'].values
@@ -39,14 +39,21 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CL
             ax[j].set_ylabel(r'Type $1$ error')
             ax[j].grid()
         
-        if title is not None:
-            plt.suptitle(title)
-        else:
-            plt.suptitle(r'Type $1$ error analysis, sampling: {}'.format(sampling_method))
-        plt.tight_layout()
 
     else:
-        raise NotImplementedError
+        fig, ax = plt.subplots(len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True)
+        for i in range(len(list_errors)):
+            for j in range(len(df)):
+                ax[i, j].plot(alphas, literal_eval(df[list_errors[i]][j]))
+                ax[i, j].plot(alphas, alphas, '--')
+                ax[i, j].set_title(f'{list_errors[i]}')
+
+    fig.supxlabel(r'$\alpha$')
+    fig.supylabel(r'Type $1$/$2$ error')
+
+    plt.tight_layout()
+    if title is not None:
+            plt.suptitle(title)
 
     return fig
 

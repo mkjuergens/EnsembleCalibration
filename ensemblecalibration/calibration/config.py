@@ -67,7 +67,7 @@ config_tests= {
     "CLASSECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # options: lambda, mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -82,7 +82,7 @@ config_tests= {
     "CLASSECE10":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -96,7 +96,7 @@ config_tests= {
     "CONFECE10":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
@@ -114,28 +114,28 @@ config_tests_reduced = {
     "CONFECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
             "obj": confece_obj,
             "test": confece,
-            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
             }
     },
     "CLASSECE5":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
             "obj": classece_obj,
             "test": classece,
-            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
     },
@@ -143,28 +143,28 @@ config_tests_reduced = {
     "CLASSECE10":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
             "obj": classece_obj,
             "test": classece,
-            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
     },
     "CONFECE10":{
         "test": _npbetest_alpha,
         "params": {
-            "sampling": "mcmc", # other options: mcmc, rejectance,
+            "sampling": "lambda", # other options: mcmc, rejectance,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
             "obj": confece_obj,
             "test": confece,
-            "transform": 'isometric' # needs to be in ['sqrt', 'additive', 'isometric'],
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
             }
     }
@@ -198,5 +198,8 @@ settings_3 = {
 }
 
 if __name__ == "__main__":
-    print(config_tests[list(config_tests.keys())[0]]["params"]["sampling"])
+    conf = config_tests
+    for i in range(len(list(conf.keys()))):
+        conf[list(conf.keys())[i]]["params"]["sampling"] = 'lambda'
+    print(conf[list(config_tests.keys())[0]]["params"]["sampling"])
     print(len(config_tests))

@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import time
 import argparse
 import random
@@ -188,7 +188,8 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         
     return results
 
-def main_t1_t2(args, config=config_tests, test_h1: bool = True):
+def main_t1_t2(args, config=config_tests, test_h1: bool = True, results_dir: str = 'results'):
+
     tests = config
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
@@ -196,7 +197,16 @@ def main_t1_t2(args, config=config_tests, test_h1: bool = True):
     M = args.M
     K = args.K
     u = args.u
-    R = 1000
+    R = args.R
+    sampling_method = args.sampling
+
+    # change sampling method in configuration
+    for i in range(len(list(tests.keys()))):
+        tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
+
+    os.makedirs(results_dir, exist_ok=True)
+    file_name = "final_results_experiments_t1t2_alpha_{}_{}_{}_{}_{}_{}.csv".format(N,M,K,R,u, sampling_method)
+    save_dir = os.path.join(results_dir, file_name)
 
     print("Start H0 simulation")
     res_h0 = _simulation_h0(tests, N, M, K, R, u, alpha)
@@ -220,12 +230,11 @@ def main_t1_t2(args, config=config_tests, test_h1: bool = True):
             res.append(list(res_h12[r]))
         results.append(res)
 
-    sampling = tests[list(tests.keys())[0]]["params"]["sampling"]
 
     results_df = pd.DataFrame(results)
     colnames = [t for t in tests]
     results_df.columns = colnames
-    results_df.to_csv("./final_results_experiments_t1t2_alpha_{}_{}_{}_{}_{}.csv".format(N,M,K,u, sampling), index=False)
+    results_df.to_csv(save_dir, index=False)
 
 
 if __name__ == "__main__":
@@ -235,6 +244,8 @@ if __name__ == "__main__":
     parser.add_argument("-M", dest="M", type=int, default=10)
     parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
+    parser.add_argument("-R", dest="R", type=int, default=1000)
+    parser.add_argument("-sampling", dest="sampling", type=str, default='lambda')
     args = parser.parse_args()
     main_t1_t2(args, config=config_tests_reduced, test_h1=True)
 
