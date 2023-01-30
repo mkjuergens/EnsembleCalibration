@@ -182,7 +182,7 @@ if __name__ == "__main__":
     P = np.random.dirichlet([1]*3, size=10)
     x_out = mhar_sampling(P, transform='sqrt')
     # now for real P
-    P = np.random.dirichlet([1]*3, size=(1000, 10))
+    P = np.random.dirichlet([1]*3, size=(100, 10))
     print(P.shape)
     P_hat = np.zeros((P.shape[0], 3))
     for i in range(P.shape[0]):

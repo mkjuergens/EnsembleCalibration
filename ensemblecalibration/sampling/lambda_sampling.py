@@ -71,7 +71,7 @@ def sample_l(P):
 
 
 if __name__ == "__main__":
-    P = np.random.dirichlet([1]*3, size=(1000, 10))
+    P = np.random.dirichlet([1]*3, size=(100, 10))
     print(P.shape)
     t_0 = time.time()
     p_2 = uniform_weight_sampling(P)

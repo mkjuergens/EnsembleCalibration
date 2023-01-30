@@ -103,7 +103,7 @@ if __name__ == "__main__":
     print(samples.shape)
 
     t_0 = time.time()
-    P = np.random.dirichlet([1]*3, size=(1000, 10))
+    P = np.random.dirichlet([1]*3, size=(100, 10))
     P_hat = rejectance_sampling_p(P)
     t_1 = time.time()
     print(f'Time for one sampling 1000 times: {t_1-t_0}')
