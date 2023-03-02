@@ -63,3 +63,115 @@ def c1_constr(x):
 """ Constraint function 2 for COBYLA """
 def c2_constr(x):
     return -(np.sum(x)-1.0)
+
+def constraint1_new(l: np.ndarray):
+    """constraint 1 in the optimization problem ensuring that the coefficients of the weights sum to
+    1.
+
+    Parameters
+    ----------
+    l : np.ndarray
+        matrix of the weights of shape (N, M)
+
+    Returns
+    -------
+    np.ndarray
+    """
+
+    # weight vector now consists of point predictions for each sample
+    N, M = l.shape 
+    e = np.ones(l.shape[1])
+    prod = l @ e
+    diff = prod - np.ones(l.shape[0])
+
+    return diff
+
+def c1_constr_flat(l_flat: np.ndarray, n_rows: int):
+    """constraint 1 in the optimization problem using the flattened array.
+
+    Parameters
+    ----------
+    l_flat : np.ndarray
+        flattened matrix of weights
+    n_rows : int
+        number of rows (i.e. number of instances) used to reshape the matrix 
+    """
+
+    assert len(l_flat) % n_rows == 0, "length of array must be a multiple of the desired rows"
+    l = l_flat.reshape(n_rows, -1)
+    e = np.ones(l.shape[1])
+    prod = l @ e
+    diff = prod - np.ones(l.shape[0])
+
+    return diff
+
+
+
+def constraint2_new(l:np.ndarray):
+    """constraint 2 in the optimization problem ensuring that the weights sum to 1.
+
+    Parameters
+    ----------
+    l : np.ndarray
+       matrix of shape (N, M)
+
+    Returns
+    -------
+    np.ndarray
+    """
+
+    N, M, = l.shape
+    e = np.ones(N)
+    prod = l @ e
+    diff = - (prod - np.ones(l.shape[0]))
+
+    return diff
+
+def c2_constr_flat(l_flat: np.ndarray, n_rows: int):
+
+    assert len(l_flat) % n_rows == 0, "length of array must be a multiple of the desired rows"
+    l = l_flat.reshape(n_rows, -1)
+    e = np.ones(l.shape[1])
+    prod = l @ e
+    diff = - (prod - np.ones(l.shape[0]))
+
+    return diff
+
+def init_pmatrix(N: int, M: int, K: int, u: float = 0.01):
+    """Initialises the matrix P containing M predictors evaluated on N instances. It is constructed by sampl
+
+    Parameters
+    ----------
+    N : int
+        _description_
+    M : int
+        _description_
+    K : int
+        _description_
+    u : float, optional
+        _description_, by default 0.01
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    P = []
+    a0 = [1/K]*K # parameter of the Dirichlet distribution
+    for n in range(N):
+        p0 = np.random.dirichlet(a0,1)[0,:]
+        a = (K*p0)/u # u serves as a parameter for scaling the "spread" of the distribution
+        Pm = np.random.dirichlet(a, M)
+        P.append(Pm)
+    
+    P = np.stack(P)
+
+    return P
+
+if __name__ == "__main__":
+    P = init_pmatrix(100, 10, 10)
+
+
+
+

@@ -1,7 +1,49 @@
 from ensemblecalibration.calibration.distances import tv_distance
 from ensemblecalibration.calibration.cal_tests import skceul, confece, classece, hl
 from ensemblecalibration.calibration.cal_tests import skce_ul_obj, confece_obj, classece_obj, hl_obj
+from ensemblecalibration.calibration.test_objectives import confece_obj_new, classece_obj_new, hl_obj_new, skce_ul_obj_new
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
+from ensemblecalibration.calibration.cal_test_new import npbe_test_new
+
+config_tests_new = {
+
+    "HL": {
+        "test": npbe_test_new,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "test": hl, # test used for the calibration measure of the #perfectly# calibrated model
+            "obj": hl_obj_new, # objective function for the minimzation part
+
+        },
+    },
+
+    "ECEconf": {
+        "test": npbe_test_new,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "test": confece,
+            "obj": confece_obj_new
+        }
+    },
+
+    "SKCEul": {
+        "test": npbe_test_new,
+        "params": {
+            "l_prior": 1, 
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "test": skceul,
+            "obj": skce_ul_obj_new
+        }
+    }
+
+}
 
 
 config_tests= {
@@ -40,7 +82,7 @@ config_tests= {
         "params": {
             "sampling": "mcmc", #  options: mcmc, mcmc, rejectance,
             "l_prior": 1,
-            "optim": "cobyla",
+            "optim": "cobyla", # TODO: add other option here
             "n_resamples": 100,
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel

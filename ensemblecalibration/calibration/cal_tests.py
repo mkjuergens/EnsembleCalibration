@@ -55,7 +55,7 @@ def skce_uq_obj(x, P, y, params):
     # take convex combinations of ensemble predictions
     P_bar = np.matmul(np.swapaxes(P,1,2),x)
     # calculate SKCE_uq estimate
-    hat_skce_uq_arr = skce_uq_arr(P_bar, y, dist_fct=params["dist"], sigma=params["dist"])
+    hat_skce_uq_arr = skce_uq_arr(P_bar, y, dist_fct=params["dist"], sigma=params["sigma"])
     hat_skce_uq_mean = np.mean(hat_skce_uq_arr)    
 
     return hat_skce_uq_mean
@@ -127,7 +127,7 @@ def hl(P, y, params):
     idx_splitted = np.array_split(idx, params["nbins"])
     # run over different cells and calculate stat
     stat = 0
-    for k in range(P.shape[1]):
+    for k in range(P.shape[1]): # P is of shape (N, M, K) 
         for bin_bk in idx_splitted:
             o_bk = np.sum((y==k)[bin_bk])
             p_bk = np.sum(P[bin_bk,k])
@@ -350,7 +350,7 @@ def npbetest_alpha(P, y, params):
         solution = minimize(params["obj"],l,(P, y, params),method='Nelder-Mead',bounds=bnds,constraints=cons)
         l = np.array(solution.x)
     elif params["optim"] == "cobyla":
-        l = np.array([1/P.shape[1]]*P.shape[1])
+        l = np.array([1/P.shape[1]]*P.shape[1]) # initial guess 
         bnds = tuple([tuple([0,1]) for _ in range(P.shape[1])])
         cons = [{'type': 'ineq', 'fun': c1_constr}, {'type': 'ineq', 'fun': c2_constr}]
         # bounds must be included as constraints for COBYLA

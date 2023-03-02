@@ -7,7 +7,7 @@ measures are introduced, namely skce_uq and skce_ul.
 """
 
 import numpy as np
-
+from scipy.stats import chi2
 from ensemblecalibration.calibration.distances import l2_distance, tv_distance, matrix_kernel
 
 def h_ij(p_i: np.ndarray, p_j: np.ndarray, y_i: np.ndarray, y_j: np.ndarray, dist_fct, 
@@ -103,10 +103,44 @@ def skce_uq_arr(P_bar: np.ndarray, y: np.ndarray,dist_fct, sigma: float = 2.0):
     count=0
     for j in range(1, N):
         for i in range(j):
-            stats[count] = h_ij(P_bar[i, :], P_bar[j, :], y_one_hot[i, :], dist_fct=dist_fct, sigma=sigma)
+            stats[count] = h_ij(P_bar[i, :], P_bar[j, :], y_one_hot[i, :], y_one_hot[j,:], dist_fct=dist_fct, sigma=sigma)
             count+=1
 
     return stats
+
+
+def hltest(P, y, params):
+    """ Hosmer & Lemeshow test for strong classifier calibration
+
+    Arguments
+    ---------
+        P : ndarray of shape (n_samples, n_classes) containing probs
+        y : ndarray of shape (n_samples,) containing labels in {0,...,K-1}
+        params: parameters of the test
+        
+    Return
+    ------
+        stat : test statistic
+        pval : p-value
+    """
+    # calculate test statistic
+    stat = 0
+    # get idx for complement of reference probs in increasing order of prob
+    idx = np.argsort(1-P[:,0])[::-1]
+    # split idx array in nbins bins of roughly equal size
+    idx_splitted = np.array_split(idx, params["nbins"])
+    # run over different cells and calculate stat
+    stat = 0
+    for k in range(P.shape[1]):
+        for bin_bk in idx_splitted:
+            o_bk = np.sum((y==k)[bin_bk])
+            p_bk = np.sum(P[bin_bk,k])
+            dev_bk = ((o_bk-p_bk)**2)/p_bk
+            stat += dev_bk
+    # and finally calculate righttail P-value
+    pval = 1-chi2.cdf(stat,df=(params["nbins"]-2)*(P.shape[1]-1))
+    
+    return stat, pval
 
 
 

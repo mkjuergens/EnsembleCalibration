@@ -8,11 +8,10 @@ import pandas as pd
 from tqdm import tqdm
 
 from scipy.stats import multinomial
-from scipy.optimize import linprog
 
 sys.path.append('../..')
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.config import config_tests, config_tests_reduced
+from ensemblecalibration.calibration.config import config_tests_reduced, config_tests_new
 
 def get_ens_alpha(K, u, a0):
     p0 = np.random.dirichlet(a0,1)[0,:]
@@ -33,6 +32,113 @@ def getBoundary(P, mu, yc):
     
     return yb
 
+def experiment_h0(N: int, M: int, K: int, u: float):
+    """yields the predictive value tensor as well as the labels for the experiment in Mortier
+    et al, where the null hypothesis that the ensemble model is calibrated is true.
+
+    Parameters
+    ----------
+    N : int
+        _description_
+    M : int
+        _description_
+    K : int
+        _description_
+    R : int
+        _description_
+    u : float
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    l = np.random.dirichlet([1/M]*M,1)[0,:]
+    L = np.repeat(l.reshape(-1,1),K,axis=1)
+    P, y = [], []
+    for n in range(N):
+        a = get_ens_alpha(K, u, [1/K]*K)
+        while np.any(a<=0):
+            a = get_ens_alpha(K, u, [1/K]*K)
+        Pm = np.random.dirichlet(a, M)
+        Pbar = np.sum(Pm*L, axis=0)
+        # sample instance
+        try: 
+            yl = np.argmax(multinomial(1,Pbar).rvs(size=1),axis=1)[0]
+        except ValueError as e:
+            yl = np.argmax(Pbar)
+        P.append(Pm)
+        y.append(yl)
+    P = np.stack(P)
+    y = np.array(y)
+
+    return P, y
+
+def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
+    """returns P tensor and array of labels for the setting in Mortier et al where the null
+    hypothesis is false
+
+    Parameters
+    ----------
+    N : int
+        number of instances
+    M : int
+        number of predictors
+    K : int
+        number of different classes
+    R : int
+        _description_
+    u : float
+        parameter of the dirichlet distribution describing the "spread" or "uncertainty"
+    random : bool, optional
+        whether the corner is randomly chosen or the closest corner is chosen, by default False
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    P, y = [], []
+    for n in range(N):
+        a = get_ens_alpha(K, u, [1/K]*K)
+        while np.any(a<=0):
+            a = get_ens_alpha(K, u, [1/K]*K)
+        mu = (a*u)/K
+        if M==1:
+            Pm = mu.reshape(1,-1)
+        else:
+            Pm = np.random.dirichlet(a, M)
+        # pick class and sample ground-truth outside credal set 
+        if not random:
+            c = np.argmax(mu)
+        else:
+            c = np.random.randint(0, K, 1)[0]
+        yc = np.eye(K)[c,:]
+        # get boundary
+        if M==1:
+            yb = mu
+        else:
+            yb = getBoundary(Pm, mu, yc)
+        # get random convex combination
+        l = np.random.rand(1)[0]
+        l = l*yc+(1-l)*yb
+        # sample instance
+        try: 
+            yl = np.argmax(multinomial(1,l).rvs(size=1),axis=1)[0]
+        except ValueError as e:
+            yl = np.argmax(l)
+        P.append(Pm)
+        y.append(yl)
+    P = np.stack(P)
+    y = np.array(y)
+
+    return P, y
+
+
+
 def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
     """Simulation of the test if the Null Hypothesis is true.
 
@@ -41,7 +147,7 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     tests : dictionary
         dictionary with tests and parameters
     N : int
-        nuber of featuers
+        nuber of features
     M : int
         number of point predictors
     K : int
@@ -64,36 +170,10 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         results[test] = np.zeros(len(alpha))
     times_tests = np.zeros((R, N, len(tests)))
     for r in tqdm(range(R)):
-        l = np.random.dirichlet([1/M]*M,1)[0,:]
-        L = np.repeat(l.reshape(-1,1),K,axis=1)
-        P, y = [], []
-        for n in range(N):
-            a = get_ens_alpha(K, u, [1/K]*K)
-            while np.any(a<=0):
-                a = get_ens_alpha(K, u, [1/K]*K)
-            Pm = np.random.dirichlet(a, M)
-            Pbar = np.sum(Pm*L, axis=0)
-            # sample instance
-            try: 
-                yl = np.argmax(multinomial(1,Pbar).rvs(size=1),axis=1)[0]
-            except ValueError as e:
-                yl = np.argmax(Pbar)
-            P.append(Pm)
-            y.append(yl)
-        P = np.stack(P)
-        y = np.array(y)
+        P, y = experiment_h0(N, M, K, u)
         for count, test in enumerate(tests):
-            time_test = time.time()
             results[test] += np.array(tests[test]["test"](P, y, alpha, tests[test]["params"]))
-            time_test_1 = time.time()
-            total_time = time_test_1 - time_test
-            times_tests[r, n, count] = total_time
     
-    avg_times = times_tests.mean(axis=(0,1))
-    total_times = times_tests.sum(axis=(0, 1))
-    for i, test in enumerate(tests):
-        print(f'Average time for testing {test} in the H0 setting: {avg_times[i]}')
-        print(f'Total time for testing: {test} in the H0 setting: {total_times[i]}')
 
     for test in tests:
         # calculate mean
@@ -134,53 +214,10 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     for test in tests:
         results[test] = np.zeros(len(alpha))
     
-    times_tests = np.zeros((R, N, len(tests))) # array for saving computation times
     for r in tqdm(range(R)):
-        P, y = [], []
-        for n in range(N):
-            a = get_ens_alpha(K, u, [1/K]*K)
-            while np.any(a<=0):
-                a = get_ens_alpha(K, u, [1/K]*K)
-            mu = (a*u)/K
-            if M==1:
-                Pm = mu.reshape(1,-1)
-            else:
-                Pm = np.random.dirichlet(a, M)
-            # pick class and sample ground-truth outside credal set 
-            if not random:
-                c = np.argmax(mu)
-            else:
-                c = np.random.randint(0, K, 1)[0]
-            yc = np.eye(K)[c,:]
-            # get boundary
-            if M==1:
-                yb = mu
-            else:
-                yb = getBoundary(Pm, mu, yc)
-            # get random convex combination
-            l = np.random.rand(1)[0]
-            l = l*yc+(1-l)*yb
-            # sample instance
-            try: 
-                yl = np.argmax(multinomial(1,l).rvs(size=1),axis=1)[0]
-            except ValueError as e:
-                yl = np.argmax(l)
-            P.append(Pm)
-            y.append(yl)
-        P = np.stack(P)
-        y = np.array(y)
-        for count, test in enumerate(tests):
-            time_test = time.time()
-            results[test] += (1-np.array(tests[test]["test"](P, y, alpha, tests[test]["params"])))
-            time_test_1 = time.time()
-            total_time = time_test_1 - time_test
-            times_tests[r, n, count] = total_time
-
-    avg_times = times_tests.mean(axis=(0,1))
-    total_times = times_tests.sum(axis=(0, 1))
-    for i, test in enumerate(tests):
-        print(f'Average time for testing {test} in the H1 setting: {avg_times[i]}')
-        print(f'Total time for testing: {test} in the H1 setting: {total_times[i]}')
+        P, y = experiment_h1(N, M, K, u, random=random)
+        for test in tests:
+            results[test] += np.array(tests[test]["test"](P, y, alpha, tests[test]["params"]))
 
     
     for test in tests:
@@ -188,7 +225,7 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         
     return results
 
-def main_t1_t2(args, config=config_tests, test_h1: bool = True, results_dir: str = 'results'):
+def main_t1_t2(args, config=config_tests_new, test_h1: bool = True, results_dir: str = 'results'):
 
     tests = config
     results = []
@@ -201,8 +238,8 @@ def main_t1_t2(args, config=config_tests, test_h1: bool = True, results_dir: str
     sampling_method = args.sampling
 
     # change sampling method in configuration
-    for i in range(len(list(tests.keys()))):
-        tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
+    #for i in range(len(list(tests.keys()))):
+     #   tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
 
     os.makedirs(results_dir, exist_ok=True)
     file_name = "final_results_experiments_t1t2_alpha_{}_{}_{}_{}_{}_{}.csv".format(N,M,K,R,u, sampling_method)

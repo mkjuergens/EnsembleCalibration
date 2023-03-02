@@ -2,6 +2,8 @@
 import numpy as np
 from scipy.optimize import linprog
 
+#from ensemblecalibration.sampling.mcmc_sampling import find_random_inner_point
+
 
 def is_calibrated(P: np.ndarray, p_hat: np.ndarray):
     """function which returns whether given a matrix of ensemble predictions P,
@@ -25,6 +27,22 @@ def is_calibrated(P: np.ndarray, p_hat: np.ndarray):
     lp = linprog(c, A_eq=A, b_eq=b)
 
     return lp.success
+
+def is_in_convex_hull(P: np.ndarray, p_hat: np.ndarray, tolerance: float = -1e-9):
+
+    M, K = P.shape
+    c = np.zeros(M)
+    bounds = [(0, None) for _ in range(M)]
+    A_eq = np.ones((1,M))
+    b_eq = np.array(1)
+
+    res = linprog(c, A_ub=P.T, b_ub=p_hat, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method="simplex")
+
+    #return res.fun >= tolerance and all(x >= tolerance for x in res.x)
+    return res.success
+
+
+
 
 def find_boundary(P:np.ndarray, p_0: np.ndarray, p_c: np.ndarray):
     """function for finding the convex combination between points p_0
@@ -64,10 +82,20 @@ def find_boundary(P:np.ndarray, p_0: np.ndarray, p_c: np.ndarray):
 
 if __name__ == "__main__":
     # test function for some random data
-    n_classes = 10
-    n_predictions = 10
-    P_1 = np.random.random((n_predictions, n_classes))
-    p_new = np.random.random((n_classes))
+    count_1 = 0
+    count_2 = 0
+    for i in range(1000):
+        n_classes = 3
+        n_predictions = 2
+        P_1 = np.random.random((n_predictions, n_classes))
+        p_new = find_random_inner_point(P_1)
 
-    print(is_calibrated(P_1, p_new))
+        success_1 = is_calibrated(P_1, p_new)
+        if success_1: 
+            count_1 += 1
+        success_2 = is_in_convex_hull(P_1, p_new)
+        if success_2:
+            count_2 += 1
+    print(f'Success method 1: {count_1}')
+    print(f'Success method 2: {count_2}')
 
