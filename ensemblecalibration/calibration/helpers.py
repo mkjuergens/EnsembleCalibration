@@ -137,6 +137,16 @@ def c2_constr_flat(l_flat: np.ndarray, n_rows: int):
 
     return diff
 
+def constr_pyswarm(l_flat: np.ndarray, n_rows: int):
+
+    assert len(l_flat) % n_rows == 0, "length of array must be a multiple of the desired rows"
+    l = l_flat.reshape(n_rows, -1)
+    e = np.ones(l.shape[1])
+    prod = l @ e
+    diff = np.abs(prod - np.ones(l.shape[0]))
+
+    return diff
+
 def init_pmatrix(N: int, M: int, K: int, u: float = 0.01):
     """Initialises the matrix P containing M predictors evaluated on N instances. It is constructed by sampl
 
