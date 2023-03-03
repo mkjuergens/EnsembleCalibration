@@ -242,7 +242,7 @@ def main_t1_t2(args, config=config_tests_new, test_h1: bool = True, results_dir:
      #   tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
 
     os.makedirs(results_dir, exist_ok=True)
-    file_name = "final_results_experiments_t1t2_alpha_{}_{}_{}_{}_{}_{}.csv".format(N,M,K,R,u, sampling_method)
+    file_name = "results_experiments_t1t2_cobyla_new_{}_{}_{}_{}_{}_{}.csv".format(N,M,K,R,u, sampling_method)
     save_dir = os.path.join(results_dir, file_name)
 
     print("Start H0 simulation")
@@ -284,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument("-R", dest="R", type=int, default=1000)
     parser.add_argument("-sampling", dest="sampling", type=str, default='lambda')
     args = parser.parse_args()
-    main_t1_t2(args, config=config_tests_reduced, test_h1=True)
+    main_t1_t2(args, config=config_tests_new, test_h1=True)
 
 
             

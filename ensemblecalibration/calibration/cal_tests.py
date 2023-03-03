@@ -104,7 +104,7 @@ def hltest(P, y, params):
     # get idx for complement of reference probs in increasing order of prob
     idx = np.argsort(1-P[:,0])[::-1]
     # split idx array in nbins bins of roughly equal size
-    idx_splitted = np.array_split(idx, params["nbins"])
+    idx_splitted = np.array_split(idx, params["n_bins"])
     # run over different cells and calculate stat
     stat = 0
     for k in range(P.shape[1]):
@@ -114,7 +114,7 @@ def hltest(P, y, params):
             dev_bk = ((o_bk-p_bk)**2)/p_bk
             stat += dev_bk
     # and finally calculate righttail P-value
-    pval = 1-chi2.cdf(stat,df=(params["nbins"]-2)*(P.shape[1]-1))
+    pval = 1-chi2.cdf(stat,df=(params["n_bins"]-2)*(P.shape[1]-1))
     
     return stat, pval
 
@@ -124,7 +124,7 @@ def hl(P, y, params):
     # get idx for complement of reference probs in increasing order of prob
     idx = np.argsort(1-P[:,0])[::-1]
     # split idx array in nbins bins of roughly equal size
-    idx_splitted = np.array_split(idx, params["nbins"])
+    idx_splitted = np.array_split(idx, params["n_bins"])
     # run over different cells and calculate stat
     stat = 0
     for k in range(P.shape[1]): # P is of shape (N, M, K) 
@@ -338,6 +338,7 @@ def npbetest_alpha(P, y, params):
         P_bar_b = np.clip(P_bar_b, 0, 1)
         # P_bar_b = P_bar_b[~np.isnan(P_bar_b).any(axis=1)]
         # randomly sample labels from P_bar
+       # print(P_bar_b.shape)
         y_b = np.apply_along_axis(sample_m, 1, P_bar_b)
         # perform test
         stats[b] = params["test"](P_bar_b, y_b, params)

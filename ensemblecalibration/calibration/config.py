@@ -3,12 +3,12 @@ from ensemblecalibration.calibration.cal_tests import skceul, confece, classece,
 from ensemblecalibration.calibration.cal_tests import skce_ul_obj, confece_obj, classece_obj, hl_obj
 from ensemblecalibration.calibration.test_objectives import confece_obj_new, classece_obj_new, hl_obj_new, skce_ul_obj_new
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
-from ensemblecalibration.calibration.cal_test_new import npbe_test_new
+from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
 
 config_tests_new = {
 
     "HL": {
-        "test": npbe_test_new,
+        "test": _npbe_test_new_alpha,
         "params": {
             "l_prior": 1,
             "optim": "cobyla",
@@ -21,7 +21,7 @@ config_tests_new = {
     },
 
     "ECEconf": {
-        "test": npbe_test_new,
+        "test": _npbe_test_new_alpha,
         "params": {
             "l_prior": 1,
             "optim": "cobyla",
@@ -33,11 +33,13 @@ config_tests_new = {
     },
 
     "SKCEul": {
-        "test": npbe_test_new,
+        "test": _npbe_test_new_alpha,
         "params": {
             "l_prior": 1, 
             "optim": "cobyla",
             "n_resamples": 100,
+            "dist": tv_distance,
+            "sigma": 2.0, # to be used in the matrix valued kernel
             "test": skceul,
             "obj": skce_ul_obj_new
         }
@@ -55,7 +57,7 @@ config_tests= {
                 "l_prior": 1,
                 "optim": "cobyla", 
                 "n_resamples": 100, 
-                "nbins": 5,
+                "n_bins": 5,
                 "test": hl, 
                 "obj": hl_obj,
                 "transform": "additive"
@@ -69,7 +71,7 @@ config_tests= {
             "l_prior": 1,
             "optim": "cobyla", 
             "n_resamples": 100, 
-            "nbins": 10,
+            "n_bins": 10,
             "test": hl, 
             "obj": hl_obj,
             "transform": "additive"
