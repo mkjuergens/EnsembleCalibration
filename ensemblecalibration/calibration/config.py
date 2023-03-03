@@ -7,7 +7,7 @@ from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
 
 config_tests_new = {
 
-    "HL": {
+    "HL5": {
         "test": _npbe_test_new_alpha,
         "params": {
             "l_prior": 1,
@@ -20,7 +20,33 @@ config_tests_new = {
         },
     },
 
-    "ECEconf": {
+    "HL10": {
+        "test": _npbe_test_new_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "test": hl, # test used for the calibration measure of the #perfectly# calibrated model
+            "obj": hl_obj_new, # objective function for the minimzation part
+
+        },
+    },
+
+     "SKCEul": {
+        "test": _npbe_test_new_alpha,
+        "params": {
+            "l_prior": 1, 
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "dist": tv_distance,
+            "sigma": 2.0, # to be used in the matrix valued kernel
+            "test": skceul,
+            "obj": skce_ul_obj_new
+        }
+    },
+
+    "ECEconf5": {
         "test": _npbe_test_new_alpha,
         "params": {
             "l_prior": 1,
@@ -32,18 +58,41 @@ config_tests_new = {
         }
     },
 
-    "SKCEul": {
+    "ECEconf10": {
         "test": _npbe_test_new_alpha,
         "params": {
-            "l_prior": 1, 
+            "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "dist": tv_distance,
-            "sigma": 2.0, # to be used in the matrix valued kernel
-            "test": skceul,
-            "obj": skce_ul_obj_new
+            "n_bins": 10,
+            "test": confece,
+            "obj": confece_obj_new
         }
-    }
+    },
+
+    "ECEclass5": {
+        "test": _npbe_test_new_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "test": classece,
+            "obj": classece_obj_new
+        }
+    },
+
+    "ECEclass10": {
+        "test": _npbe_test_new_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "test": classece,
+            "obj": classece_obj_new
+        }
+    },
 
 }
 
