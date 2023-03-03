@@ -69,13 +69,13 @@ def npbe_test_new(P: np.ndarray, y: np.ndarray, params: dict):
         P_b = random.sample(P.tolist(), P.shape[0])
         P_b = np.stack(P_b)
         # calculate predicted probabilities of optimal convex combination
-        P_bar_b = calculate_pbar(l, P, reshape=True)
+        P_bar_b = calculate_pbar(l, P_b, reshape=True)
         # sample the labels from the respective categorical dsitribution
         y_b = np.apply_along_axis(multinomial_label_sampling, 1, P_bar_b)
         # calculate calibration test statistic
         stats[b] = params["test"](P_bar_b, y_b, params)
 
-    # calculate 1 - alpha quantile from the empirical distribution of the test statistic under the null ypothesis
+    # calculate 1 - alpha quantile from the empirical distribution of the test statistic under the null hypothesis
     q_alpha = np.quantile(stats, 1 - params["alpha"])
     # decision: reject test if minstat > q_alpha
     decision = int(np.abs(minstat) > q_alpha)
