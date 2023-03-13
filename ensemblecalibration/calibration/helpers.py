@@ -52,8 +52,11 @@ def dec_bounds(l, u):
     else:
         return u
 
-""" Constraint function for aucbtest """
-def constr(x):
+def constr_eq(x):
+    """equality constraint for the optimization problem used e.g. in the Nelder-Mead 
+    method.
+    
+    """
     return np.sum(x)-1.0
 
 """ Constraint function 1 for COBYLA """

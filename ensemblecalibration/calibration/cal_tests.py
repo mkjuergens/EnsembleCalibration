@@ -6,7 +6,7 @@ from scipy.stats import halfnorm, norm, chi2
 from pycalib.metrics import conf_ECE, classwise_ECE
 
 from ensemblecalibration.calibration.calibration_measures import skce_ul_arr, skce_uq_arr
-from ensemblecalibration.calibration.helpers import sample_l, sample_m, dec_bounds, constr, c1_constr, c2_constr
+from ensemblecalibration.calibration.helpers import sample_l, sample_m, dec_bounds, constr_eq, c1_constr, c2_constr
 from ensemblecalibration.sampling import mhar_sampling_p, multinomial_label_sampling, uniform_weight_sampling, rejectance_sampling_p
 from ensemblecalibration.calibration.test_objectives import hl_obj, skce_ul_obj, skce_uq_obj, confece_obj, classece_obj
 
@@ -279,7 +279,7 @@ def npbetest_alpha(P, y, params):
     if params["optim"] == "neldermead":
         l = np.array([1/P.shape[1]]*P.shape[1])
         bnds = tuple([tuple([0,1]) for _ in range(P.shape[1])])
-        cons = ({'type': 'eq', 'fun': constr})
+        cons = ({'type': 'eq', 'fun': constr_eq})
         solution = minimize(params["obj"],l,(P, y, params),method='Nelder-Mead',bounds=bnds,constraints=cons)
         l = np.array(solution.x)
     elif params["optim"] == "cobyla":
