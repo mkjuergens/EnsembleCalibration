@@ -98,7 +98,7 @@ def c1_constr_flat(l_flat: np.ndarray, n_rows: int):
     """
 
     assert len(l_flat) % n_rows == 0, "length of array must be a multiple of the desired rows"
-    l = l_flat.reshape(n_rows, -1)
+    l = l_flat.reshape(n_rows, -1) # reshape to matrix of shape (N, M)
     e = np.ones(l.shape[1])
     prod = l @ e
     diff = prod - np.ones(l.shape[0])
@@ -137,15 +137,20 @@ def c2_constr_flat(l_flat: np.ndarray, n_rows: int):
 
     return diff
 
-def constr_pyswarm(l_flat: np.ndarray, n_rows: int):
+def constr_pyswarm(l_flat: np.ndarray, n_rows: int, *args):
 
     assert len(l_flat) % n_rows == 0, "length of array must be a multiple of the desired rows"
     l = l_flat.reshape(n_rows, -1)
-    e = np.ones(l.shape[1])
-    prod = l @ e
-    diff = np.abs(prod - np.ones(l.shape[0]))
+    # e = np.ones(l.shape[1])
+    prod = np.sum(l, axis=1)
+    cons = []
+    for i in range(l.shape[0]):
+        diff_1 = prod[i] - 1.0
+        diff_2 = -(prod[i] - 1.0)
+        cons.append(diff_1)
+        cons.append(diff_2)
 
-    return diff
+    return cons
 
 def init_pmatrix(N: int, M: int, K: int, u: float = 0.01):
     """Initialises the matrix P containing M predictors evaluated on N instances. It is constructed by sampl

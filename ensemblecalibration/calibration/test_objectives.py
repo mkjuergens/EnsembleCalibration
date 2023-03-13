@@ -173,6 +173,73 @@ def classece_obj_new(weights_l, P, y, params):
 
     return stat
 
+def hl_obj(x, P, y, params):
+    """objective function of the Hosmer-Lemeshow test
+
+    Parameters
+    ----------
+    x : np.ndarray
+        sampled weight vector for the convex combination of predictors
+    P : np.ndarray
+        matrix containng the point predictions
+    y : np.ndarray
+        weigth vector
+    params : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    # take convex combinations of ensemble predictions
+    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    stat, _ = hltest(P_bar, y, params)
+
+    return stat
+
+def skce_ul_obj(x, P, y, params):
+    # take convex combinations of ensemble predictions
+    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    # calculate SKCE_ul estimate
+    hat_skce_ul_arr = skce_ul_arr(P_bar, y, dist_fct=params["dist"],
+     sigma=params["sigma"])
+    hat_skce_ul_mean = np.mean(hat_skce_ul_arr)    
+
+    return hat_skce_ul_mean
+
+""" Objective function for skce_uq """
+def skce_uq_obj(x, P, y, params):
+    # take convex combinations of ensemble predictions
+    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    # calculate SKCE_uq estimate
+    hat_skce_uq_arr = skce_uq_arr(P_bar, y, dist_fct=params["dist"], sigma=params["sigma"])
+    hat_skce_uq_mean = np.mean(hat_skce_uq_arr)    
+
+    return hat_skce_uq_mean
+
+""" Objective function for confidence ECE """
+def confece_obj(x, P, y, params):
+    # take convex combinations of ensemble predictions
+    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    # calculate confidence ECE
+    stat = conf_ECE(y, P_bar, params["n_bins"])
+    #print("[info optim] {0} gives {1}".format(x,stat))
+
+    return stat
+
+""" Objective function for classwise ECE """
+def classece_obj(x, P, y, params):
+    # take convex combinations of ensemble predictions
+    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    # transform y to indicator matrix (needed for classwise_ECE)
+    yind = np.eye(P.shape[2])[y,:]
+    # calculate classwise ECE
+    stat = classwise_ECE(yind, P_bar, 1, params["n_bins"])
+
+    return stat
+
+
 
 if __name__ == "__main__":
     K = 3

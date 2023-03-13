@@ -3,13 +3,52 @@ from scipy.optimize import minimize
 
 from pyswarm import pso
 
-from ensemblecalibration.calibration.test_objectives import confece_obj_new
-from ensemblecalibration.calibration.helpers import  c1_constr_flat, c2_constr_flat, constr_pyswarm
+from ensemblecalibration.calibration.test_objectives import confece_obj_new, classece_obj_new
+from ensemblecalibration.calibration.helpers import  c1_constr, c2_constr, c1_constr_flat, c2_constr_flat, constr_pyswarm
 
 
 
-def solve_cobyla(P: np.ndarray, y: np.ndarray, params: dict):
-    """_summary_
+def solve_cobyla1D(P: np.ndarray, y: np.ndarray, params: dict, enhanced_output: bool = False):
+    """returns the vector of weights which results in a convex combination of predictors with the minimal calibration error. 
+        Here, the weights do not depend on the instances, therefore resulting in a one-dimensional array.
+
+    Parameters
+    ----------
+    P : np.ndarray
+        matrix of point predictions for each instance and predcitor
+    y : np.ndarray
+        labels
+    params : dict
+        dictionary of test parameters
+    """
+     
+     # inittial gues: equal weights
+    l = np.array([1/P.shape[1]]*P.shape[1])
+    bnds = tuple([tuple([0,1]) for _ in range(P.shape[1])])
+    cons = [{'type': 'ineq', 'fun': c1_constr}, {'type': 'ineq', 'fun': c2_constr}]
+    # bounds must be included as constraints for COBYLA
+    for factor in range(len(bnds)):
+        lower, upper = bnds[factor]
+        lo = {'type': 'ineq',
+                'fun': lambda x, lb=lower, i=factor: x[i] - lb}
+        up = {'type': 'ineq',
+                'fun': lambda x, ub=upper, i=factor: ub - x[i]}
+        cons.append(lo)
+        cons.append(up)
+    solution = minimize(params["obj"],l,(P, y, params),method='COBYLA',constraints=cons)
+    l = np.array(solution.x)
+
+    minstat = params["obj"](l, P, y, params)
+
+    if enhanced_output:
+        return l, minstat
+    else:
+        return l
+
+
+def solve_cobyla2D(P: np.ndarray, y: np.ndarray, params: dict, enhanced_output: bool = False):
+    """returns the vector of weights which results in a convex combination of predictors with the minimal calibration error. 
+        Here, the weights do depend on the instances, therefore resulting in a two-dimensional array.
 
     Parameters
     ----------
@@ -45,8 +84,33 @@ def solve_cobyla(P: np.ndarray, y: np.ndarray, params: dict):
 
     solution = minimize(params["obj"],l_0,(P, y, params),method='COBYLA',constraints=cons)
     l = np.array(solution.x)
+    minstat = params["obj"](l, P, y, params)
 
-    return l
+    if enhanced_output:
+        return l, minstat
+
+    else:
+        return l
+
+
+def solve_pyswarm(P: np.ndarray, y: np.ndarray, params: dict, enhanced_output: bool = False, swarm_size: int = 1000, maxiter: int = 100):
+
+    # lower bounds: list of lower bounds for all variables
+    lb = np.zeros(P.shape[0]*P.shape[1])
+    # upper bounds: list of upper bounds for all variabels
+    ub = np.ones(P.shape[0]*P.shape[1])
+
+    constr = lambda x, P, y, params : constr_pyswarm(x, P.shape[0], (P, y, params))
+
+    lopt, fopt = pso(params["obj"], lb=lb, ub=ub, f_ieqcons=constr, args=(P, y, params), maxiter=maxiter, swarmsize=swarm_size)
+
+    if enhanced_output:
+        return lopt, fopt
+
+    else:
+        return lopt
+
+
 
 
 def solve_minimization(obj, l0, P, y):
@@ -57,8 +121,15 @@ if __name__ == "__main__":
 
     P = np.random.dirichlet([1]*3, size=(100,10))
     y = np.random.randint(2, size=100)
-    config = {"obj": confece_obj_new, "n_bins":10}
-    l = solve_cobyla(P, y, config)
+    config = {"obj": classece_obj_new, "n_bins":5}
+    l_1 = solve_cobyla2D(P, y, config)
 
-    print(l)
+    l_2 = solve_pyswarm(P, y, params=config)
+    l_2 = l_2.reshape(P.shape[0], -1)
+
+
+
+    print(l_1)
+    print(l_2)
+    print(np.sum(l_2, axis=1))
 
