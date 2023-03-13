@@ -157,6 +157,20 @@ config_tests= {
                                 # only to be used for mcmc sampling
             }
     },
+    "CONFECE10":{
+        "test": _npbetest_alpha,
+        "params": {
+            "sampling": "lambda", # other options: mcmc, rejectance,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "obj": confece_obj,
+            "test": confece,
+            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
+                                # only to be used for mcmc sampling
+            }
+    },
     "CLASSECE5":{
         "test": _npbetest_alpha,
         "params": {
@@ -185,20 +199,6 @@ config_tests= {
             "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
                                 # only to be used for mcmc sampling
         }
-    },
-    "CONFECE10":{
-        "test": _npbetest_alpha,
-        "params": {
-            "sampling": "lambda", # other options: mcmc, rejectance,
-            "l_prior": 1,
-            "optim": "cobyla",
-            "n_resamples": 100,
-            "n_bins": 10,
-            "obj": confece_obj,
-            "test": confece,
-            "transform": 'additive' # needs to be in ['sqrt', 'additive', 'isometric'],
-                                # only to be used for mcmc sampling
-            }
     }
     } 
 
