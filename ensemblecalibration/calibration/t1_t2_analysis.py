@@ -1,7 +1,5 @@
 import sys, os
-import time
 import argparse
-import random
 
 import numpy as np
 import pandas as pd
@@ -11,7 +9,9 @@ from scipy.stats import multinomial
 
 sys.path.append('../..')
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.config import config_tests_reduced, config_tests_new
+from ensemblecalibration.calibration.config import config_tests_new_cobyla_2d, config_tests_new_cobyla_1d, config_tests_new_neldermead_1d, config_tests_new_neldermead_2d
+from ensemblecalibration.calibration.config import config_tests_cobyla_1d, config_tests_cobyla_2d, config_tests_neldermead_1d, config_tests_neldermead_2d
+from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
 
 def get_ens_alpha(K, u, a0):
     p0 = np.random.dirichlet(a0,1)[0,:]
@@ -225,9 +225,8 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
         
     return results
 
-def main_t1_t2(args, config=config_tests_new, test_h1: bool = True, results_dir: str = 'results'):
+def main_t1_t2(args,  test_h1: bool = True, results_dir: str = 'results'):
 
-    tests = config
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
     N = args.N
@@ -236,13 +235,24 @@ def main_t1_t2(args, config=config_tests_new, test_h1: bool = True, results_dir:
     u = args.u
     R = args.R
     sampling_method = args.sampling
+    tests = args.config
 
     # change sampling method in configuration
     #for i in range(len(list(tests.keys()))):
      #   tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
 
     os.makedirs(results_dir, exist_ok=True)
-    file_name = "results_experiments_t1t2_cobyla_new_{}_{}_{}_{}_{}_{}.csv".format(N,M,K,R,u, sampling_method)
+
+    # file name defining parameters of test
+    # dim defines whether x dependency or not
+    dim = "2d" if tests[list(tests.keys())[0]]["params"]["x_dependency"] else "1d"
+    # optim defines optimization method used
+    optim = tests[list(tests.keys())[0]]["params"]["optim"]
+    # pattern defines whether new or old structure of test is used
+    pattern = "new" if tests[list(tests.keys())[0]]["test"] == _npbe_test_new_alpha else "old"
+    file_name = "results_experiments_t1t2_{}_{}_{}_{}_{}_{}_{}_{}.csv".format(pattern, N,M,K,R,u, dim, optim)
+    print(f'File name under which results are saved: {file_name}')
+
     save_dir = os.path.join(results_dir, file_name)
 
     print("Start H0 simulation")
@@ -283,8 +293,9 @@ if __name__ == "__main__":
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     parser.add_argument("-R", dest="R", type=int, default=1000)
     parser.add_argument("-sampling", dest="sampling", type=str, default='lambda')
+    parser.add_argument("-config", dest="config", type=dict, default=config_tests_new_cobyla_2d)
     args = parser.parse_args()
-    main_t1_t2(args, config=config_tests_new, test_h1=True)
+    main_t1_t2(args, test_h1=True)
 
 
             
