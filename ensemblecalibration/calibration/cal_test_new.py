@@ -77,7 +77,10 @@ def npbe_test_new(P: np.ndarray, y: np.ndarray, params: dict):
         P_b = random.sample(P.tolist(), P.shape[0])
         P_b = np.stack(P_b)
         # calculate predicted probabilities of optimal convex combination
-        P_bar_b = calculate_pbar(l, P_b, reshape=True)
+        if params["x_dependency"]:
+            P_bar_b = calculate_pbar(l, P_b, reshape=True, n_dims=2)
+        else:
+            P_bar_b = calculate_pbar(l, P_b, n_dims=1)
         assert np.all((P_bar_b >= 0.0)| (P_bar_b<=1.0)), "all the values of P_bar need to be between 0 and 1"
 
         # sample the labels from the respective categorical dsitribution
