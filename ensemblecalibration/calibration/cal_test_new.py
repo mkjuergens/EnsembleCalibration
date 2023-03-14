@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 
 from ensemblecalibration.calibration.test_objectives import calculate_pbar
 from ensemblecalibration.calibration.helpers import sample_m
-from ensemblecalibration.calibration.minimization import solve_cobyla2D
+from ensemblecalibration.calibration.minimization import solve_cobyla2D, solve_neldermead2D, solve_cobyla1D, solve_neldermead1D
 from ensemblecalibration.sampling import multinomial_label_sampling
 
 
@@ -30,8 +30,16 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
 
     # calculate minimum of objective
     if params["optim"] == "cobyla":
+        if params["x_dependency"]:
+            l = solve_cobyla2D(P, y, params)
+        else:
+            l = solve_cobyla1D(P, y, params)
 
-        l = solve_cobyla2D(P, y, params)
+    elif params["optim"] == "neldermead":
+        if params["x_dependency"]:
+            l = solve_neldermead2D(P, y, params)
+        else:
+            l = solve_neldermead1D(P, y, params)
     else:
         raise NotImplementedError
 
