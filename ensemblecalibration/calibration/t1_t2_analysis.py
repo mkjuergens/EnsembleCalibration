@@ -15,7 +15,6 @@ from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
 
 def get_ens_alpha(K, u, a0):
     p0 = np.random.dirichlet(a0,1)[0,:]
-    
     return (K*p0)/u
 
 def getBoundary(P, mu, yc):
@@ -168,21 +167,17 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     results = {}
     for test in tests:
         results[test] = np.zeros(len(alpha))
-    times_tests = np.zeros((R, N, len(tests)))
-    for r in tqdm(range(R)):
+    for _ in tqdm(range(R)):
         P, y = experiment_h0(N, M, K, u)
-        for count, test in enumerate(tests):
+        for test in tests:
             results[test] += np.array(tests[test]["test"](P, y, alpha, tests[test]["params"]))
-    
-
     for test in tests:
         # calculate mean
-        results[test] = results[test]/R 
-        
+        results[test] = results[test]/R   
     return results
 
 
-def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float, 
+def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float,
                     random: bool = False):
     """Simulation of the test in a setting where the alternative hypothesis is true.
 
@@ -212,14 +207,11 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     """
     results = {}
     for test in tests:
-        results[test] = np.zeros(len(alpha))
-    
+        results[test] = np.zeros(len(alpha))  
     for r in tqdm(range(R)):
         P, y = experiment_h1(N, M, K, u, random=random)
         for test in tests:
-            results[test] += np.array(tests[test]["test"](P, y, alpha, tests[test]["params"]))
-
-    
+            results[test] += (1-np.array(tests[test]["test"](P, y, alpha, tests[test]["params"])))
     for test in tests:
         results[test] = results[test]/R
         
@@ -293,7 +285,7 @@ if __name__ == "__main__":
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     parser.add_argument("-R", dest="R", type=int, default=1000)
     parser.add_argument("-sampling", dest="sampling", type=str, default='lambda')
-    parser.add_argument("-config", dest="config", type=dict, default=config_tests_new_cobyla_2d)
+    parser.add_argument("-config", dest="config", type=dict, default=config_tests_new_neldermead_2d)
     args = parser.parse_args()
     main_t1_t2(args, test_h1=True)
 

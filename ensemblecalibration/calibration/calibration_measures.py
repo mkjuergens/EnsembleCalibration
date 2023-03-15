@@ -8,9 +8,9 @@ measures are introduced, namely skce_uq and skce_ul.
 
 import numpy as np
 from scipy.stats import chi2
-from ensemblecalibration.calibration.distances import l2_distance, tv_distance, matrix_kernel
+from ensemblecalibration.calibration.distances import matrix_kernel
 
-def h_ij(p_i: np.ndarray, p_j: np.ndarray, y_i: np.ndarray, y_j: np.ndarray, dist_fct, 
+def h_ij(p_i: np.ndarray, p_j: np.ndarray, y_i: np.ndarray, y_j: np.ndarray, dist_fct,
         sigma: float=2.0):
     """calculates the entries h_ij which are summed over in the expression of the calibration
 
@@ -35,7 +35,6 @@ def h_ij(p_i: np.ndarray, p_j: np.ndarray, y_i: np.ndarray, y_j: np.ndarray, dis
     np.ndarray
 
     """
-    
     gamma_ij = matrix_kernel(p_i, p_j, dist_fct=dist_fct, sigma=sigma)
     y_ii = y_i - p_i
     y_jj = y_j - p_j
@@ -44,7 +43,7 @@ def h_ij(p_i: np.ndarray, p_j: np.ndarray, y_i: np.ndarray, y_j: np.ndarray, dis
 
     return h_ij
 
-def skce_ul_arr(P_bar: np.ndarray, y: np.ndarray, dist_fct, sigma: float = 2.0):
+def skce_ul_arr(p_bar: np.ndarray, y: np.ndarray, dist_fct, sigma: float = 2.0):
     """calculates the skce_ul calibration error used as a test statistic in Mortier et  al, 2022.
 
     Parameters
@@ -64,12 +63,12 @@ def skce_ul_arr(P_bar: np.ndarray, y: np.ndarray, dist_fct, sigma: float = 2.0):
         _description_
     """
 
-    n = round(P_bar.shape[0]/2)
+    n = round(p_bar.shape[0]/2)
     # transform y to one-hot encoded labels
-    yoh = np.eye(P_bar.shape[1])[y,:]
+    yoh = np.eye(p_bar.shape[1])[y,:]
     stats = np.zeros(n)
     for i in range(0,n):
-        stats[i] = h_ij(P_bar[(2*i),:], P_bar[(2*i)+1,:], yoh[(2*i),:], yoh[(2*i)+1,:], dist_fct=dist_fct,
+        stats[i] = h_ij(p_bar[(2*i),:], p_bar[(2*i)+1,:], yoh[(2*i),:], yoh[(2*i)+1,:], dist_fct=dist_fct,
         sigma=sigma)
 
     return stats
@@ -139,18 +138,4 @@ def hltest(P, y, params):
             stat += dev_bk
     # and finally calculate righttail P-value
     pval = 1-chi2.cdf(stat,df=(params["n_bins"]-2)*(P.shape[1]-1))
-    
     return stat, pval
-
-
-
-
-
-
-
-
-
-
-
-
-

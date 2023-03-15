@@ -122,7 +122,7 @@ def skce_ul_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params:
 
     P_bar = calculate_pbar(weights_l, P, reshape=True)
 
-    hat_skce_ul_arr = skce_ul_arr(P_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"])
+    hat_skce_ul_arr = skce_ul_arr(p_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"])
     hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
 
     return hat_skce_ul_mean
