@@ -1,3 +1,4 @@
+"""Usefule functions for plotting"""
 from typing import Optional
 from ast import literal_eval
 
@@ -6,9 +7,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CLASSECE'], sampling_method: str = 'lambda',
-                            take_avg: bool = False, plot_ha: bool = False, figsize: tuple = (8, 12), title: Optional[str] = None):
-
+def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list, take_avg: bool = False,
+                             plot_ha: bool = False, figsize: tuple = (8, 12),
+                               title: Optional[str] = None):
     if 'alpha' in df:
         alphas = df['alpha'].values
     else:
@@ -27,8 +28,6 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CL
             for j in range(len(alphas)):
                 val_ij = literal_eval(results_i[0])[j]
                 results[i, j] = val_ij
-
-    
     if not plot_ha:
         fig, ax = plt.subplots(len(list_errors), 1, figsize=figsize)
         for j in range(len(list_errors)):
@@ -38,8 +37,6 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CL
             ax[j].set_xlabel(r'$\alpha$')
             ax[j].set_ylabel(r'Type $1$ error')
             ax[j].grid()
-        
-
     else:
         fig, ax = plt.subplots(len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True)
         for i in range(len(list_errors)):
@@ -53,18 +50,14 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list = ['CONFECE', 'CL
 
         for i in range(len(df)):
             ax[0, i].set_title(f'S_{i}')
-
     fig.supxlabel(r'$\alpha$')
     fig.supylabel(r'Type $1$/$2$ error')
-
     plt.tight_layout()
     if title is not None:
-            plt.suptitle(title)
-
+        plt.suptitle(title)
     return fig
 
 
 if __name__ == "__main__":
     results_final = pd.read_csv('final_results_experiments_t1t2_alpha_100_10_10_0.01_lambda.csv')
-    list_errors = list(results_final.keys())
-    print(len(results_final['CONFECE10']))
+    list_errors_results = list(results_final.keys())
