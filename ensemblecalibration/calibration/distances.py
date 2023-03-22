@@ -1,5 +1,6 @@
 """functions for measuring distances"""
 import numpy as np
+import torch
 
 def tv_distance(p: np.ndarray, q: np.ndarray):
     """total variation distance between two point predictions.
@@ -65,6 +66,9 @@ def matrix_kernel(p: np.ndarray, q: np.ndarray, dist_fct, sigma: float = 2.0):
     id_k = np.eye(len(p)) # identity matrix
     return np.exp((-1/sigma)* (dist_fct(p, q)**2)* id_k)
 
+
+    
+
 if __name__ == "__main__":
     p_test = np.array([[1,0,0]])
     q_test = np.array([[0, 0.5, 0.5]])
@@ -73,3 +77,4 @@ if __name__ == "__main__":
     print(f'l2 distance: {l2_distance(p_test, q_test)}')
     m = matrix_kernel(p_test, q_test, l2_distance)
     print(m)
+

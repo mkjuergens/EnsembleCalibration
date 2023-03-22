@@ -2,12 +2,19 @@ import numpy as np
 
 from pycalib.metrics import conf_ECE, classwise_ECE
 
-from ensemblecalibration.calibration.calibration_measures import skce_ul_arr, skce_uq_arr, hltest
+from ensemblecalibration.calibration.calibration_measures import (
+    skce_ul_arr,
+    skce_uq_arr,
+    hltest,
+)
 from ensemblecalibration.calibration.distances import tv_distance
 
-def calculate_pbar(weights_l: np.ndarray, P: np.ndarray, reshape: bool = True, n_dims: int = 2):
+
+def calculate_pbar(
+    weights_l: np.ndarray, P: np.ndarray, reshape: bool = True, n_dims: int = 2
+):
     """calculate convex combination of a weight matrix of shape (N*M,) or (M,) and a tensor of point predictions
-        of shape (N, M, K) such that the new matrix contains a point predictions for each instance and is 
+        of shape (N, M, K) such that the new matrix contains a point predictions for each instance and is
         of shape (N, K).
     Parameters
     ----------
@@ -18,7 +25,8 @@ def calculate_pbar(weights_l: np.ndarray, P: np.ndarray, reshape: bool = True, n
     reshape: boolean
         whether vector of weights shall be reshaped to matrix form
     n_dims: int, must be in {1,2}
-        number of dimensions of the weight vector/matrix. If 2, we have instance-wise dependency of the convex combination P_bar
+        number of dimensions of the weight vector/matrix. If 2, we have instance-wise dependency of
+        the convex combination P_bar
 
     Returns
     -------
@@ -29,39 +37,48 @@ def calculate_pbar(weights_l: np.ndarray, P: np.ndarray, reshape: bool = True, n
     if n_dims == 2:
         n_rows = P.shape[0]
         if reshape:
-            assert len(weights_l) % n_rows == 0, " weight vector needs to be a multiple of the number of rows"
+            assert (
+                len(weights_l) % n_rows == 0
+            ), " weight vector needs to be a multiple of the "
+            "number of rows"
             weights_l = weights_l.reshape(n_rows, -1)
 
-        assert weights_l.shape[0] == P.shape[0], " numer of samples need to be the same for P and weights_l"
-        assert weights_l.shape[1] == P.shape[1], " numer of ensemble members need to be the same for P and weights_l"
+        assert (
+            weights_l.shape[0] == P.shape[0]
+        ), " numer of samples need to be the same for P and weights_l"
+        assert (
+            weights_l.shape[1] == P.shape[1]
+        ), " numer of ensemble members need to be the same for P and weights_l"
 
-        P_bar = (weights_l[:,:,np.newaxis]*P).sum(-2) # sum over second axis to get diagonal elements
+        P_bar = (weights_l[:, :, np.newaxis] * P).sum(
+            -2
+        )  # sum over second axis to get diagonal elements
 
     elif n_dims == 1:
-        P_bar = np.matmul(np.swapaxes(P,1,2),weights_l)
+        P_bar = np.matmul(np.swapaxes(P, 1, 2), weights_l)
 
     return P_bar
 
 
 def hl_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict):
     """New objective for the Hosmer-Lemeshow test where the weights are now a matrix containing a weight vector for each instance.
-        In this case, the weight vector is a flattened version of the matrix containing the weight vectors
-        for each row/instance.
+         In this case, the weight vector is a flattened version of the matrix containing the weight vectors
+         for each row/instance.
 
-    Parameters
-    ----------
-    weights_l : np.ndarray
-        matrix of shape (N*M,). flattened matrix of weight coefficients
-   P : np.ndarray
-        tensor of shape (N, M, K)
-    y : np.ndarray
-        vector of shape (N,)
-    params : dict
-        test parameters
+     Parameters
+     ----------
+     weights_l : np.ndarray
+         matrix of shape (N*M,). flattened matrix of weight coefficients
+    P : np.ndarray
+         tensor of shape (N, M, K)
+     y : np.ndarray
+         vector of shape (N,)
+     params : dict
+         test parameters
 
-    Returns
-    -------
-    float
+     Returns
+     -------
+     float
     """
 
     P_bar = calculate_pbar(weights_l=weights_l, P=P, reshape=True)
@@ -70,38 +87,40 @@ def hl_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict
     return stat
 
 
-
-
 def skce_uq_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict):
     """New test objective for the SKCE_uq using a weight matrix containing a weight vector for each instance
-        In this case, the weight vector is a flattened version of the matrix containing the weight vectors
-        for each row/instance.
+         In this case, the weight vector is a flattened version of the matrix containing the weight vectors
+         for each row/instance.
 
-    Parameters
-    ----------
-    weights_l : np.ndarray
-        matrix of shape (N*M,). flattened matrix of weight coefficients
-   P : np.ndarray
-        tensor of shape (N, M, K)
-    y : np.ndarray
-        vector of shape (N,)
-    params : dict
-        test parameters
+     Parameters
+     ----------
+     weights_l : np.ndarray
+         matrix of shape (N*M,). flattened matrix of weight coefficients
+    P : np.ndarray
+         tensor of shape (N, M, K)
+     y : np.ndarray
+         vector of shape (N,)
+     params : dict
+         test parameters
 
-    Returns
-    -------
-    float
+     Returns
+     -------
+     float
     """
 
     P_bar = calculate_pbar(weights_l=weights_l, P=P, reshape=True)
 
-    hat_skce_uq_arr = skce_uq_arr(P_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"])
+    hat_skce_uq_arr = skce_uq_arr(
+        P_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"]
+    )
     hat_skce_uq_mean = np.mean(hat_skce_uq_arr)
 
     return hat_skce_uq_mean
 
+
 def skce_ul_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict):
-    """New test objective for the SKCE_ul using a weight matrix containing a weight vector for each instance
+    """New test objective for the SKCE_ul using a weight matrix containing a weight vector for
+    each instance
 
     Parameters
     ----------
@@ -122,11 +141,12 @@ def skce_ul_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params:
 
     P_bar = calculate_pbar(weights_l, P, reshape=True)
 
-    hat_skce_ul_arr = skce_ul_arr(p_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"])
+    hat_skce_ul_arr = skce_ul_arr(
+        p_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"]
+    )
     hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
 
     return hat_skce_ul_mean
-
 
 
 def confece_obj_new(weights_l: np.ndarray, P, y, params):
@@ -148,11 +168,12 @@ def confece_obj_new(weights_l: np.ndarray, P, y, params):
     np.ndarray
         matrix of shape (N, K)
     """
-    
+
     P_bar = calculate_pbar(weights_l, P, reshape=True)
     stat = conf_ECE(y, P_bar, params["n_bins"])
 
     return stat
+
 
 def classece_obj_new(weights_l, P, y, params):
     """New test objective for the classwise ECE with lambda being a function dependent on the features
@@ -175,11 +196,12 @@ def classece_obj_new(weights_l, P, y, params):
     """
     P_bar = calculate_pbar(weights_l, P, reshape=True)
     # transform y to indicator matrix (needed for classwise_ECE)
-    yind = np.eye(P.shape[2])[y,:]
+    yind = np.eye(P.shape[2])[y, :]
     # calculate classwise ECE
     stat = classwise_ECE(yind, P_bar, 1, params["n_bins"])
 
     return stat
+
 
 def hl_obj(x, P, y, params):
     """objective function of the Hosmer-Lemeshow test
@@ -201,73 +223,85 @@ def hl_obj(x, P, y, params):
         _description_
     """
     # take convex combinations of ensemble predictions
-    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    P_bar = np.matmul(np.swapaxes(P, 1, 2), x)
     stat, _ = hltest(P_bar, y, params)
 
     return stat
 
+
 def skce_ul_obj(x, P, y, params):
     # take convex combinations of ensemble predictions
-    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    P_bar = np.matmul(np.swapaxes(P, 1, 2), x)
     # calculate SKCE_ul estimate
-    hat_skce_ul_arr = skce_ul_arr(P_bar, y, dist_fct=params["dist"],
-     sigma=params["sigma"])
-    hat_skce_ul_mean = np.mean(hat_skce_ul_arr)    
+    hat_skce_ul_arr = skce_ul_arr(
+        P_bar, y, dist_fct=params["dist"], sigma=params["sigma"]
+    )
+    hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
 
     return hat_skce_ul_mean
 
+
 """ Objective function for skce_uq """
+
+
 def skce_uq_obj(x, P, y, params):
     # take convex combinations of ensemble predictions
-    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    P_bar = np.matmul(np.swapaxes(P, 1, 2), x)
     # calculate SKCE_uq estimate
-    hat_skce_uq_arr = skce_uq_arr(P_bar, y, dist_fct=params["dist"], sigma=params["sigma"])
-    hat_skce_uq_mean = np.mean(hat_skce_uq_arr)    
+    hat_skce_uq_arr = skce_uq_arr(
+        P_bar, y, dist_fct=params["dist"], sigma=params["sigma"]
+    )
+    hat_skce_uq_mean = np.mean(hat_skce_uq_arr)
 
     return hat_skce_uq_mean
 
+
 """ Objective function for confidence ECE """
+
+
 def confece_obj(x, P, y, params):
     # take convex combinations of ensemble predictions
-    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    P_bar = np.matmul(np.swapaxes(P, 1, 2), x)
     # calculate confidence ECE
     stat = conf_ECE(y, P_bar, params["n_bins"])
-    #print("[info optim] {0} gives {1}".format(x,stat))
+    # print("[info optim] {0} gives {1}".format(x,stat))
 
     return stat
 
+
 """ Objective function for classwise ECE """
+
+
 def classece_obj(x, P, y, params):
     # take convex combinations of ensemble predictions
-    P_bar = np.matmul(np.swapaxes(P,1,2),x)
+    P_bar = np.matmul(np.swapaxes(P, 1, 2), x)
     # transform y to indicator matrix (needed for classwise_ECE)
-    yind = np.eye(P.shape[2])[y,:]
+    yind = np.eye(P.shape[2])[y, :]
     # calculate classwise ECE
     stat = classwise_ECE(yind, P_bar, 1, params["n_bins"])
 
     return stat
 
 
-
 if __name__ == "__main__":
     K = 3
     M = 10
-    P = np.random.dirichlet([1]*K, size=(100,10)).reshape(100,10, 3)
-   ## print(P.shape)
-    lambda_weight = np.random.dirichlet([1]*M, size=100).reshape(100, 10)
-    #print(lambda_weight.shape)
-   # print(P.shape)
+    P = np.random.dirichlet([1] * K, size=(100, 10)).reshape(100, 10, 3)
+    ## print(P.shape)
+    lambda_weight = np.random.dirichlet([1] * M, size=100).reshape(100, 10)
+    # print(lambda_weight.shape)
+    # print(P.shape)
     P_bar = lambda_weight @ P
-    #print(P_bar.shape)
-    P_bar = (lambda_weight[:,:,np.newaxis]*P).sum(-2)
+    # print(P_bar.shape)
+    P_bar = (lambda_weight[:, :, np.newaxis] * P).sum(-2)
     print(P_bar.shape)
-   # print(P_bar.shape)
+    # print(P_bar.shape)
     y = np.random.randint(0, 1, size=100)
-   # print(y.shape)
+    # print(y.shape)
 
     params = {"n_bins": 10, "dist": tv_distance, "sigma": 2.0}
-    #obj = confece_obj(lambda_weight, P, y, params)
-    #print(obj)
+    # obj = confece_obj(lambda_weight, P, y, params)
+    # print(obj)
     obj = confece_obj_new(lambda_weight, P, y, params)
     print(obj)
     obj_2 = skce_ul_obj_new(lambda_weight, P, y, params)

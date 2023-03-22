@@ -43,8 +43,6 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
     else:
         raise NotImplementedError
 
-   # l = l.reshape(P.shape[0], P.shape[1]) # reshape to get a matrix of weight vectors
-
     minstat = params["obj"](l, P, y, params) # minimum value of calibration objective/measure
     return minstat, l
 

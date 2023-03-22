@@ -174,7 +174,7 @@ def init_pmatrix(N: int, M: int, K: int, u: float = 0.01):
     _type_
         _description_
     """
-
+    
     P = []
     a0 = [1/K]*K # parameter of the Dirichlet distribution
     for n in range(N):
@@ -187,9 +187,42 @@ def init_pmatrix(N: int, M: int, K: int, u: float = 0.01):
 
     return P
 
+def emp_dist_min_objective(params_tests, min_fct, experiment, n_iters: int = 100):
+    """test for estimating the empirical distribution of the approximated minimal calibration 
+    measure using a predefined method and calibration objective 
+    Parameters
+    ----------
+    params_tests : dict
+        test parameters
+    min_fct : _type_
+        function for solving the minimization problem. Takes as input arguments the tensor of 
+        point predictions P, the array of labels y the test parameters and an optional boolean 
+        whether the minimal value shall also be output
+    experiment : function, 
+        experiment which yields a tensor P and labels y used for calculating the minima, 
+        by default experiment_h0
+    n_iters : int, optional
+        number of times the distribution is sampled from and the minima are calculated, by default
+        100
+
+    Returns
+    -------
+    dict
+        dictionary containing 
+    """
+
+    list_stats = {}
+    for test in params_tests:
+        list_stats[test] = []
+    for i in range(n_iters):
+        print(f'start {i}-th iteration...')
+        P, y = experiment(N=100, M=10, K=10, u=0.01)
+        for test in params_tests:
+            conf = params_tests[test]
+            weights_l, min_stat = min_fct(P, y, conf["params"], enhanced_output=True)
+            list_stats[test].append(min_stat)
+    return list_stats
+
+
 if __name__ == "__main__":
     P = init_pmatrix(100, 10, 10)
-
-
-
-

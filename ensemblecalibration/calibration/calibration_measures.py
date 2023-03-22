@@ -83,7 +83,7 @@ def skce_uq_arr(P_bar: np.ndarray, y: np.ndarray,dist_fct, sigma: float = 2.0):
     y : np.ndarray
        vector of labels of shape (M")
     dist_fct : _type_
-        dsitance function used in the calibration statistic
+        distance function used in the calibration statistic
     sigma : float, optional
         bandwidth, by default 2.0
 
@@ -102,7 +102,8 @@ def skce_uq_arr(P_bar: np.ndarray, y: np.ndarray,dist_fct, sigma: float = 2.0):
     count=0
     for j in range(1, N):
         for i in range(j):
-            stats[count] = h_ij(P_bar[i, :], P_bar[j, :], y_one_hot[i, :], y_one_hot[j,:], dist_fct=dist_fct, sigma=sigma)
+            stats[count] = h_ij(P_bar[i, :], P_bar[j, :], y_one_hot[i, :], y_one_hot[j,:],
+                                 dist_fct=dist_fct, sigma=sigma)
             count+=1
 
     return stats

@@ -539,4 +539,6 @@ if __name__ == "__main__":
     for i in range(len(list(conf.keys()))):
         conf[list(conf.keys())[i]]["params"]["sampling"] = 'lambda'
     print(conf[list(config_tests_cobyla_2d.keys())[0]]["params"]["sampling"])
+    conf_2 = config_tests_new_neldermead_1d
+    print(conf_2)
     

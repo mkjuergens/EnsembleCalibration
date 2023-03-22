@@ -7,29 +7,42 @@ from tqdm import tqdm
 
 from scipy.stats import multinomial
 
-sys.path.append('../..')
+sys.path.append("../..")
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.config import config_tests_new_cobyla_2d, config_tests_new_cobyla_1d, config_tests_new_neldermead_1d, config_tests_new_neldermead_2d
-from ensemblecalibration.calibration.config import config_tests_cobyla_1d, config_tests_cobyla_2d, config_tests_neldermead_1d, config_tests_neldermead_2d
+from ensemblecalibration.calibration.config import (
+    config_tests_new_cobyla_2d,
+    config_tests_new_cobyla_1d,
+    config_tests_new_neldermead_1d,
+    config_tests_new_neldermead_2d,
+)
+from ensemblecalibration.calibration.config import (
+    config_tests_cobyla_1d,
+    config_tests_cobyla_2d,
+    config_tests_neldermead_1d,
+    config_tests_neldermead_2d,
+)
 from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
 
+
 def get_ens_alpha(K, u, a0):
-    p0 = np.random.dirichlet(a0,1)[0,:]
-    return (K*p0)/u
+    p0 = np.random.dirichlet(a0, 1)[0, :]
+    return (K * p0) / u
+
 
 def getBoundary(P, mu, yc):
-    l_arr = np.linspace(0,1,100)
+    l_arr = np.linspace(0, 1, 100)
     # get convex combinations between yc and mu
-    L = np.stack([l*yc+(1-l)*mu for l in l_arr])
+    L = np.stack([l * yc + (1 - l) * mu for l in l_arr])
     # determine boundary
     bi = 0
     for i in range(len(L)):
-        if not is_calibrated(P, L[i,:]):
-            bi = i-1
+        if not is_calibrated(P, L[i, :]):
+            bi = i - 1
             break
-    yb = L[bi,:]
-    
+    yb = L[bi, :]
+
     return yb
+
 
 def experiment_h0(N: int, M: int, K: int, u: float):
     """yields the predictive value tensor as well as the labels for the experiment in Mortier
@@ -54,18 +67,18 @@ def experiment_h0(N: int, M: int, K: int, u: float):
         _description_
     """
 
-    l = np.random.dirichlet([1/M]*M,1)[0,:]
-    L = np.repeat(l.reshape(-1,1),K,axis=1)
+    l = np.random.dirichlet([1 / M] * M, 1)[0, :]
+    L = np.repeat(l.reshape(-1, 1), K, axis=1)
     P, y = [], []
     for n in range(N):
-        a = get_ens_alpha(K, u, [1/K]*K)
-        while np.any(a<=0):
-            a = get_ens_alpha(K, u, [1/K]*K)
+        a = get_ens_alpha(K, u, [1 / K] * K)
+        while np.any(a <= 0):
+            a = get_ens_alpha(K, u, [1 / K] * K)
         Pm = np.random.dirichlet(a, M)
-        Pbar = np.sum(Pm*L, axis=0)
+        Pbar = np.sum(Pm * L, axis=0)
         # sample instance
-        try: 
-            yl = np.argmax(multinomial(1,Pbar).rvs(size=1),axis=1)[0]
+        try:
+            yl = np.argmax(multinomial(1, Pbar).rvs(size=1), axis=1)[0]
         except ValueError as e:
             yl = np.argmax(Pbar)
         P.append(Pm)
@@ -74,6 +87,7 @@ def experiment_h0(N: int, M: int, K: int, u: float):
     y = np.array(y)
 
     return P, y
+
 
 def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
     """returns P tensor and array of labels for the setting in Mortier et al where the null
@@ -102,31 +116,31 @@ def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
 
     P, y = [], []
     for n in range(N):
-        a = get_ens_alpha(K, u, [1/K]*K)
-        while np.any(a<=0):
-            a = get_ens_alpha(K, u, [1/K]*K)
-        mu = (a*u)/K
-        if M==1:
-            Pm = mu.reshape(1,-1)
+        a = get_ens_alpha(K, u, [1 / K] * K)
+        while np.any(a <= 0):
+            a = get_ens_alpha(K, u, [1 / K] * K)
+        mu = (a * u) / K
+        if M == 1:
+            Pm = mu.reshape(1, -1)
         else:
             Pm = np.random.dirichlet(a, M)
-        # pick class and sample ground-truth outside credal set 
+        # pick class and sample ground-truth outside credal set
         if not random:
             c = np.argmax(mu)
         else:
             c = np.random.randint(0, K, 1)[0]
-        yc = np.eye(K)[c,:]
+        yc = np.eye(K)[c, :]
         # get boundary
-        if M==1:
+        if M == 1:
             yb = mu
         else:
             yb = getBoundary(Pm, mu, yc)
         # get random convex combination
         l = np.random.rand(1)[0]
-        l = l*yc+(1-l)*yb
+        l = l * yc + (1 - l) * yb
         # sample instance
-        try: 
-            yl = np.argmax(multinomial(1,l).rvs(size=1),axis=1)[0]
+        try:
+            yl = np.argmax(multinomial(1, l).rvs(size=1), axis=1)[0]
         except ValueError as e:
             yl = np.argmax(l)
         P.append(Pm)
@@ -135,7 +149,6 @@ def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
     y = np.array(y)
 
     return P, y
-
 
 
 def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
@@ -170,15 +183,18 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     for _ in tqdm(range(R)):
         P, y = experiment_h0(N, M, K, u)
         for test in tests:
-            results[test] += np.array(tests[test]["test"](P, y, alpha, tests[test]["params"]))
+            results[test] += np.array(
+                tests[test]["test"](P, y, alpha, tests[test]["params"])
+            )
     for test in tests:
         # calculate mean
-        results[test] = results[test]/R   
+        results[test] = results[test] / R
     return results
 
 
-def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float,
-                    random: bool = False):
+def _simulation_ha(
+    tests, N: int, M: int, K: int, R: int, u: float, alpha: float, random: bool = False
+):
     """Simulation of the test in a setting where the alternative hypothesis is true.
 
     Parameters
@@ -207,18 +223,20 @@ def _simulation_ha(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     """
     results = {}
     for test in tests:
-        results[test] = np.zeros(len(alpha))  
+        results[test] = np.zeros(len(alpha))
     for r in tqdm(range(R)):
         P, y = experiment_h1(N, M, K, u, random=random)
         for test in tests:
-            results[test] += (1-np.array(tests[test]["test"](P, y, alpha, tests[test]["params"])))
+            results[test] += 1 - np.array(
+                tests[test]["test"](P, y, alpha, tests[test]["params"])
+            )
     for test in tests:
-        results[test] = results[test]/R
-        
+        results[test] = results[test] / R
+
     return results
 
-def main_t1_t2(args,  test_h1: bool = True, results_dir: str = 'results'):
 
+def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
     N = args.N
@@ -230,8 +248,8 @@ def main_t1_t2(args,  test_h1: bool = True, results_dir: str = 'results'):
     tests = args.config
 
     # change sampling method in configuration
-    #for i in range(len(list(tests.keys()))):
-     #   tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
+    # for i in range(len(list(tests.keys()))):
+    #   tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
 
     os.makedirs(results_dir, exist_ok=True)
 
@@ -241,9 +259,13 @@ def main_t1_t2(args,  test_h1: bool = True, results_dir: str = 'results'):
     # optim defines optimization method used
     optim = tests[list(tests.keys())[0]]["params"]["optim"]
     # pattern defines whether new or old structure of test is used
-    pattern = "new" if tests[list(tests.keys())[0]]["test"] == _npbe_test_new_alpha else "old"
-    file_name = "results_experiments_t1t2_{}_{}_{}_{}_{}_{}_{}_{}.csv".format(pattern, N,M,K,R,u, dim, optim)
-    print(f'File name under which results are saved: {file_name}')
+    pattern = (
+        "new" if tests[list(tests.keys())[0]]["test"] == _npbe_test_new_alpha else "old"
+    )
+    file_name = "results_experiments_t1t2_{}_{}_{}_{}_{}_{}_{}_{}.csv".format(
+        pattern, N, M, K, R, u, dim, optim
+    )
+    print(f"File name under which results are saved: {file_name}")
 
     save_dir = os.path.join(results_dir, file_name)
 
@@ -269,7 +291,6 @@ def main_t1_t2(args,  test_h1: bool = True, results_dir: str = 'results'):
             res.append(list(res_h12[r]))
         results.append(res)
 
-
     results_df = pd.DataFrame(results)
     colnames = [t for t in tests]
     results_df.columns = colnames
@@ -277,20 +298,18 @@ def main_t1_t2(args,  test_h1: bool = True, results_dir: str = 'results'):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Experiments for type I and type II error in function of alpha")
+    parser = argparse.ArgumentParser(
+        description="Experiments for type I and type II error in function of alpha"
+    )
     # data args
     parser.add_argument("-N", dest="N", type=int, default=100)
     parser.add_argument("-M", dest="M", type=int, default=10)
     parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     parser.add_argument("-R", dest="R", type=int, default=1000)
-    parser.add_argument("-sampling", dest="sampling", type=str, default='lambda')
-    parser.add_argument("-config", dest="config", type=dict, default=config_tests_new_neldermead_2d)
+    parser.add_argument("-sampling", dest="sampling", type=str, default="lambda")
+    parser.add_argument(
+        "-config", dest="config", type=dict, default=config_tests_new_neldermead_2d
+    )
     args = parser.parse_args()
     main_t1_t2(args, test_h1=True)
-
-
-            
-
-
-
