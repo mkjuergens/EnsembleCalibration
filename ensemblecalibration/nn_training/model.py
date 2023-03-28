@@ -18,7 +18,7 @@ class MLPCalW(nn.Module):
         Parameters
         ----------
         in_channels : int
-            number of ensemble members for which point predictions are given in the input tensor    
+            number of classes for which point predictions are given in the input tensor    
         hidden_dim : int
             hidden dimension of the 
         """
@@ -32,7 +32,8 @@ class MLPCalW(nn.Module):
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.Linear(self.hidden_dim, 1)
         )
-        self.softmax = nn.Softmax()
+
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x_in: torch.Tensor):
         out = self.layers(x_in)
@@ -101,5 +102,9 @@ if __name__ == "__main__":
     dataset = DirichletDataset(n_samples=1000, n_members=10, n_classes=3)
     loader = DataLoader(dataset, batch_size=100)
     p_probs, y = next(iter(loader))
-    print(y)
+    print(p_probs.shape)
+    model = MLPCalW(in_channels=3, hidden_dim=32)
+    out = model(p_probs.float())
+    print(out.shape)
+
     
