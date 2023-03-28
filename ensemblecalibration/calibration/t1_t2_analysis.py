@@ -20,138 +20,25 @@ from ensemblecalibration.calibration.config import (
     config_tests_cobyla_2d,
     config_tests_neldermead_1d,
     config_tests_neldermead_2d,
+    config_new_mlp
 )
 from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
-
-
-def get_ens_alpha(K, u, a0):
-    p0 = np.random.dirichlet(a0, 1)[0, :]
-    return (K * p0) / u
-
-
-def getBoundary(P, mu, yc):
-    l_arr = np.linspace(0, 1, 100)
-    # get convex combinations between yc and mu
-    L = np.stack([l * yc + (1 - l) * mu for l in l_arr])
-    # determine boundary
-    bi = 0
-    for i in range(len(L)):
-        if not is_calibrated(P, L[i, :]):
-            bi = i - 1
-            break
-    yb = L[bi, :]
-
-    return yb
-
-
-def experiment_h0(N: int, M: int, K: int, u: float):
-    """yields the predictive value tensor as well as the labels for the experiment in Mortier
-    et al, where the null hypothesis that the ensemble model is calibrated is true.
-
-    Parameters
-    ----------
-    N : int
-        _description_
-    M : int
-        _description_
-    K : int
-        _description_
-    R : int
-        _description_
-    u : float
-        _description_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-
-    l = np.random.dirichlet([1 / M] * M, 1)[0, :]
-    L = np.repeat(l.reshape(-1, 1), K, axis=1)
-    P, y = [], []
-    for n in range(N):
-        a = get_ens_alpha(K, u, [1 / K] * K)
-        while np.any(a <= 0):
-            a = get_ens_alpha(K, u, [1 / K] * K)
-        Pm = np.random.dirichlet(a, M)
-        Pbar = np.sum(Pm * L, axis=0)
-        # sample instance
-        try:
-            yl = np.argmax(multinomial(1, Pbar).rvs(size=1), axis=1)[0]
-        except ValueError as e:
-            yl = np.argmax(Pbar)
-        P.append(Pm)
-        y.append(yl)
-    P = np.stack(P)
-    y = np.array(y)
-
-    return P, y
-
-
-def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
-    """returns P tensor and array of labels for the setting in Mortier et al where the null
-    hypothesis is false
-
-    Parameters
-    ----------
-    N : int
-        number of instances
-    M : int
-        number of predictors
-    K : int
-        number of different classes
-    R : int
-        _description_
-    u : float
-        parameter of the dirichlet distribution describing the "spread" or "uncertainty"
-    random : bool, optional
-        whether the corner is randomly chosen or the closest corner is chosen, by default False
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-
-    P, y = [], []
-    for n in range(N):
-        a = get_ens_alpha(K, u, [1 / K] * K)
-        while np.any(a <= 0):
-            a = get_ens_alpha(K, u, [1 / K] * K)
-        mu = (a * u) / K
-        if M == 1:
-            Pm = mu.reshape(1, -1)
-        else:
-            Pm = np.random.dirichlet(a, M)
-        # pick class and sample ground-truth outside credal set
-        if not random:
-            c = np.argmax(mu)
-        else:
-            c = np.random.randint(0, K, 1)[0]
-        yc = np.eye(K)[c, :]
-        # get boundary
-        if M == 1:
-            yb = mu
-        else:
-            yb = getBoundary(Pm, mu, yc)
-        # get random convex combination
-        l = np.random.rand(1)[0]
-        l = l * yc + (1 - l) * yb
-        # sample instance
-        try:
-            yl = np.argmax(multinomial(1, l).rvs(size=1), axis=1)[0]
-        except ValueError as e:
-            yl = np.argmax(l)
-        P.append(Pm)
-        y.append(yl)
-    P = np.stack(P)
-    y = np.array(y)
-
-    return P, y
-
-
-def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float):
+from ensemblecalibration.calibration.experiments import (
+    experiment_h0,
+    experiment_h1,
+    experiment_h0_feature_dependency,
+    experiment_h1_feature_dependecy,
+)
+def _simulation_h0(
+    tests,
+    N: int,
+    M: int,
+    K: int,
+    R: int,
+    u: float,
+    alpha: float,
+    experiment=experiment_h0,
+):
     """Simulation of the test if the Null Hypothesis is true.
 
     Parameters
@@ -181,7 +68,7 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
     for test in tests:
         results[test] = np.zeros(len(alpha))
     for _ in tqdm(range(R)):
-        P, y = experiment_h0(N, M, K, u)
+        P, y = experiment(N, M, K, u)
         for test in tests:
             results[test] += np.array(
                 tests[test]["test"](P, y, alpha, tests[test]["params"])
@@ -193,7 +80,15 @@ def _simulation_h0(tests, N: int, M: int, K: int, R: int, u: float, alpha: float
 
 
 def _simulation_ha(
-    tests, N: int, M: int, K: int, R: int, u: float, alpha: float, random: bool = False
+    tests,
+    N: int,
+    M: int,
+    K: int,
+    R: int,
+    u: float,
+    alpha: float,
+    random: bool = False,
+    experiment=experiment_h1,
 ):
     """Simulation of the test in a setting where the alternative hypothesis is true.
 
@@ -225,7 +120,7 @@ def _simulation_ha(
     for test in tests:
         results[test] = np.zeros(len(alpha))
     for r in tqdm(range(R)):
-        P, y = experiment_h1(N, M, K, u, random=random)
+        P, y = experiment(N, M, K, u, random=random)
         for test in tests:
             results[test] += 1 - np.array(
                 tests[test]["test"](P, y, alpha, tests[test]["params"])
@@ -237,6 +132,7 @@ def _simulation_ha(
 
 
 def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
+    sys.stdout = None
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
     N = args.N
@@ -244,6 +140,7 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
     K = args.K
     u = args.u
     R = args.R
+    experiments = args.experiments
     sampling_method = args.sampling
     tests = args.config
 
@@ -267,10 +164,21 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
     )
     print(f"File name under which results are saved: {file_name}")
 
+    # check which experiments shall be run
+    if experiments == "new":
+        print("Use new experiments..")
+        exp_h0 = experiment_h0_feature_dependency
+        exp_ha = experiment_h1_feature_dependecy
+    elif experiments == "old":
+        exp_h0 = experiment_h0
+        exp_ha = experiment_h1
+    else:
+        raise NotImplementedError
+
     save_dir = os.path.join(results_dir, file_name)
 
     print("Start H0 simulation")
-    res_h0 = _simulation_h0(tests, N, M, K, R, u, alpha)
+    res_h0 = _simulation_h0(tests, N, M, K, R, u, alpha,experiment=exp_h0)
     res = []
     for r in res_h0:
         res.append(list(res_h0[r]))
@@ -285,7 +193,7 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
             res.append(list(res_h11[r]))
         results.append(res)
         print("Start second Ha simulation")
-        res_h12 = _simulation_ha(tests, N, M, K, R, u, alpha, random=True)
+        res_h12 = _simulation_ha(tests, N, M, K, R, u, alpha, random=True, experiment=exp_ha)
         res = []
         for r in res_h0:
             res.append(list(res_h12[r]))
@@ -304,12 +212,13 @@ if __name__ == "__main__":
     # data args
     parser.add_argument("-N", dest="N", type=int, default=100)
     parser.add_argument("-M", dest="M", type=int, default=10)
-    parser.add_argument("-K", dest="K", type=int, default=3)
+    parser.add_argument("-K", dest="K", type=int, default=10)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     parser.add_argument("-R", dest="R", type=int, default=1000)
+    parser.add_argument("-experiments",dest="experiments", default="new", type=str)
     parser.add_argument("-sampling", dest="sampling", type=str, default="lambda")
     parser.add_argument(
-        "-config", dest="config", type=dict, default=config_tests_new_neldermead_2d
+        "-config", dest="config", type=dict, default=config_new_mlp
     )
     args = parser.parse_args()
     main_t1_t2(args, test_h1=True)

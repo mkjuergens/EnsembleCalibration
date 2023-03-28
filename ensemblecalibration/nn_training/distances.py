@@ -1,6 +1,6 @@
 import torch
 
-def tv_distance(p_1: torch.Tensor, p_2: torch.Tensor):
+def tv_distance_tensor(p_1: torch.Tensor, p_2: torch.Tensor):
     """total variation distance between two point predictions.
 
     Parameters
@@ -36,7 +36,7 @@ def l2_distance(p_1: torch.Tensor, p_2: torch.Tensor):
 
     return torch.sqrt(torch.sum((p_1 - p_2)**2))
 
-def tensor_kernel(p: torch.Tensor, q: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0):
+def tensor_kernel(p: torch.Tensor, q: torch.Tensor, dist_fct=tv_distance_tensor, sigma: float = 2.0):
     """returns the matrix-valued kernel evaluated at two point predictions 
 
     Parameters
@@ -96,13 +96,13 @@ def tensor_h_ij(p_i: torch.Tensor, p_j: torch.Tensor, y_i: torch.Tensor, y_j: to
 
     return h_ij
 
-def skce_ul_tensor(p_bar: torch.Tensor, y: torch.Tensor, dist_fct= tv_distance, sigma: float = 2.0):
+def skce_ul_tensor(p_bar: torch.Tensor, y: torch.Tensor, dist_fct= tv_distance_tensor, sigma: float = 2.0):
     """calculates the skce_ul calibration error used as a test statistic in Mortier et  al, 2022.
 
     Parameters
     ----------
     P_bar :  torch.Tensor of shape (n_predictors, n_classes)
-        matrix containing all ensmeble predictions
+        matrix containing probabilistic predictions for each instance 
     y : torch.Tensor
         vector with class labels of shape
     dist_fct : [tv_distance, l2_distance]
@@ -125,6 +125,42 @@ def skce_ul_tensor(p_bar: torch.Tensor, y: torch.Tensor, dist_fct= tv_distance, 
                                yoh[(2*i)+1,:], dist_fct=dist_fct, sigma=sigma)
 
     return stats
+
+def skce_uq_tensor(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance_tensor, sigma: float = 2.0):
+    """calculates the SKCEuq miscalibration measure introduced in Widman et al, 2019.
+
+    Parameters
+    ----------
+    p_bar : torch.Tensor
+        tensor containing all 
+    y : torch.Tensor
+        _description_
+    dist_fct : _type_, optional
+        _description_, by default tv_distance_tensor
+    sigma : float, optional
+        _description_, by default 2.0
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    
+    N, M = p_bar.shape[0], p_bar.shape[1] # p is of shape (n_samples, m_predictors, n_classes)
+    # one-hot encoding
+    y_one_hot =torch.eye(M)[y, :]
+
+    # binomial coefficient n over 2
+    stats = torch.zeros(int((N*(N-1))/2))
+    count=0
+    for j in range(1, N):
+        for i in range(j):
+            stats[count] = tensor_h_ij(p_bar[i, :], p_bar[j, :], y_one_hot[i, :], y_one_hot[j,:],
+                                 dist_fct=dist_fct, sigma=sigma)
+            count+=1
+
+    return stats
+
 
 def median_heuristic(p_hat: torch.Tensor, y_labels: torch.Tensor):
     """calculates the optimal bandwidth of the kernel used in the SKCE using a median heuristic,

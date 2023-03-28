@@ -73,7 +73,7 @@ if __name__ == "__main__":
     p_test = np.array([[1,0,0]])
     q_test = np.array([[0, 0.5, 0.5]])
 
-    print(f'total variation distance: {tv_distance(p_test, q_test)}')
+    print(f'total variation distance: {tv_distance_tensor(p_test, q_test)}')
     print(f'l2 distance: {l2_distance(p_test, q_test)}')
     m = matrix_kernel(p_test, q_test, l2_distance)
     print(m)

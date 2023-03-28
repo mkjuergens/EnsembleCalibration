@@ -26,21 +26,40 @@ def get_ens_alpha(K: int, u: float, a0: np.ndarray):
     return (K * p0) / u
 
 
-def getBoundary(P, mu, yc):
+def getBoundary(p_probs, p_mu, p_c):
+    """function for getting  the boundary of the convex hull of a given set of predictors.
+
+    Parameters
+    ----------
+    P : np.ndarray
+        tensor containing probabilistic predictions for each instance of each ensemble member
+    p_mu : np.ndarray
+        mean of the ensemble predictors
+    p_c : np.ndarray
+        randomly chosen corner
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     l_arr = np.linspace(0, 1, 100)
     # get convex combinations between yc and mu
-    L = np.stack([l * yc + (1 - l) * mu for l in l_arr])
+    L = np.stack([l * p_c + (1 - l) * p_mu for l in l_arr])
     # determine boundary
     bi = 0
     for i in range(len(L)):
-        if not is_calibrated(P, L[i, :]):
+        if not is_calibrated(p_probs, L[i, :]):
             bi = i - 1
             break
     yb = L[bi, :]
 
     return yb
 
-def experiment_h0_feature_dependency(N: int, M: int, K: int, u: float):
+
+def experiment_h0_feature_dependency(
+    N: int, M: int, K: int, u: float, return_optim_weight: bool = False
+):
     """yields the predictive value tensor as well as the labels for the experiment in Mortier
     et al, where the null hypothesis that the ensemble model is calibrated is true.
 
@@ -56,6 +75,8 @@ def experiment_h0_feature_dependency(N: int, M: int, K: int, u: float):
         _description_
     u : float
         _description_
+        
+    return_optim_weight: bool
 
     Returns
     -------
@@ -63,19 +84,19 @@ def experiment_h0_feature_dependency(N: int, M: int, K: int, u: float):
         _description_
     """
 
-    P, y = [], []
+    P, y, L = [], [], []
     for n in range(N):
         # sample weight vector
         l = np.random.dirichlet([1 / M] * M, 1)[0, :]
-    # repeat sampled weight vector K times, save in matrix of shape (M, K)
-        L = np.repeat(l.reshape(-1, 1), K, axis=1)
+        # repeat sampled weight vector K times, save in matrix of shape (M, K)
+        l_n = np.repeat(l.reshape(-1, 1), K, axis=1)
         # sample parameter of dirichlet distribution
         a = get_ens_alpha(K, u, [1 / K] * K)
         while np.any(a <= 0):
             a = get_ens_alpha(K, u, [1 / K] * K)
-        # sample probability 
+        # sample probability
         Pm = np.random.dirichlet(a, M)
-        Pbar = np.sum(Pm * L, axis=0)
+        Pbar = np.sum(Pm * l_n, axis=0)
         # sample instance
         try:
             # sample labels from the categorical distribution defined over the randomly sampled convex comb
@@ -84,13 +105,19 @@ def experiment_h0_feature_dependency(N: int, M: int, K: int, u: float):
             yl = np.argmax(Pbar)
         P.append(Pm)
         y.append(yl)
+        L.append(l)
     P = np.stack(P)
     y = np.array(y)
+    L = np.stack(L)
 
+    if return_optim_weight:
+        return P, y, L
     return P, y
 
 
-def experiment_h1_feature_dependecy(N: int, M: int, K: int, u: float, random: bool = False):
+def experiment_h1_feature_dependecy(
+    N: int, M: int, K: int, u: float, random: bool = False
+):
     """returns P tensor and array of labels for the setting in Mortier et al where the null
     hypothesis is false
 
@@ -184,7 +211,7 @@ def experiment_h0(N: int, M: int, K: int, u: float):
         a = get_ens_alpha(K, u, [1 / K] * K)
         while np.any(a <= 0):
             a = get_ens_alpha(K, u, [1 / K] * K)
-        # sample probability 
+        # sample probability
         Pm = np.random.dirichlet(a, M)
         Pbar = np.sum(Pm * L, axis=0)
         # sample instance

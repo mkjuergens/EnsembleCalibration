@@ -87,7 +87,8 @@ def hl_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict
     return stat
 
 
-def skce_uq_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict):
+def skce_uq_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict, 
+                    take_square: bool = True):
     """New test objective for the SKCE_uq using a weight matrix containing a weight vector for each instance
          In this case, the weight vector is a flattened version of the matrix containing the weight vectors
          for each row/instance.
@@ -115,10 +116,14 @@ def skce_uq_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params:
     )
     hat_skce_uq_mean = np.mean(hat_skce_uq_arr)
 
+    if take_square:
+        hat_skce_uq_mean = hat_skce_uq_mean**2
+
     return hat_skce_uq_mean
 
 
-def skce_ul_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict):
+def skce_ul_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params: dict, 
+                    take_square: bool = True):
     """New test objective for the SKCE_ul using a weight matrix containing a weight vector for
     each instance
 
@@ -145,6 +150,9 @@ def skce_ul_obj_new(weights_l: np.ndarray, P: np.ndarray, y: np.ndarray, params:
         p_bar=P_bar, y=y, dist_fct=params["dist"], sigma=params["sigma"]
     )
     hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
+
+    if take_square:
+        hat_skce_ul_mean = hat_skce_ul_mean**2
 
     return hat_skce_ul_mean
 

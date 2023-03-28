@@ -99,7 +99,7 @@ def skceultest(P, y, params):
     return stat, pval
 
 
-def skceul(P, y, params):
+def skceul(P, y, params, square_out: bool = True):
 
     """ SKCE_ul estimator for strong classifier calibration.
 
@@ -119,9 +119,12 @@ def skceul(P, y, params):
     hat_skce_ul_arr = skce_ul_arr(P, y, dist_fct=params["dist"], sigma=params["sigma"])
     hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
 
+    if square_out:
+        hat_skce_ul_mean = hat_skce_ul_mean ** 2
+
     return hat_skce_ul_mean
 
-def skceuq(P, y, params):
+def skceuq(P, y, params, square_out: bool = True):
 
     """ SKCE_uq estimator for strong classifier calibration.
 
@@ -142,6 +145,9 @@ def skceuq(P, y, params):
     # calculate SKCE_ul estimate
     hat_skce_uq_arr = skce_uq_arr(P, y, dist_fct=params["dist"], sigma=params["sigma"])
     hat_skce_uq_mean = np.mean(hat_skce_uq_arr)
+
+    if square_out:
+        hat_skce_uq_mean = hat_skce_uq_mean ** 2
 
     return hat_skce_uq_mean
 
@@ -185,7 +191,8 @@ def classece(P, y, params):
 
 def npbetest_alpha(P, y, params):
     """
-    updated, faster version of the npbe test:  calculate sampling distribution on,ly ocne, tehn use it for every alpha
+    updated, faster version of the npbe test:  calculate sampling distribution on,ly ocne,
+    then use it for every alpha
     """
     stats = np.zeros(params["n_resamples"])
     for b in range(params["n_resamples"]):
@@ -205,9 +212,6 @@ def npbetest_alpha(P, y, params):
         # round to 5 decimal digits for numerical stability
         P_bar_b = np.trunc(P_bar_b*10**3)/(10**3)
         P_bar_b = np.clip(P_bar_b, 0, 1)
-        # P_bar_b = P_bar_b[~np.isnan(P_bar_b).any(axis=1)]
-        # randomly sample labels from P_bar
-       # print(P_bar_b.shape)
         y_b = np.apply_along_axis(sample_m, 1, P_bar_b)
         # perform test
         stats[b] = params["test"](P_bar_b, y_b, params)

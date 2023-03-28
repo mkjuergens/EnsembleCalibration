@@ -39,17 +39,26 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list, take_avg: bool =
             ax[j].grid()
     else:
         fig, ax = plt.subplots(len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True)
-        for i in range(len(list_errors)):
-            ax[i, 0].set_ylabel(f'{list_errors[i]}')
-            for j in range(len(df)):
-                ax[i, j].plot(alphas, literal_eval(df[list_errors[i]][j]))
-                if j == 0:
-                    ax[i, j].plot(alphas, alphas, '--')
-                ax[i, j].spines[['right', 'top']].set_visible(False)
-                ax[i, j].grid()
+        if len(list_errors) > 1:
+            for i in range(len(list_errors)):
+                ax[i, 0].set_ylabel(f'{list_errors[i]}')
+                for j in range(len(df)):
+                    ax[i, j].plot(alphas, literal_eval(df[list_errors[i]][j]))
+                    if j == 0:
+                        ax[i, j].plot(alphas, alphas, '--')
+                    ax[i, j].spines[['right', 'top']].set_visible(False)
+                    ax[i, j].grid()
 
-        for i in range(len(df)):
-            ax[0, i].set_title(f'S_{i}')
+            for i in range(len(df)):
+                ax[0, i].set_title(f'S_{i}')
+        else:
+            ax[0].set_ylabel(f'{list_errors[0]}')
+            for j in range(len(df)):
+                ax[j].plot(alphas, literal_eval(df[list_errors[0]][j]))
+                if j == 0:
+                    ax[j].plot(alphas, alphas, '--')
+                ax[j].spines[['right', 'top']].set_visible(False)
+                ax[j].grid()
     fig.supxlabel(r'$\alpha$')
     fig.supylabel(r'Type $1$/$2$ error')
     plt.tight_layout()
