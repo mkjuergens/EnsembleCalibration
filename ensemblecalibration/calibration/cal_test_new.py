@@ -11,7 +11,7 @@ from ensemblecalibration.calibration.minimization import (
     solve_cobyla1D,
     solve_neldermead1D,
 )
-from ensemblecalibration.sampling import multinomial_label_sampling
+from ensemblecalibration.sampling import multinomial_label_sampling, sample_p_bar
 from ensemblecalibration.nn_training.train import get_optim_lambda_mlp
 from ensemblecalibration.nn_training.model import MLPDataset
 
@@ -50,15 +50,75 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
 
     elif params["optim"] == "mlp":
         dataset = MLPDataset(P, y)
-        l = get_optim_lambda_mlp(dataset_train=dataset, loss=params["loss"], 
-                                   n_epochs=params["n_epochs"], lr=params["lr"])
+        l = get_optim_lambda_mlp(
+            dataset_train=dataset,
+            loss=params["loss"],
+            n_epochs=params["n_epochs"],
+            lr=params["lr"],
+        )
     else:
         raise NotImplementedError
 
-    minstat = params["obj"](
-        l, P, y, params
-    )
+    if params["x_dependency"]:
+        p_bar = calculate_pbar(l, P, reshape=True, n_dims=2)
+    if params["x_dependency"]:
+        p_bar = calculate_pbar(l, P, reshape=False, n_dims=1)
+    minstat = params["obj"](p_bar, y, params)
     return minstat, l
+
+
+def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
+    """new version of the bootstrapping test using uniform sampling of the polytope for testing
+    whether there exists a calibrated version in the convex hull
+
+    Parameters
+    ----------
+    p_probs : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing probabilistic predictions for each instance and classifier
+    y_labels : np.ndarray of shape (n_samples,)
+        array containing labels
+    params : dict
+        dictionary of test parameters
+
+    Returns
+    -------
+    int, in {0, 1}
+    test result
+    """
+
+    # array for saving decisions for each iteration
+    decisions = np.zeros(params["n_predictors"])
+    for n in range(params["n_predictors"]):
+        # sample predictor within convex hull
+        p_bar = sample_p_bar(p_probs=p_probs, params=params)
+        # save test statistics for bootstrap iterations
+        stats = np.zeros(params["n_resamples"])
+        # bootstrap iterations
+        for b in range(params["n_resamples"]):
+            # randomly sample from p_bar
+            p_bar_b = np.stack(random.sample(p_bar_b.tolist(), p_bar_b.shape[0]))
+            # sample labels uniformly from the induced caftegorical distribution
+            y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
+            stats[b] = params["test"](p_bar_b, y_b, params)
+        # calculate quantile of empirical distribution
+        q_alpha = np.quantile(stats, 1 - np.array(params["alpha"]))
+        # calculate value of test statistic for original labels and predictor
+        minstat = params["obj"](p_bar, y_labels, params)
+        decision = list(map(int, np.abs(minstat) > q_alpha))
+        decisions[n] = decision
+
+    # check if any test accepts, if yes, accept, else, no
+    final_r = np.min(decisions)
+    return final_r
+
+
+def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params: dict):
+    """
+    version of the test where alpha is given in as a function parameter
+    """
+    params["alpha"] = alpha
+    result = npbe_test_v3_alpha(p_probs=p_probs, y_labels=y_labels, params=params)
+    return result
 
 
 def npbe_test_new(P: np.ndarray, y: np.ndarray, params: dict):
@@ -164,3 +224,12 @@ def _npbe_test_new_alpha(P: np.ndarray, y: np.ndarray, alpha: float, params: dic
     dec, l = npbe_test_new_alpha(P, y, params)
 
     return dec
+
+
+if __name__ == "__main__":
+    p_bar = np.random.dirichlet([1] * 10, size=100)
+    p_bar_b = random.sample(p_bar.tolist(), p_bar.shape[0])
+    p_bar_b = np.stack(p_bar_b)
+    print(p_bar_b.sum(1))
+    y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
+    print(y_b)

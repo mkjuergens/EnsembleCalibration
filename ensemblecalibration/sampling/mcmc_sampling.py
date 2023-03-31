@@ -11,6 +11,7 @@ from mhar import walk
 from ensemblecalibration.transformations import transform_points, inv_transform_points
 from ensemblecalibration.transformations.projections_2d import project_points2D, planes_to_coordinates3D
 from ensemblecalibration.sampling.lambda_sampling import multinomial_label_sampling
+from ensemblecalibration.sampling.polytope import get_polytope_equations
 
 # goal is to sample predictions P_bar using a matrix P of shape (N, M, K )
 
@@ -27,41 +28,6 @@ def enable_print():
     fucnntion for (re)enabling print statements of functions.
     """
     sys.stdout = sys.__stdout__
-
-def get_polytope_equations(points: np.ndarray, transform: str= 'sqrt'):
-    """function exrtacting the hyperplane inequality constraints 
-    given points in the K-dim space from a (K-1))-simplex
-
-    Parameters
-    ----------
-    points : np.ndarray of shape (n_points, K)
-        points from a (K-1)-simplex
-    transform: str, Options: ['isometric', 'additive', 'sqrt]
-        transformation to be used to map the points on the lower dimensional
-        subspace. Note that 'sqrt' can be only used for the 3 dimensional space.
-
-    Returns
-    -------
-    tensors A of shape (n_facets, K-1)
-            b of shape (n_facets, 1)
-
-        defining the polytope P in a way s.t. 
-
-            P = {x in R^(K-1)): Ax <= b}
-    """
-
-    x_trans = transform_points(points, transform=transform) #transform points to lower dimensional subspace
-    hull = ConvexHull(x_trans) # compute convex hull
-
-    eqs = hull.equations # hyperplane equations of the facets of shape (n_facets, 3)
-
-    A = eqs[:, :-1]
-    b = - eqs[:, -1:]
-
-    A = torch.from_numpy(A).type(torch.FloatTensor)
-    b = torch.from_numpy(b).type(torch.FloatTensor)
-
-    return A, b
 
 
 def mhar_sampling(p: np.ndarray, transform: str = 'sqrt', n_samples: int = 100,
@@ -178,21 +144,27 @@ def mhar_sampling_p(P: np.ndarray, transform: str = 'sqrt'):
 
     return P_hat
 
+def sample_predictors(p_probs: np.ndarray, n_preds: int, transform: str):
+    p_bar_ens = np.zeros((n_preds, p_probs.shape[0], p_probs.shape[2]))
+    for n in range(n_preds):
+        p_bar = mhar_sampling_p(p_probs, transform=transform)
+        p_bar_ens[n] = p_bar
+
+    return p_bar_ens
+
+
+
 if __name__ == "__main__":
     P = np.random.dirichlet([1]*3, size=10)
-    x_out = mhar_sampling(P, transform='sqrt')
+    x_out = mhar_sampling(P, transform='isometric')
     # now for real P
-    P = np.random.dirichlet([1]*3, size=(100, 10))
+    P = np.random.dirichlet([1]*3, size=(1000, 10))
     print(P.shape)
-    P_hat = np.zeros((P.shape[0], 3))
-    for i in range(P.shape[0]):
-        x_sample = mhar_sampling(P[i], transform='sqrt', n_samples=1)
-        P_hat[i] = x_sample
-    print(P_hat.shape)
     t_0 = time.time()
-    P_hat = mhar_sampling_p(P)
+    p_bar_ens = sample_predictors(P, n_preds=10, transform='isometric')
     t_1 = time.time()
-    print(f'Time for sampling 1000 times: {t_1-t_0}')
+    print(p_bar_ens.sum(2))
+    print(f'Time for generating 10 predictors: {t_1 - t_0}')
     
 
 

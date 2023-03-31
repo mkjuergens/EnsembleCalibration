@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.optimize import linprog
 
-#from ensemblecalibration.sampling.mcmc_sampling import find_random_inner_point
+from ensemblecalibration.sampling.mcmc_sampling import find_random_inner_point
 
 
 def is_calibrated(P: np.ndarray, p_hat: np.ndarray):

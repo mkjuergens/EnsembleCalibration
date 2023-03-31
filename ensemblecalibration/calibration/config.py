@@ -5,10 +5,38 @@ from ensemblecalibration.calibration.cal_tests import skceul, confece, classece,
 from ensemblecalibration.calibration.cal_tests import skce_ul_obj, confece_obj, classece_obj, hl_obj
 from ensemblecalibration.calibration.test_objectives import confece_obj_new, classece_obj_new, hl_obj_new, skce_ul_obj_new
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
-from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
+from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha, _npbe_test_v3_alpha
 from ensemblecalibration.calibration.experiments import experiment_h0_feature_dependency, experiment_h1_feature_dependecy
 from ensemblecalibration.nn_training.losses import SKCELoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
+
+config_new_v3 = {
+    "SKCEuq": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "l_prior": 1, 
+            "n_resamples": 100,
+            "n_predictors": 100,
+            "dist": tv_distance,
+            "sigma": 2.0, # to be used in the matrix valued kernel
+            "test": skceul,
+            "obj": skce_ul_obj,
+        }
+    },
+    "SKCEul": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "l_prior": 1, 
+            "n_resamples": 100,
+            "n_predictors": 100,
+            "dist": tv_distance,
+            "sigma": 2.0, # to be used in the matrix valued kernel
+            "test": skceul,
+            "obj": skce_ul_obj_new
+        }
+    }      
+}
+
 
 config_new_mlp = {
     "SKCEuq": {
