@@ -23,6 +23,78 @@ config_p_value_analysis = {
         "x_dependency": False
     }
     },
+    "HL5": {
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
+            "obj": hl_obj_lambda, # objective function for the minimzation part
+            "x_dependency": False
+
+        },
+    },
+
+    "HL10": {
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
+            "obj": hl_obj_lambda, # objective function for the minimzation part
+            "x_dependency": False
+
+        },
+    },
+    "ECEconf5": {
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "test": confece,
+            "obj": confece_obj_lambda,
+            "x_dependency": False
+        }
+    },
+
+    "ECEconf10": {
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "test": confece,
+            "obj": confece_obj_lambda,
+            "x_dependency": False
+        }
+    },
+
+    "ECEclass5": {
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 5,
+            "test": classece,
+            "obj": classece_obj_lambda,
+            "x_dependency": False
+        }
+    },
+
+    "ECEclass10": {
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_bins": 10,
+            "test": classece,
+            "obj": classece_obj_lambda,
+            "x_dependency": False
+        }
+    },
 }
 config_new_v3 = {
     "SKCEuq": {

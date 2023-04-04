@@ -103,6 +103,20 @@ def classece_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
 
     return stat
 
+def classece_obj_lambda(weight_l: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, 
+                        params: dict):
+    
+    p_bar = calculate_pbar(weights_l=weight_l, P=p_probs, reshape=False, n_dims=1)
+    stat = classece_obj(p_bar=p_bar, y=y_labels, params=params)
+    return stat
+
+def confece_obj_lambda(weight_l: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, 
+                        params: dict):
+    
+    p_bar = calculate_pbar(weights_l=weight_l, P=p_probs, reshape=False, n_dims=1)
+    stat = confece_obj(p_bar=p_bar, y=y_labels, params=params)
+    return stat
+
 
 def confece(P, y, params):
 
