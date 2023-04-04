@@ -12,8 +12,8 @@ from scipy.optimize import minimize
 
 from pyswarm import pso
 
-from ensemblecalibration.calibration.test_objectives import confece_obj_new, classece_obj_new
-from ensemblecalibration.calibration.helpers import constr_eq, c1_constr, c2_constr, c1_constr_flat, c2_constr_flat, constr_pyswarm
+from ensemblecalibration.calibration.calibration_estimates import confece_obj_new, classece_obj_new
+from ensemblecalibration.calibration.helpers import  c1_constr, c2_constr, c1_constr_flat, c2_constr_flat, constr_pyswarm
 
 
 
@@ -219,12 +219,4 @@ if __name__ == "__main__":
     config = {"obj": classece_obj_new, "n_bins":5}
     l_1 = solve_cobyla2D(P, y, config)
 
-    l_2 = solve_pyswarm(P, y, params=config)
-    l_2 = l_2.reshape(P.shape[0], -1)
-
-
-
-    print(l_1)
-    print(l_2)
-    print(np.sum(l_2, axis=1))
 

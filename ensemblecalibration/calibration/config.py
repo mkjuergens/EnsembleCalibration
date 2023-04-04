@@ -1,15 +1,29 @@
 from copy import deepcopy
 
-from ensemblecalibration.calibration.distances import tv_distance
-from ensemblecalibration.calibration.cal_tests import skceul, confece, classece, hl
-from ensemblecalibration.calibration.cal_tests import skce_ul_obj, confece_obj, classece_obj, hl_obj
-from ensemblecalibration.calibration.test_objectives import confece_obj_new, classece_obj_new, hl_obj_new, skce_ul_obj_new
+from ensemblecalibration.calibration.calibration_estimates.distances import tv_distance
+
+from ensemblecalibration.calibration.calibration_estimates import *
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
 from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha, _npbe_test_v3_alpha
-from ensemblecalibration.calibration.experiments import experiment_h0_feature_dependency, experiment_h1_feature_dependecy
 from ensemblecalibration.nn_training.losses import SKCELoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
 
+config_p_value_analysis = {
+    "SKCEul": {
+    "params": {
+        "l_prior": 1, 
+        "optim": "cobyla",
+        "n_resamples": 1000,
+        "dist": tv_distance,
+        "sigma": 2.0, # to be used in the matrix valued kernel
+        "test": skceul,
+        "obj": skce_ul_obj_lambda,
+        "sampling": "lambda",
+        "transform": "isometric",
+        "x_dependency": False
+    }
+    },
+}
 config_new_v3 = {
     "SKCEuq": {
         "test": _npbe_test_v3_alpha,
@@ -19,8 +33,10 @@ config_new_v3 = {
             "n_predictors": 100,
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel
-            "test": skceul,
-            "obj": skce_ul_obj,
+            "test": skceuq,
+            "obj": skce_uq_obj,
+            "sampling": "lambda",
+            "transform": "isometric"
         }
     },
     "SKCEul": {
@@ -32,11 +48,12 @@ config_new_v3 = {
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel
             "test": skceul,
-            "obj": skce_ul_obj_new
+            "obj": skce_ul_obj_new,
+            "sampling": "lambda",
+            "transform": "isometric"
         }
     }      
 }
-
 
 config_new_mlp = {
     "SKCEuq": {
@@ -84,7 +101,7 @@ config_tests_new_cobyla_2d = {
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
-            "test": hl, # test used for the calibration measure of the #perfectly# calibrated model
+            "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": hl_obj_new, # objective function for the minimzation part
             "x_dependency": True
 
@@ -98,7 +115,7 @@ config_tests_new_cobyla_2d = {
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
-            "test": hl, # test used for the calibration measure of the #perfectly# calibrated model
+            "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": hl_obj_new, # objective function for the minimzation part
             "x_dependency": True
 
@@ -182,7 +199,7 @@ config_tests_new_cobyla_1d = {
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
-            "test": hl, # test used for the calibration measure of the #perfectly# calibrated model
+            "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": hl_obj, # objective function for the minimzation part
             "x_dependency": False
 
@@ -196,7 +213,7 @@ config_tests_new_cobyla_1d = {
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
-            "test": hl, # test used for the calibration measure of the #perfectly# calibrated model
+            "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": hl_obj, # objective function for the minimzation part
             "x_dependency": False
 
@@ -293,7 +310,7 @@ config_tests_cobyla_2d= {
                 "optim": "cobyla", 
                 "n_resamples": 100, 
                 "n_bins": 5,
-                "test": hl, 
+                "test": hltest, 
                 "obj": hl_obj_new,
                 "transform": "additive",
                 "x_dependency": True
@@ -308,7 +325,7 @@ config_tests_cobyla_2d= {
             "optim": "cobyla", 
             "n_resamples": 100, 
             "n_bins": 10,
-            "test": hl, 
+            "test": hltest, 
             "obj": hl_obj_new,
             "transform": "additive",
             "x_dependency": True
@@ -402,7 +419,7 @@ config_tests_cobyla_1d= {
                 "optim": "cobyla", 
                 "n_resamples": 100, 
                 "n_bins": 5,
-                "test": hl, 
+                "test": hltest, 
                 "obj": hl_obj,
                 "transform": "additive",
                 "x_dependency": False
@@ -417,7 +434,7 @@ config_tests_cobyla_1d= {
             "optim": "cobyla", 
             "n_resamples": 100, 
             "n_bins": 10,
-            "test": hl, 
+            "test": hltest, 
             "obj": hl_obj,
             "transform": "additive",
             "x_dependency": False

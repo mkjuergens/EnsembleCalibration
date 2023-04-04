@@ -3,7 +3,7 @@ import numpy as np
 
 from scipy.optimize import minimize
 
-from ensemblecalibration.calibration.test_objectives import calculate_pbar
+from ensemblecalibration.calibration.calibration_estimates.helpers import calculate_pbar
 from ensemblecalibration.calibration.helpers import sample_m
 from ensemblecalibration.calibration.minimization import (
     solve_cobyla2D,
@@ -59,11 +59,7 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
     else:
         raise NotImplementedError
 
-    if params["x_dependency"]:
-        p_bar = calculate_pbar(l, P, reshape=True, n_dims=2)
-    if params["x_dependency"]:
-        p_bar = calculate_pbar(l, P, reshape=False, n_dims=1)
-    minstat = params["obj"](p_bar, y, params)
+    minstat = params["obj"](l, P, y, params)
     return minstat, l
 
 
@@ -87,16 +83,19 @@ def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
     """
 
     # array for saving decisions for each iteration
-    decisions = np.zeros(params["n_predictors"])
+    decisions = np.zeros((params["n_predictors"], len(params["alpha"])))
     for n in range(params["n_predictors"]):
         # sample predictor within convex hull
         p_bar = sample_p_bar(p_probs=p_probs, params=params)
+        # cut down values outside [0, 1] for numerical stability
+        p_bar = np.trunc(p_bar*10**3)/(10**3)
+        p_bar = np.clip(p_bar, 0, 1)
         # save test statistics for bootstrap iterations
         stats = np.zeros(params["n_resamples"])
         # bootstrap iterations
         for b in range(params["n_resamples"]):
             # randomly sample from p_bar
-            p_bar_b = np.stack(random.sample(p_bar_b.tolist(), p_bar_b.shape[0]))
+            p_bar_b = np.stack(random.sample(p_bar.tolist(), p_bar.shape[0]))
             # sample labels uniformly from the induced caftegorical distribution
             y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
             stats[b] = params["test"](p_bar_b, y_b, params)
@@ -104,11 +103,11 @@ def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
         q_alpha = np.quantile(stats, 1 - np.array(params["alpha"]))
         # calculate value of test statistic for original labels and predictor
         minstat = params["obj"](p_bar, y_labels, params)
-        decision = list(map(int, np.abs(minstat) > q_alpha))
-        decisions[n] = decision
+        decision = list(map(int, np.abs(minstat) > q_alpha)) # zero if false, 1 (reject) if true 
+        decisions[n, :] = decision
 
     # check if any test accepts, if yes, accept, else, no
-    final_r = np.min(decisions)
+    final_r = np.min(decisions, axis=0)
     return final_r
 
 

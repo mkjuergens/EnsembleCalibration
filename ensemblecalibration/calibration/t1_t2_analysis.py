@@ -5,10 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from scipy.stats import multinomial
-
 sys.path.append("../..")
-from ensemblecalibration.calibration.iscalibrated import is_calibrated
 from ensemblecalibration.calibration.config import (
     config_tests_new_cobyla_2d,
     config_tests_new_cobyla_1d,

@@ -28,7 +28,6 @@ def uniform_weight_sampling(P: np.ndarray):
         N, M, K = P.shape
 
     lambdas = random.dirichlet([1]*M, size=1)[0, :]
-
     preds_new = lambdas @ P
 
     return preds_new

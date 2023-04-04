@@ -181,7 +181,6 @@ def median_heuristic(p_hat: torch.Tensor, y_labels: torch.Tensor):
     """
     # get predictions of the model
     y_pred = torch.argmax(p_hat, dim=1)
-    print(y_pred)
     # reshape to two dimensions
     y_pred = y_pred.view(y_pred.shape[0], -1)
     y_labels = y_labels.view(y_labels.shape[0], -1)
