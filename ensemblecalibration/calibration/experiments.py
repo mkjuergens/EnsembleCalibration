@@ -180,7 +180,7 @@ def experiment_h1_feature_dependecy(
 
 
 
-def experiment_h0(N: int, M: int, K: int, u: float):
+def experiment_h0(N: int, M: int, K: int, u: float, l_prior: int = 1):
     """yields the predictive value tensor as well as the labels for the experiment in Mortier
     et al, where the null hypothesis that the ensemble model is calibrated is true.
 
@@ -196,6 +196,8 @@ def experiment_h0(N: int, M: int, K: int, u: float):
         _description_
     u : float
         _description_
+    l_prior: int
+        parameter of the dirichlet distribution
 
     Returns
     -------
@@ -203,7 +205,7 @@ def experiment_h0(N: int, M: int, K: int, u: float):
         _description_
     """
 
-    l = np.random.dirichlet([1] * M, 1)[0, :] # TODO: change back to 1/M ?
+    l = np.random.dirichlet([1/l_prior] * M, 1)[0, :] # TODO: change back to 1/M ?
     # repeat sampled weight vector K times, save in matrix of shape (M, K)
     L = np.repeat(l.reshape(-1, 1), K, axis=1)
     P, y = [], []

@@ -5,93 +5,109 @@ from ensemblecalibration.calibration.calibration_estimates.distances import tv_d
 from ensemblecalibration.calibration.calibration_estimates import *
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
 from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha, _npbe_test_v3_alpha
+from ensemblecalibration.calibration.p_value_analysis import npbe_test_p_values, npbe_test_v3_p_values
 from ensemblecalibration.nn_training.losses import SKCELoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
 
 config_p_value_analysis = {
     "SKCEul": {
+    "test": npbe_test_v3_p_values,
+
     "params": {
+        "n_predictors": 100,
         "l_prior": 1, 
         "optim": "cobyla",
         "n_resamples": 1000,
         "dist": tv_distance,
         "sigma": 2.0, # to be used in the matrix valued kernel
         "test": skceul,
-        "obj": skce_ul_obj_lambda,
+        "obj": skce_ul_obj,
         "sampling": "lambda",
         "transform": "isometric",
         "x_dependency": False
-    }
+    },
     },
     "HL5": {
+    "test": npbe_test_v3_p_values,
         "params": {
+            "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
             "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
-            "obj": hl_obj_lambda, # objective function for the minimzation part
+            "obj": hl_obj, # objective function for the minimzation part
             "x_dependency": False
 
         },
     },
 
     "HL10": {
+    "test": npbe_test_v3_p_values,
         "params": {
+            "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
             "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
-            "obj": hl_obj_lambda, # objective function for the minimzation part
+            "obj": hl_obj, # objective function for the minimzation part
             "x_dependency": False
 
         },
     },
     "ECEconf5": {
+    "test": npbe_test_v3_p_values,
         "params": {
+            "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
             "test": confece,
-            "obj": confece_obj_lambda,
+            "obj": confece_obj,
             "x_dependency": False
         }
     },
 
     "ECEconf10": {
+    "test": npbe_test_v3_p_values,
         "params": {
+            "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
             "test": confece,
-            "obj": confece_obj_lambda,
+            "obj": confece_obj,
             "x_dependency": False
         }
     },
 
     "ECEclass5": {
+    "test": npbe_test_v3_p_values,
         "params": {
+            "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 5,
             "test": classece,
-            "obj": classece_obj_lambda,
+            "obj": classece_obj,
             "x_dependency": False
         }
     },
 
     "ECEclass10": {
+    "test": npbe_test_v3_p_values,
         "params": {
-            "l_prior": 1,
+            "n_predictors": 100,
+            "l_prior": 1, 
             "optim": "cobyla",
             "n_resamples": 100,
             "n_bins": 10,
             "test": classece,
-            "obj": classece_obj_lambda,
+            "obj": classece_obj,
             "x_dependency": False
         }
     },
