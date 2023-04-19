@@ -129,6 +129,8 @@ def skce_ul_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
         p_bar, y, dist_fct=params["dist"], sigma=params["sigma"]
     )
     hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
+    if params["take_square"]:
+        hat_skce_ul_mean = hat_skce_ul_mean ** 2
 
     return hat_skce_ul_mean
 
@@ -237,7 +239,7 @@ def skce_ul_obj_new(
 
     return hat_skce_ul_mean
 
-def skceul(P, y, params, square_out: bool = False):
+def skceul(P, y, params):
 
     """ SKCE_ul estimator for strong classifier calibration.
 
@@ -257,7 +259,7 @@ def skceul(P, y, params, square_out: bool = False):
     hat_skce_ul_arr = skce_ul_arr(P, y, dist_fct=params["dist"], sigma=params["sigma"])
     hat_skce_ul_mean = np.mean(hat_skce_ul_arr)
 
-    if square_out:
+    if params["take_square"]:
         hat_skce_ul_mean = hat_skce_ul_mean ** 2
 
     return hat_skce_ul_mean
@@ -317,15 +319,15 @@ def skceultest(P, y, params):
 
     return stat, pval
 
-def skce_ul_obj_lambda(l_weights: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
+def skce_ul_obj_lambda(weights_l: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
                         params: dict):
-    p_bar = calculate_pbar(weights_l=l_weights, P=p_probs, reshape=False, n_dims=1)
+    p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
     stat = skce_ul_obj(p_bar=p_bar, y=y_labels, params=params)
 
     return stat
 
-def skce_uq_obj_lambda(l_weights: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
+def skce_uq_obj_lambda(weights_l: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
                        params: dict):
-    p_bar = calculate_pbar(weights_l=l_weights, P=p_probs, reshape=False, n_dims=1)
+    p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
     stat = skce_uq_obj(p_bar=p_bar, y=y_labels, params=params)
     return stat

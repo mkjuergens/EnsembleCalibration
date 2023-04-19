@@ -58,8 +58,9 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
         )
     else:
         raise NotImplementedError
+    
+    minstat = params["obj"](P, y, params)
 
-    minstat = params["obj"](l, P, y, params)
     return minstat, l
 
 
@@ -118,6 +119,7 @@ def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params
     params["alpha"] = alpha
     result = npbe_test_v3_alpha(p_probs=p_probs, y_labels=y_labels, params=params)
     return result
+
 
 
 def npbe_test_new(P: np.ndarray, y: np.ndarray, params: dict):
@@ -223,6 +225,7 @@ def _npbe_test_new_alpha(P: np.ndarray, y: np.ndarray, alpha: float, params: dic
     dec, l = npbe_test_new_alpha(P, y, params)
 
     return dec
+
 
 
 if __name__ == "__main__":

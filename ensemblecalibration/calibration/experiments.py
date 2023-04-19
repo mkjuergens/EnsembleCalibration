@@ -75,7 +75,7 @@ def experiment_h0_feature_dependency(
         _description_
     u : float
         _description_
-        
+
     return_optim_weight: bool
 
     Returns
@@ -179,8 +179,9 @@ def experiment_h1_feature_dependecy(
     return P, y
 
 
-
-def experiment_h0(N: int, M: int, K: int, u: float, l_prior: int = 1):
+def experiment_h0(
+    N: int, M: int, K: int, u: float, l_prior: int = 1, output_weights: bool = False
+):
     """yields the predictive value tensor as well as the labels for the experiment in Mortier
     et al, where the null hypothesis that the ensemble model is calibrated is true.
 
@@ -198,14 +199,19 @@ def experiment_h0(N: int, M: int, K: int, u: float, l_prior: int = 1):
         _description_
     l_prior: int
         parameter of the dirichlet distribution
+    output_weights: bool
+        whether to output the weights of the ensemble model used for the "truly"
+        calibrated convex combination
 
     Returns
     -------
-    _type_
-        _description_
+    if output_weights:
+        P, y, l
+    else:
+        P, y
     """
 
-    l = np.random.dirichlet([1/l_prior] * M, 1)[0, :] # TODO: change back to 1/M ?
+    l = np.random.dirichlet([1 / l_prior] * M, 1)[0, :]  # TODO: change back to 1/M ?
     # repeat sampled weight vector K times, save in matrix of shape (M, K)
     L = np.repeat(l.reshape(-1, 1), K, axis=1)
     P, y = [], []
@@ -215,8 +221,8 @@ def experiment_h0(N: int, M: int, K: int, u: float, l_prior: int = 1):
         while np.any(a <= 0):
             a = get_ens_alpha(K, u, [1 / K] * K)
         # sample probability
-        Pm = np.random.dirichlet(a, M) # of shape (M, K)
-        Pbar = np.sum(Pm * L, axis=0) # of shape (K,)
+        Pm = np.random.dirichlet(a, M)  # of shape (M, K)
+        Pbar = np.sum(Pm * L, axis=0)  # of shape (K,)
         # sample instance
         try:
             # sample labels from the categorical distribution defined over the randomly sampled convex comb
@@ -228,7 +234,10 @@ def experiment_h0(N: int, M: int, K: int, u: float, l_prior: int = 1):
     P = np.stack(P)
     y = np.array(y)
 
-    return P, y
+    if output_weights:
+        return P, y, l
+    else:
+        return P, y
 
 
 def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
@@ -296,7 +305,7 @@ def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
 if __name__ == "__main__":
     P, y = experiment_h0_feature_dependency(100, 10, 3, 0.01)
     print(P)
-    l_1 = np.random.dirichlet([1/10]*10,1)[0,:]
+    l_1 = np.random.dirichlet([1 / 10] * 10, 1)[0, :]
     print(l_1)
-    l_2 = np.random.dirichlet([1]*10,1)[0, :]
+    l_2 = np.random.dirichlet([1] * 10, 1)[0, :]
     print(l_2)

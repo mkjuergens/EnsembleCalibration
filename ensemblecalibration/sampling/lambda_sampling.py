@@ -46,9 +46,12 @@ def multinomial_label_sampling(probs: np.ndarray):
     _type_
         _description_
     """
+    try:
+        draws = multinomial(1, probs).rvs(size=1)[0, :]
+        y = np.argmax(draws)
 
-    draws = multinomial(1, probs).rvs(size=1)[0, :]
-    y = np.argmax(draws)
+    except ValueError as e:
+        y = np.argmax(probs)
 
     return y
 

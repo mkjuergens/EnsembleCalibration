@@ -1,3 +1,4 @@
+from typing import Optional
 import random
 import numpy as np
 from statsmodels.distributions.empirical_distribution import ECDF
@@ -6,8 +7,154 @@ from tqdm import tqdm
 from ensemblecalibration.calibration.experiments import experiment_h0, experiment_h1
 from ensemblecalibration.calibration.cal_test_new import calculate_min_new
 from ensemblecalibration.calibration.calibration_estimates.helpers import calculate_pbar
-from ensemblecalibration.sampling import multinomial_label_sampling
-from ensemblecalibration.calibration.config import config_p_value_analysis
+from ensemblecalibration.sampling import multinomial_label_sampling, sample_p_bar
+
+
+def npbe_test_null_hypothesis(
+    params: dict, n_iters: int = 1000, n_classes: int = 2, n_instances: int = 1000
+):
+    """
+    Function for testing the null hypothesis of the NPBE test for a single classifier setting.
+    Parameters
+    ----------
+    params : dict
+        test parameters
+    n_iters : int
+        number of iterations (default: 1000)
+    n_classes : int
+        number of classes (default: 2)
+    n_instances : int
+        number of instances (default: 1000)
+    
+    Returns
+    -------
+    p_vals, stats, decisions
+        p-values, test statistics and decisions for the null hypothesis
+    """
+    p_vals = np.zeros(n_iters)
+    stats = np.zeros(n_iters)
+    decisions = np.zeros(n_iters)
+    for n in tqdm(range(n_iters)):
+        p_probs = np.random.dirichlet([1] * n_classes, size=n_instances)
+        y_labels = np.apply_along_axis(multinomial_label_sampling, 1, p_probs)
+        decision, p_val, stat = npbe_test_vaicenavicius(p_probs, y_labels, params)
+        p_vals[n] = p_val
+        stats[n] = stat
+        decisions[n] = decision
+    
+    return p_vals, stats, decisions
+
+
+
+
+def npbe_test_vaicenavicius(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
+    """
+    Non-parametric bootstrpping etst for a single classifier setting: see also Vaicenavicius et al. (2019).
+
+    Parameters
+    ----------
+    p_probs : np.ndarray
+        tensor of probabilistic predictions of shape (n_instances, n_classes)
+    y_labels : np.ndarray
+        labels
+    params : dict
+        test parameters
+
+    Returns
+    -------
+    decision, p_val, stat
+        decision of the test, p-value and value of the test statistic for the real data
+    """
+
+    # save values of bootstrap statistics here
+    stats_h0 = np.zeros(params["n_resamples"])
+    for b in range(params["n_resamples"]):
+        # extract bootstrap sample
+        p_probs_b = random.sample(p_probs.tolist(), p_probs.shape[0])
+        p_probs_b = np.stack(p_probs_b)
+        # sample labels according to categorical distribution
+        y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_probs_b)
+        # calculate test statistic under null hypothesis
+        stats_h0[b] = params["obj"](p_probs_b, y_b, params)
+    # calculate statistic on real data
+    stat = params["obj"](p_probs, y_labels, params)
+    # calculate alpha-quantile of the empirical distribution of the test statistic under the null hypothesis
+    q_alpha = np.quantile(stats_h0, 1 - params["alpha"])
+    # decision: reject test if stat > q_alpha
+    decision = int(np.abs(stat) > q_alpha)
+    # p-value: fraction of bootstrap samples that are larger than the test statistic on the real data
+    p_val = np.sum(stats_h0 > stat) / params["n_resamples"]
+    return decision, p_val, stat
+
+
+def npbe_test_v3_p_values(
+    p_probs: np.ndarray,
+    y_labels: np.ndarray,
+    params: dict,
+    weights_l: Optional[np.ndarray] = None,
+):
+    """version of the non-parametric bootstrappping test for analysing the p-values in relation
+    to the empirical distribution under the null hypothesis. Given as input the probabilistic predictions
+    of the ensemble members, the labels, and the test parameters, it returns the value of the test statistic
+
+
+    Parameters
+    ----------
+    p_probs : np.ndarray
+        tensor of probabilistic predictions of shape (n_instances, n_predictors, n_classes)
+    y_labels : np.ndarray
+        labels
+    params : dict
+        test parameters
+    weights_l : Optional[np.ndarray],
+        weight matrix for the convex combination of predictors from which the labels are (initially)
+        sampled.
+
+    Returns
+    -------
+    minstat, stats, p_val
+        value of the statistic on the real data for the randomly sampled convex combination (c.c.),
+        values of the bootstrapping samples (of the c.c.) under the null hypothesis, p-value
+    """
+    # save p-values here
+    p_vals = np.zeros(params["n_predictors"])
+    # save test statistics (evaluated for the bootstrap under the null hypothesis) here
+    stats_h0 = np.zeros((params["n_predictors"], params["n_resamples"]))
+    # save value of statistic on real data here
+    stats = np.zeros(params["n_predictors"])
+    if weights_l is not None:
+        # calulate true value of the miscalibration measure for the "truely calibrated" convex combination
+        true_stat = params["obj_lambda"](
+            weights_l=weights_l, p_probs=p_probs, y_labels=y_labels, params=params
+        )
+    # predictor iterations (for each predictor)
+    for n in tqdm(range(params["n_predictors"])):
+        # sample a new p_bar using the p_probs
+        p_bar = sample_p_bar(p_probs=p_probs, params=params)
+        # truncate p_bar to avoid numerical issues
+        p_bar = np.trunc(p_bar * 10**3) / (10**3)
+        # clip p_bar to [0, 1]
+        p_bar = np.clip(p_bar, 0, 1)
+        # bootstrap iterations
+        for b in range(params["n_resamples"]):
+            # randomly sample from p_bar
+            p_bar_b = np.stack(random.sample(p_bar.tolist(), p_bar.shape[0]))
+            # sample labels uniformly from the induced caftegorical distribution
+            y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
+            stats_h0[n, b] = params["test"](p_bar_b, y_b, params)
+        # value of statistic on real data
+        minstat = params["obj"](p_bar, y_labels, params)
+        stats[n] = minstat
+        # calculate empirical distribution
+        ecdf = ECDF(stats_h0[n, :])
+        # p value: 1 - F(minstat)
+        p_val = 1 - ecdf(minstat)
+        p_vals[n] = p_val
+
+    if weights_l is None:
+        return stats, stats_h0, p_vals
+    else:
+        return stats, stats_h0, p_vals, true_stat
 
 
 def npbe_test_p_values(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
@@ -25,43 +172,51 @@ def npbe_test_p_values(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
 
     Returns
     -------
-    p_val, minstat
-        p-value and value of the "optimized" statistic
+    minstat, p_val, stats
+        value of the statistic on the real data,
+        p-value,
+        values of the statistic for the bootstrapped samples
+        under the null hypothesis
     """
-
     # array fodr saving statistics in the bootstrapping iterations
     stats = np.zeros(params["n_resamples"])
-    #calculate minimum value of evaluations of the statistics
+    # calculate minimum value of evaluations of the statistics
+    # TODO: adjust objectives here
     minstat, weights_l = calculate_min_new(p_probs, y_labels, params=params)
+
     # do boootstrapping
     for b in range(params["n_resamples"]):
         p_b = random.sample(p_probs.tolist(), p_probs.shape[0])
         p_b = np.stack(p_b)
         # calculate convex combination of predictions
         if params["x_dependency"]:
-            p_bar_b = calculate_pbar(weights_l=weights_l, P=p_b, reshape=True,
-                                n_dims=2)
+            p_bar_b = calculate_pbar(weights_l=weights_l, P=p_b, reshape=True, n_dims=2)
         else:
-            p_bar_b = calculate_pbar(weights_l=weights_l, P=p_b, reshape=False, n_dims=1)
-        p_bar_b = np.trunc(p_bar_b*10**3)/(10**3)
+            p_bar_b = calculate_pbar(
+                weights_l=weights_l, P=p_b, reshape=False, n_dims=1
+            )
+
+        assert not np.isnan(
+            p_bar_b
+        ).any(), "matrix with prob predictions contains nan values"
+        p_bar_b = np.trunc(p_bar_b * 10**3) / (10**3)
         p_bar_b = np.clip(p_bar_b, 0, 1)
         # sample labels from categorical distributiuon induced by p_bar_b
         y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
-        stats[b] = params["test"](p_bar_b, y_labels, params)
+        stats[b] = params["test"](p_bar_b, y_b, params)
 
     # calculate empirical distribution
     ecdf = ECDF(stats)
-   # print(stats)
     # p value: 1 - F(minstat)
     p_val = 1 - ecdf(minstat)
 
     return minstat, p_val, stats
 
 
-def _simulation_pvals(tests, N: int, M: int, K: int, R: int, u: float,
-                      experiment=experiment_h0):
+def _simulation_pvals(
+    tests, N: int, M: int, K: int, R: int, u: float, experiment=experiment_h0
+):
     """simulation for testing the correrlation between p-values and minimum values of test statistics
-
 
     Parameters
     ----------
@@ -83,7 +238,7 @@ def _simulation_pvals(tests, N: int, M: int, K: int, R: int, u: float,
     Returns
     -------
     results
-        dictionary containing matrices of p-values and svalues of statistics for each test
+        dictionary containing matrices of p-values and values of statistics for each test
     """
     results = {}
     for test in tests:
@@ -94,16 +249,9 @@ def _simulation_pvals(tests, N: int, M: int, K: int, R: int, u: float,
         p_probs, y_labels = experiment(N, M, K, u)
         # run test
         for test in tests:
-            minstat, p_val, stats = npbe_test_p_values(p_probs=p_probs, y_labels=y_labels, 
-                                                params=tests[test]["params"])
+            minstat, p_val, stats = tests["test"](
+                p_probs=p_probs, y_labels=y_labels, params=tests[test]["params"]
+            )
             results[test][:, r] = np.array([minstat, p_val])
-    
-    return results, 
 
-if __name__ == "__main__":
-    results = _simulation_pvals(tests=config_p_value_analysis, N=100, M=5, K=3, R=100, u=0.01,
-                               experiment=experiment_h0)
-    print(results)
-    
-    
-        
+    return results

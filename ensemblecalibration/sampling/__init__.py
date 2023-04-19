@@ -8,6 +8,17 @@ from ensemblecalibration.calibration.experiments import experiment_h0_feature_de
 
 
 def sample_p_bar(p_probs, params: dict):
+    """
+    function which uses a predefined method to sample from the polytope of convex combinations 
+    of ensemble predictions
+    Parameters
+    ----------
+        p_probs: np.ndarray of shape (N, M, K) containing predictions of each predictor for each instance
+        params: dict containing test parameters
+    Returns
+    -------
+        P_bar_b: np.ndarray of shape (N, K) containing sampled predictions
+    """
     if params["sampling"] == "lambda":
         # sample convex combinations of ensemle predictions
         P_bar_b = uniform_weight_sampling(p_probs)  # of shape (N, M)

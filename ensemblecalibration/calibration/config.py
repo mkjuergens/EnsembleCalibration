@@ -10,10 +10,10 @@ from ensemblecalibration.nn_training.losses import SKCELoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
 
 config_p_value_analysis = {
-    "SKCEul": {
+    "SKCEul2": {
     "test": npbe_test_v3_p_values,
-
     "params": {
+        "take_square": True,
         "n_predictors": 100,
         "l_prior": 1, 
         "optim": "cobyla",
@@ -22,6 +22,25 @@ config_p_value_analysis = {
         "sigma": 2.0, # to be used in the matrix valued kernel
         "test": skceul,
         "obj": skce_ul_obj,
+        "obj_lambda": skce_ul_obj_lambda,
+        "sampling": "lambda",
+        "transform": "isometric",
+        "x_dependency": False
+    },
+    },
+    "SKCEul": {
+    "test": npbe_test_v3_p_values,
+    "params": {
+        "take_square": False,
+        "n_predictors": 100,
+        "l_prior": 1, 
+        "optim": "cobyla",
+        "n_resamples": 1000,
+        "dist": tv_distance,
+        "sigma": 2.0, # to be used in the matrix valued kernel
+        "test": skceul,
+        "obj": skce_ul_obj,
+        "obj_lambda": skce_ul_obj_lambda,
         "sampling": "lambda",
         "transform": "isometric",
         "x_dependency": False
@@ -33,10 +52,12 @@ config_p_value_analysis = {
             "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 1000,
             "n_bins": 5,
             "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": hl_obj, # objective function for the minimzation part
+            "obj_lambda": hl_obj_lambda,
+            "sampling": "lambda",
             "x_dependency": False
 
         },
@@ -48,10 +69,12 @@ config_p_value_analysis = {
             "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 1000,
             "n_bins": 10,
             "test": hltest, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": hl_obj, # objective function for the minimzation part
+            "obj_lambda": hl_obj_lambda,
+            "sampling": "lambda",
             "x_dependency": False
 
         },
@@ -59,13 +82,15 @@ config_p_value_analysis = {
     "ECEconf5": {
     "test": npbe_test_v3_p_values,
         "params": {
-            "n_predictors": 100,
+            "n_predictors": 100, # bad wording here, should be n_iterations
             "l_prior": 1,
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 1000, # for bootstrapping the null distribution
             "n_bins": 5,
             "test": confece,
             "obj": confece_obj,
+            "obj_lambda": confece_obj_lambda,
+            "sampling": "lambda",
             "x_dependency": False
         }
     },
@@ -76,10 +101,12 @@ config_p_value_analysis = {
             "n_predictors": 100,
             "l_prior": 1,
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 1000,
             "n_bins": 10,
             "test": confece,
             "obj": confece_obj,
+            "obj_lambda": confece_obj_lambda,
+            "sampling": "lambda",
             "x_dependency": False
         }
     },
@@ -87,13 +114,15 @@ config_p_value_analysis = {
     "ECEclass5": {
     "test": npbe_test_v3_p_values,
         "params": {
-            "n_predictors": 100,
+            "n_predictors": 1000,
             "l_prior": 1,
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 1000,
             "n_bins": 5,
             "test": classece,
             "obj": classece_obj,
+            "obj_lambda": classece_obj_lambda,
+            "sampling": "lambda",
             "x_dependency": False
         }
     },
@@ -104,10 +133,12 @@ config_p_value_analysis = {
             "n_predictors": 100,
             "l_prior": 1, 
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 1000,
             "n_bins": 10,
             "test": classece,
             "obj": classece_obj,
+            "obj_lambda": classece_obj_lambda,
+            "sampling": "lambda",
             "x_dependency": False
         }
     },
