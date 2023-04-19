@@ -36,7 +36,7 @@ def run_analysis(n_iters: int, n_features: int, n_predictors: int, n_classes: in
         results_h0["test"] = {"p_vals_h0": p_vals}
 
         # distance analysis
-        p_probs, _ = experiment(N=n_features, M=n_predictors, K=n_classes u=0.01)
+        p_probs, _ = experiment(N=n_features, M=n_predictors, K=n_classes, u=0.01)
         p_vals, dists = distance_analysis_npbe(p_probs=p_probs, 
                                                params=config_p_value_analysis[test]["params"],
                                                dist_fct=dist_fct, n_iters=n_iters)
