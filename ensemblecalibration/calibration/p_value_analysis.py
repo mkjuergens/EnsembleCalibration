@@ -4,14 +4,110 @@ import numpy as np
 from statsmodels.distributions.empirical_distribution import ECDF
 from tqdm import tqdm
 
-from ensemblecalibration.calibration.experiments import experiment_h0, experiment_h1
+from ensemblecalibration.calibration.experiments import experiment_h0
 from ensemblecalibration.calibration.cal_test_new import calculate_min_new
+from ensemblecalibration.calibration.calibration_estimates.distances import w1_distance
 from ensemblecalibration.calibration.calibration_estimates.helpers import calculate_pbar
 from ensemblecalibration.sampling import multinomial_label_sampling, sample_p_bar
 
 
+def npbe_test_distances_two_lambdas(
+    p_probs: np.ndarray,
+    dist_fct,
+    weights_1: np.ndarray,
+    weights_2: np.ndarray,
+    params: dict,
+):
+    """function which, given a "true a set of probabilistic predictors, sets for a given weight
+    vector the resulting convex combination as the truly calibraetd one, and computes the p value
+    for another convex combination. I treturns the distance between the two convex combinations of
+    probabilistic predicitons and the p value for the calibration test of the
+    second convex combination.
+
+    Parameters
+    ----------
+    p_probs : np.ndarray
+        tensor of shape (n_instances, n_classes, n_predictors) containing the probabilistic predictions
+    dist_fct : _type_
+        distance measure between two convex combinations of probabilistic predictions
+    weights_1 : np.ndarray
+        vector of weights for the first convex combination of probabilistic predictions by which
+        the categorical distribution from which the labels are then sampled is induced
+    weights_2 : np.ndarray
+        weigfht vector of second convex combination of probabilistic predictions
+        which is then used for the calibration test
+    params : dict
+        dictionary containing parameters for the calibration test
+
+    Returns
+    -------
+    p_val : float
+    dist: float
+        p value of the test and distance between the two probability distributions
+    """
+
+    # calculate pbar for first lambda
+    p_bar = calculate_pbar(p_probs, weights_1)
+    # sample labels from pbar
+    y_labels = np.apply_along_axis(multinomial_label_sampling, 1, p_bar)
+    # calculate pbar for second lambda
+    p_bar_2 = calculate_pbar(p_probs, weights_2)  # is of shape (n_instances, n_classes)
+    # calculate distance between pbar and pbar_2
+    dist = dist_fct(p_bar, p_bar_2)
+    # calculate p value
+    p_val = npbe_test_vaicenavicius(p_probs=p_bar_2, y_labels=y_labels, params=params)
+
+    return p_val, dist
+
+def distance_analysis_npbe(p_probs: np.ndarray, params: dict, dist_fct=w1_distance,
+                            n_iters: int = 1000):
+    """
+    function which analysis the p values of the NPBE test of Vaicenavicius et al with regard 
+    to the distance between the probabilistic predictor of the underlying calibrated model and another 
+    probabilistic predictor.
+
+    Parameters
+    ----------
+    p_probs : np.ndarray
+        tensor of shape (n_instances, n_classes, n_predictors) containing the probabilistic predictions
+    params : dict
+        dictionary containing parameters for the calibration test
+    dist_fct : _type_
+        distance measure between two convex combinations of probabilistic predictions
+    n_iters : int
+        number of iterations (default: 1000)
+
+    Returns
+    -------
+    p_vals, distances
+        p values and distances between the two convex combinations of probabilistic predictions
+    """
+
+    # sample first "true" weight vector
+    weights_1 = np.random.dirichlet([1] * p_probs.shape[1], size=1)[0, :]
+    # save p_values and distances
+    p_vals = np.zeros(n_iters)
+    distances = np.zeros(n_iters)
+    for n in tqdm(range(n_iters)):
+        # sample second weight vector
+        weights_2 = np.random.dirichlet([1] * p_probs.shape[1], size=1)[0, :]
+        # calculate p value and distance between the two convex combinations
+        p_val, dist = npbe_test_distances_two_lambdas(p_probs=p_probs, dist_fct=dist_fct,
+                                                        weights_1=weights_1, weights_2=weights_2,
+                                                        params=params)
+        p_vals[n] = p_val
+        distances[n] = dist
+    
+    return p_vals, distances
+                                                      
+
+
 def npbe_test_null_hypothesis(
-    params: dict, n_iters: int = 1000, n_classes: int = 2, n_instances: int = 1000
+    params: dict,
+    alpha: float = 0.05,
+    n_iters: int = 1000,
+    n_classes: int = 2,
+    n_instances: int = 1000,
 ):
     """
     Function for testing the null hypothesis of the NPBE test for a single classifier setting.
@@ -25,14 +121,17 @@ def npbe_test_null_hypothesis(
         number of classes (default: 2)
     n_instances : int
         number of instances (default: 1000)
-    
+
     Returns
     -------
     p_vals, stats, decisions
         p-values, test statistics and decisions for the null hypothesis
     """
+    # set alpha value
+    params["alpha"] = alpha
     p_vals = np.zeros(n_iters)
     stats = np.zeros(n_iters)
+
     decisions = np.zeros(n_iters)
     for n in tqdm(range(n_iters)):
         p_probs = np.random.dirichlet([1] * n_classes, size=n_instances)
@@ -41,10 +140,8 @@ def npbe_test_null_hypothesis(
         p_vals[n] = p_val
         stats[n] = stat
         decisions[n] = decision
-    
+
     return p_vals, stats, decisions
-
-
 
 
 def npbe_test_vaicenavicius(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
