@@ -43,7 +43,9 @@ class MLPCalW(nn.Module):
         return out
     
 class MLPDataset(Dataset):
-    """Dataset for training the MLP 
+    """
+    Dataset containing probabilistic predictions of an ensemble of synthetic classifiers,
+    
     """
 
     def __init__(self, P: np.ndarray, y: np.ndarray):

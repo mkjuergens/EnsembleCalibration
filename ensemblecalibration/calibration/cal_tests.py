@@ -3,11 +3,9 @@ import numpy as np
 
 from scipy.stats import halfnorm
 
-from ensemblecalibration.calibration.helpers import sample_m
 from ensemblecalibration.sampling import (
-    mhar_sampling_p,
-    uniform_weight_sampling,
-    rejectance_sampling_p,
+    multinomial_label_sampling,
+    sample_p_bar
 )
 from ensemblecalibration.calibration.minimization import (
     solve_cobyla1D,
@@ -31,19 +29,11 @@ def npbetest_alpha(P, y, params):
         P_b = random.sample(P.tolist(), P.shape[0])
         P_b = np.stack(P_b)
         # sample predictions using a predefined sampling method
-        if params["sampling"] == "lambda":
-            # sample convex combinations of ensemle predictions
-            P_bar_b = uniform_weight_sampling(P_b)  # of shape (N, M)
-        elif params["sampling"] == "mcmc":
-            P_bar_b = mhar_sampling_p(P_b, transform=params["transform"])
-        elif params["sampling"] == "rejectance":
-            P_bar_b = rejectance_sampling_p(P_b)
-        else:
-            raise NameError("check sampling method in configuration dictionary")
+        P_bar_b = sample_p_bar(p_probs=P_b, params=params)
         # round to 5 decimal digits for numerical stability
         P_bar_b = np.trunc(P_bar_b * 10**3) / (10**3)
         P_bar_b = np.clip(P_bar_b, 0, 1)
-        y_b = np.apply_along_axis(sample_m, 1, P_bar_b)
+        y_b = np.apply_along_axis(multinomial_label_sampling, 1, P_bar_b)
         # perform test
         stats[b] = params["test"](P_bar_b, y_b, params)
 

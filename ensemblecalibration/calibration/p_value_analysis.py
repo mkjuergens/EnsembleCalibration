@@ -47,15 +47,19 @@ def npbe_test_distances_two_lambdas(
     """
 
     # calculate pbar for first lambda
-    p_bar = calculate_pbar(p_probs, weights_1)
-    # sample labels from pbar
+    if params["x_dependency"]:
+        p_bar = calculate_pbar(weights_1, p_probs, reshape=True, n_dims=2)
+        p_bar_2 = calculate_pbar(weights_2, p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(weights_1, p_probs, reshape=False, n_dims=1)
+        p_bar_2 = calculate_pbar(weights_2, p_probs, reshape=False, n_dims=1)
+    # sample labels from pbar_1
     y_labels = np.apply_along_axis(multinomial_label_sampling, 1, p_bar)
     # calculate pbar for second lambda
-    p_bar_2 = calculate_pbar(p_probs, weights_2)  # is of shape (n_instances, n_classes)
     # calculate distance between pbar and pbar_2
     dist = dist_fct(p_bar, p_bar_2)
     # calculate p value
-    p_val = npbe_test_vaicenavicius(p_probs=p_bar_2, y_labels=y_labels, params=params)
+    _, p_val, stat = npbe_test_vaicenavicius(p_probs=p_bar_2, y_labels=y_labels, params=params)
 
     return p_val, dist
 
@@ -240,12 +244,12 @@ def npbe_test_v3_p_values(
             y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
             stats_h0[n, b] = params["test"](p_bar_b, y_b, params)
         # value of statistic on real data
-        minstat = params["obj"](p_bar, y_labels, params)
-        stats[n] = minstat
+        stat = params["obj"](p_bar, y_labels, params)
+        stats[n] = stat
         # calculate empirical distribution
         ecdf = ECDF(stats_h0[n, :])
         # p value: 1 - F(minstat)
-        p_val = 1 - ecdf(minstat)
+        p_val = 1 - ecdf(stat)
         p_vals[n] = p_val
 
     if weights_l is None:

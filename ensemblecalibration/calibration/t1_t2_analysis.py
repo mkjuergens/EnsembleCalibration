@@ -17,7 +17,8 @@ from ensemblecalibration.calibration.config import (
     config_tests_cobyla_2d,
     config_tests_neldermead_1d,
     config_tests_neldermead_2d,
-    config_new_mlp
+    config_new_mlp,
+    config_new_v3
 )
 from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha
 from ensemblecalibration.calibration.experiments import (
@@ -215,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("-experiments",dest="experiments", default="new", type=str)
     parser.add_argument("-sampling", dest="sampling", type=str, default="lambda")
     parser.add_argument(
-        "-config", dest="config", type=dict, default=config_new_mlp
+        "-config", dest="config", type=dict, default=config_new_v3
     )
     args = parser.parse_args()
     main_t1_t2(args, test_h1=True)

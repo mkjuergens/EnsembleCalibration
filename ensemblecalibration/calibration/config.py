@@ -25,7 +25,8 @@ config_p_value_analysis = {
         "obj_lambda": skce_ul_obj_lambda,
         "sampling": "lambda",
         "transform": "isometric",
-        "x_dependency": False
+        "x_dependency": False,
+        "alpha": 0.05,
     },
     },
     "SKCEul": {
@@ -43,7 +44,8 @@ config_p_value_analysis = {
         "obj_lambda": skce_ul_obj_lambda,
         "sampling": "lambda",
         "transform": "isometric",
-        "x_dependency": False
+        "x_dependency": False,
+        "alpha": 0.05,
     },
     },
     "HL5": {
@@ -58,7 +60,8 @@ config_p_value_analysis = {
             "obj": hl_obj, # objective function for the minimzation part
             "obj_lambda": hl_obj_lambda,
             "sampling": "lambda",
-            "x_dependency": False
+            "x_dependency": False,
+            "alpha": 0.05,
 
         },
     },
@@ -75,7 +78,8 @@ config_p_value_analysis = {
             "obj": hl_obj, # objective function for the minimzation part
             "obj_lambda": hl_obj_lambda,
             "sampling": "lambda",
-            "x_dependency": False
+            "x_dependency": False,
+            "alpha": 0.05,
 
         },
     },
@@ -91,7 +95,8 @@ config_p_value_analysis = {
             "obj": confece_obj,
             "obj_lambda": confece_obj_lambda,
             "sampling": "lambda",
-            "x_dependency": False
+            "x_dependency": False,
+            "alpha": 0.05,
         }
     },
 
@@ -107,7 +112,8 @@ config_p_value_analysis = {
             "obj": confece_obj,
             "obj_lambda": confece_obj_lambda,
             "sampling": "lambda",
-            "x_dependency": False
+            "x_dependency": False,
+            "alpha": 0.05,
         }
     },
 
@@ -123,7 +129,8 @@ config_p_value_analysis = {
             "obj": classece_obj,
             "obj_lambda": classece_obj_lambda,
             "sampling": "lambda",
-            "x_dependency": False
+            "x_dependency": False,
+            "alpha": 0.05,
         }
     },
 
@@ -139,15 +146,35 @@ config_p_value_analysis = {
             "obj": classece_obj,
             "obj_lambda": classece_obj_lambda,
             "sampling": "lambda",
-            "x_dependency": False
+            "x_dependency": False,
+            "alpha": 0.05,
         }
     },
 }
+
 config_new_v3 = {
+    "SKCEul2": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "take_square": True,
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_predictors": 100, # number of "guesses" for the c.c.
+            "dist": tv_distance,
+            "sigma": 2.0, # to be used in the matrix valued kernel
+            "test": skceul, # test used for the calibration measure of the #perfectly# calibrated model
+            "obj": skce_ul_obj, # objective function for the minimzation part
+            "sampling": "lambda",
+            "transform": "isometric",
+            "x_dependency": False
+        }
+    },
     "SKCEuq": {
         "test": _npbe_test_v3_alpha,
         "params": {
             "l_prior": 1, 
+            "optim": "cobyla",
             "n_resamples": 100,
             "n_predictors": 100,
             "dist": tv_distance,
@@ -155,13 +182,15 @@ config_new_v3 = {
             "test": skceuq,
             "obj": skce_uq_obj,
             "sampling": "lambda",
-            "transform": "isometric"
+            "transform": "isometric",
+            "x_dependency": False
         }
     },
     "SKCEul": {
         "test": _npbe_test_v3_alpha,
         "params": {
             "l_prior": 1, 
+            "optim": "cobyla",
             "n_resamples": 100,
             "n_predictors": 100,
             "dist": tv_distance,
@@ -169,7 +198,8 @@ config_new_v3 = {
             "test": skceul,
             "obj": skce_ul_obj_new,
             "sampling": "lambda",
-            "transform": "isometric"
+            "transform": "isometric",
+            "x_dependency": False
         }
     }      
 }
