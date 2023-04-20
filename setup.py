@@ -23,7 +23,11 @@ setup(
         "setuptools",
         "matplotlib",
         "mhar",
-        "ternary"
+        "ternary",
+        "pandas",
+        "seaborn",
+        "pycalib",
+        "statsmodels",
     ],
     include_package_data=True,
 )
