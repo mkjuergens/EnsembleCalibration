@@ -1,4 +1,5 @@
 import numpy as np
+import ot
 
 def test():
     print("test output of job scheduler")
