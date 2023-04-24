@@ -28,6 +28,11 @@ setup(
         "seaborn",
         "pycalib",
         "statsmodels",
+        "pyswarm",
+        "tqdm",
+        "composition_stats",
+        "pytorch"
+
     ],
     include_package_data=True,
 )

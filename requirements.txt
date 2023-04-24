@@ -9,3 +9,7 @@ python-ternary
 composition_stats
 jupyter
 tqdm
+pytorch
+torchvision
+composition_stats
+pyswarm
