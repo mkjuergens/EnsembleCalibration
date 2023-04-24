@@ -33,7 +33,7 @@ def run_analysis_h0(
     results_path: str = "results/",
 ):
     file_name = (
-        f"results_p_value_analysis_h0_{n_features}_{n_predictors}_{n_classes}.csv"
+        f"results_p_value_analysis_h0_{n_iters}_{n_features}_{n_predictors}_{n_classes}.csv"
     )
     os.makedirs(results_path, exist_ok=True)
     file_path = os.path.join(results_path, file_name)
@@ -67,7 +67,7 @@ def run_analysis_distances(
     experiment=experiment_h0,
     results_path: str = "results/",
 ):
-    file_name = f"results_p_value_analysis_distances_{n_features}_{n_predictors}_{n_classes}.csv"
+    file_name = f"results_p_value_analysis_distances_{n_iters}_{n_features}_{n_predictors}_{n_classes}.csv"
     os.makedirs(results_path, exist_ok=True)
     file_path = os.path.join(results_path, file_name)
 
