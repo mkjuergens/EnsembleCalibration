@@ -328,7 +328,7 @@ def _simulation_pvals(
     M : int
         number of ensemble members
     K : int
-        number of calasses
+        number of classes
     R : int
         number of dataset/resampling iterations
     u : float
