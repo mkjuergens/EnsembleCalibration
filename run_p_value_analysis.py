@@ -8,6 +8,7 @@ from ensemblecalibration.calibration.calibration_estimates.distances import (
     w1_distance,
     tv_distance,
     l2_distance,
+    mmd
 )
 from ensemblecalibration.calibration.config import config_p_value_analysis
 from ensemblecalibration.calibration.p_value_analysis import (
@@ -32,7 +33,7 @@ def run_analysis_h0(
     results_path: str = "results/",
 ):
     file_name = (
-        f"results_p_value_analysis_h0_{n_features}_{n_predictors}_{n_classes}.csv"
+        f"results_p_value_analysis_h0_{n_iters}_{n_features}_{n_predictors}_{n_classes}.csv"
     )
     os.makedirs(results_path, exist_ok=True)
     file_path = os.path.join(results_path, file_name)
@@ -66,7 +67,7 @@ def run_analysis_distances(
     experiment=experiment_h0,
     results_path: str = "results/",
 ):
-    file_name = f"results_p_value_analysis_distances_{n_features}_{n_predictors}_{n_classes}.csv"
+    file_name = f"results_p_value_analysis_distances_{n_iters}_{n_features}_{n_predictors}_{n_classes}.csv"
     os.makedirs(results_path, exist_ok=True)
     file_path = os.path.join(results_path, file_name)
 
@@ -94,12 +95,12 @@ def run_analysis_distances(
 
 
 if __name__ == "__main__":
-    N_ITERS = 1000
+    N_ITERS = 100
     N_FEATURES = 100
     N_PREDICTORS = 10
     N_CLASSES = 10
     ALPHA = 0.05
-    dist_fct = w1_distance
+    dist_fct = mmd
     experiment = experiment_h0
     SAVE_DIR = "results/"
     conf = config_p_value_analysis

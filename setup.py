@@ -31,7 +31,7 @@ setup(
         "pyswarm",
         "tqdm",
         "composition_stats",
-        "pytorch"
+        "torch"
 
     ],
     include_package_data=True,
