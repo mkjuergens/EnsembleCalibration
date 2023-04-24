@@ -64,18 +64,17 @@ def _simulation_h0(
 
     results = {}
     for test in tests:
+        print(f"Running test {test}")
         results[test] = np.zeros(len(alpha))
-    for _ in tqdm(range(R)):
-        P, y = experiment(N, M, K, u)
-        for test in tests:
+        for _ in tqdm(range(R)):
+            P, y = experiment(N, M, K, u)
             results[test] += np.array(
                 tests[test]["test"](P, y, alpha, tests[test]["params"])
             )
-    for test in tests:
         # calculate mean
         results[test] = results[test] / R
+    
     return results
-
 
 def _simulation_ha(
     tests,
@@ -213,7 +212,7 @@ if __name__ == "__main__":
     parser.add_argument("-K", dest="K", type=int, default=10)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     parser.add_argument("-R", dest="R", type=int, default=1000)
-    parser.add_argument("-experiments",dest="experiments", default="new", type=str)
+    parser.add_argument("-experiments",dest="experiments", default="old", type=str)
     parser.add_argument("-sampling", dest="sampling", type=str, default="lambda")
     parser.add_argument(
         "-config", dest="config", type=dict, default=config_new_v3
