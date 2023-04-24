@@ -1,8 +1,33 @@
 """functions for measuring distances"""
 import numpy as np
-import torch
 import ot
 from sklearn.metrics import pairwise_distances
+
+from scipy.spatial.distance import jensenshannon
+
+def jensen_shannon_dist(p: np.ndarray, q: np.ndarray):
+    """Jensen-Shannon distance between two point predictions.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        point estimate of shape (n_classes,)
+    q : np.ndarray
+        second point estimate of shape (n_classes,)
+
+    Returns
+    -------
+    float
+        Jensen-Shannon distance
+    """
+
+    assert p.shape == q.shape, "p and q need to have the same shape"
+    n_instances, n_classes = p.shape
+    dist = 0
+    for n in range(n_instances):
+        dist += jensenshannon(p[n, :], q[n, :])
+
+    return dist / n_instances
 
 
 def w1_distance(p: np.ndarray, q: np.ndarray):
@@ -43,8 +68,12 @@ def tv_distance(p: np.ndarray, q: np.ndarray):
     float
         variation distance
     """
+    assert p.shape == q.shape, "p and q need to have the same shape"
+    n_classes = p.shape[-1]
+    p = p.reshape(-1, n_classes)
+    q = q.reshape(-1, n_classes) 
 
-    return 0.5 * np.sum(np.abs(p - q))
+    return (0.5 * np.sum(np.abs(p - q)))/p.shape[0]
 
 
 def l2_distance(p: np.ndarray, q: np.ndarray):
@@ -122,6 +151,8 @@ def median_heuristic(p_hat: np.ndarray, y_labels: np.ndarray):
 
 
 if __name__ == "__main__":
-    p = np.random.dirichlet([1] * 3, size=1000)
-    q = np.random.dirichlet([0.5] * 3, size=1000)
+    p = np.random.dirichlet([1] * 2, size=1000)
+    q = np.random.dirichlet([1] * 2, size=1000)
     print(w1_distance(p, q))
+    print(tv_distance(p, q))
+    print(jensen_shannon_dist(p, q))
