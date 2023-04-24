@@ -8,6 +8,7 @@ from ensemblecalibration.calibration.calibration_estimates.distances import (
     w1_distance,
     tv_distance,
     l2_distance,
+    mmd
 )
 from ensemblecalibration.calibration.config import config_p_value_analysis
 from ensemblecalibration.calibration.p_value_analysis import (
@@ -94,12 +95,12 @@ def run_analysis_distances(
 
 
 if __name__ == "__main__":
-    N_ITERS = 1000
+    N_ITERS = 100
     N_FEATURES = 100
     N_PREDICTORS = 10
     N_CLASSES = 10
     ALPHA = 0.05
-    dist_fct = w1_distance
+    dist_fct = mmd
     experiment = experiment_h0
     SAVE_DIR = "results/"
     conf = config_p_value_analysis
