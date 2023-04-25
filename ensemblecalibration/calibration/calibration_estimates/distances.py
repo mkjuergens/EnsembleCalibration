@@ -9,6 +9,14 @@ from scipy.spatial.distance import jensenshannon
 from scipy.spatial import KDTree
 from scipy.stats import entropy
 
+def euclidean_distance(p: np.ndarray, q: np.ndarray):
+
+
+    assert p.shape == q.shape, "p and q must have the same shape"
+    n_samples = p.shape[0]
+    dist = np.linalg.norm(p - q)
+    return dist
+
 
 def mmd(p: np.ndarray, q: np.ndarray, use_optim_bw: bool = True, bw: float = 1.0):
     """Maximum Mean discrepancy between two samples of probabilistic predictions.
@@ -28,7 +36,7 @@ def mmd(p: np.ndarray, q: np.ndarray, use_optim_bw: bool = True, bw: float = 1.0
     -------
     float
         value of the (empirical) MMD
-    """
+    # """
 
     n_1, n_classes= p.shape
     n_2, n_classes = q.shape
@@ -112,6 +120,34 @@ def kl_divergence(x: np.ndarray, y: np.ndarray):
     # There is a mistake in the paper. In Eq. 14, the right side misses a negative sign
     # on the first term of the right hand side.
     return -np.log(r/s).sum() * d / n + np.log(m / (n - 1.))
+
+
+def jensen_shannon_dist_2(p: np.ndarray, q: np.ndarray):
+    """Jensen-Shannon distance between two point predictions.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        point estimate of shape (n_classes,)
+    q : np.ndarray
+        second point estimate of shape (n_classes,)
+
+    Returns
+    -------
+    float
+        Jensen-Shannon distance
+    """
+
+    assert p.shape == q.shape, "p and q need to have the same shape"
+     # compute the average of the two distributions
+    m = (p + q) / 2
+    # compute the KL divergence between the two distributions
+    kl1 = kl_divergence(p, m)
+    kl2 = kl_divergence(q, m)
+    # compute the Jensen-Shannon divergence
+    js = 0.5 * (kl1 + kl2)
+
+    return js
     
 
 def jensen_shannon_dist(p: np.ndarray, q: np.ndarray):
@@ -257,7 +293,7 @@ def median_heuristic(p_hat: np.ndarray, y_labels: np.ndarray):
     sigma_bw = np.median(dist) / 2
 
     return sigma_bw
-
+ 
 
 if __name__ == "__main__":
     p = np.random.dirichlet([1] * 2, size=10)
@@ -267,3 +303,5 @@ if __name__ == "__main__":
     print(jensen_shannon_dist(p, q))
     print(kl_divergence(p, q))
     print(mmd(p, q))
+    print(jensen_shannon_dist_2(p, q))
+    print(euclidean_distance(p, q))

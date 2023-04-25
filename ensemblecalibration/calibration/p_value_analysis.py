@@ -177,6 +177,7 @@ def npbe_test_vaicenavicius(p_probs: np.ndarray, y_labels: np.ndarray, params: d
         y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_probs_b)
         # calculate test statistic under null hypothesis
         stats_h0[b] = params["obj"](p_probs_b, y_b, params)
+
     # calculate statistic on real data
     stat = params["obj"](p_probs, y_labels, params)
     # calculate alpha-quantile of the empirical distribution of the test statistic under the null hypothesis
