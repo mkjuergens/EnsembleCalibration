@@ -11,7 +11,7 @@ from ensemblecalibration.calibration.calibration_estimates.distances import (
     tv_distance,
     l2_distance,
     mmd,
-    euclidean_distance
+    euclidean_distance,
 )
 from ensemblecalibration.calibration.config import config_p_value_analysis
 from ensemblecalibration.calibration.p_value_analysis import (
@@ -68,27 +68,24 @@ def run_analysis_distances(
     experiment=experiment_h0,
     results_path: str = "results/",
 ):
-    file_name = f"results_p_value_analysis_distances_{n_iters}_{n_features}_{n_predictors}_{n_classes}_{dist_fct.__name__}.csv"
+    file_name = f"results_p_value_distance_analysis_{n_iters}_{n_features}_{n_predictors}_{n_classes}_{dist_fct.__name__}.csv"
     os.makedirs(results_path, exist_ok=True)
     file_path = os.path.join(results_path, file_name)
 
-    res = []
+    res = {}
     p_probs, _ = experiment(N=n_features, M=n_predictors, K=n_classes, u=0.01)
     for test in tests:
         print(f"Running test {test}")
-        p_vals, dists = distance_analysis_npbe(
+        p_vals, dists, stats = distance_analysis_npbe(
             p_probs=p_probs,
             params=tests[test]["params"],
             dist_fct=dist_fct,
             n_iters=n_iters,
         )
 
-        res.append(list(p_vals))
-        res.append(list(dists))
+        res[test] = (p_vals, dists, stats)
 
     df = pd.DataFrame(res)
-    df = df.T
-    df.columns = [t for t in tests] * 2
     # save results to csv
     df.to_csv(file_path, index=False)
 
@@ -97,37 +94,54 @@ def run_analysis_distances(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_iters", type=int, default=1000)
+    parser.add_argument("--n_iters", type=int, default=2)
     parser.add_argument("--n_features", type=int, default=100)
     parser.add_argument("--n_predictors", type=int, default=10)
     parser.add_argument("--n_classes", type=int, default=10)
     parser.add_argument("--alpha", type=float, default=0.05)
-    parser.add_argument("save_dir", type=str, default="results/")
+    parser.add_argument("--save_dir", type=str, default="results/")
+    parser.add_argument(
+        "--dist_fct",
+        type=str,
+        default="w1_distance",
+        choices=["w1_distance", "tv_distance", "euclidean_distance", "mmd"],
+    )
 
     args = parser.parse_args()
 
-    dist_fct = euclidean_distance
+    # set measure of distance
+    if args.dist_fct == "w1_distance":
+        dist_fct = w1_distance
+    elif args.dist_fct == "tv_distance":
+        dist_fct = tv_distance
+    elif args.dist_fct == "euclidean_distance":
+        dist_fct = euclidean_distance
+    elif args.dist_fct == "mmd":
+        dist_fct = mmd
+    else:
+        raise NotImplementedError
+
     experiment = experiment_h0
     SAVE_DIR = "results/"
     conf = config_p_value_analysis
 
     res_dists, df = run_analysis_distances(
-        tests=config_p_value_analysis,
-        n_iters=parser.n_iters,
-        n_features=parser.n_features,
-        n_predictors=parser.n_predictors,
-        n_classes=parser.n_classes,
+        tests=conf,
+        n_iters=args.n_iters,
+        n_features=args.n_features,
+        n_predictors=args.n_predictors,
+        n_classes=args.n_classes,
         dist_fct=dist_fct,
         experiment=experiment,
-        results_path=SAVE_DIR,
+        results_path=args.save_dir,
     )
 
     df_h0 = run_analysis_h0(
         tests=conf,
-        n_iters=parser.n_iters,
-        n_features=parser.n_features,
-        n_predictors=parser.n_predictors,
-        n_classes=parser.n_classes,
-        alpha=parser.alpha,
-        results_path=SAVE_DIR,
+        n_iters=args.n_iters,
+        n_features=args.n_features,
+        n_predictors=args.n_predictors,
+        n_classes=args.n_classes,
+        alpha=args.alpha,
+        results_path=args.save_dir,
     )

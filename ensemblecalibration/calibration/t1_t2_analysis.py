@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from multiprocess import Process, Queue
+
 sys.path.append("../..")
 from ensemblecalibration.calibration.config import (
     config_tests_new_cobyla_2d,
@@ -32,7 +34,7 @@ def _simulation_h0(
     N: int,
     M: int,
     K: int,
-    R: int,
+    R: int, 
     u: float,
     alpha: float,
     experiment=experiment_h0,

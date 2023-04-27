@@ -17,6 +17,7 @@ def npbe_test_distances_two_lambdas(
     weights_1: np.ndarray,
     weights_2: np.ndarray,
     params: dict,
+    output_stats: bool = False,
 ):
     """function which, given a "true a set of probabilistic predictors, sets for a given weight
     vector the resulting convex combination as the truly calibraetd one, and computes the p value
@@ -38,7 +39,9 @@ def npbe_test_distances_two_lambdas(
         which is then used for the calibration test
     params : dict
         dictionary containing parameters for the calibration test
-
+    output_stats : bool, optional
+        whether to output the statistics of the calibration test, by default False
+        
     Returns
     -------
     p_val : float
@@ -61,7 +64,10 @@ def npbe_test_distances_two_lambdas(
     # calculate p value
     _, p_val, stat = npbe_test_vaicenavicius(p_probs=p_bar_2, y_labels=y_labels, params=params)
 
-    return p_val, dist
+    if output_stats:
+        return p_val, dist, stat
+    else:
+        return p_val, dist
 
 def distance_analysis_npbe(p_probs: np.ndarray, params: dict, dist_fct=w1_distance,
                             n_iters: int = 1000):
@@ -80,10 +86,9 @@ def distance_analysis_npbe(p_probs: np.ndarray, params: dict, dist_fct=w1_distan
         distance measure between two convex combinations of probabilistic predictions
     n_iters : int
         number of iterations (default: 1000)
-
     Returns
     -------
-    p_vals, distances
+    p_vals, distances, stats
         p values and distances between the two convex combinations of probabilistic predictions
     """
 
@@ -92,17 +97,19 @@ def distance_analysis_npbe(p_probs: np.ndarray, params: dict, dist_fct=w1_distan
     # save p_values and distances
     p_vals = np.zeros(n_iters)
     distances = np.zeros(n_iters)
+    stats = np.zeros(n_iters)
     for n in tqdm(range(n_iters)):
         # sample second weight vector
         weights_2 = np.random.dirichlet([1] * p_probs.shape[1], size=1)[0, :]
         # calculate p value and distance between the two convex combinations
-        p_val, dist = npbe_test_distances_two_lambdas(p_probs=p_probs, dist_fct=dist_fct,
+        p_val, dist, stat = npbe_test_distances_two_lambdas(p_probs=p_probs, dist_fct=dist_fct,
                                                         weights_1=weights_1, weights_2=weights_2,
-                                                        params=params)
+                                                        params=params, output_stats=True)
         p_vals[n] = p_val
         distances[n] = dist
+        stats[n] = stat
     
-    return p_vals, distances
+    return p_vals, distances, stats
                                                       
 
 
