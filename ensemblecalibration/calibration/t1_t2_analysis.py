@@ -158,7 +158,7 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
     pattern = (
         "new" if tests[list(tests.keys())[0]]["test"] == _npbe_test_new_alpha else "old"
     )
-    file_name = "results_experiments_t1t2_{}_{}_{}_{}_{}_{}_{}_{}.csv".format(
+    file_name = "results_experiments_t1t2_v3_{}_{}_{}_{}_{}_{}_{}_{}.csv".format(
         pattern, N, M, K, R, u, dim, optim
     )
     print(f"File name under which results are saved: {file_name}")

@@ -36,7 +36,7 @@ def mmd(p: np.ndarray, q: np.ndarray, use_optim_bw: bool = True, bw: float = 1.0
     -------
     float
         value of the (empirical) MMD
-    # """
+    """
 
     n_1, n_classes= p.shape
     n_2, n_classes = q.shape
