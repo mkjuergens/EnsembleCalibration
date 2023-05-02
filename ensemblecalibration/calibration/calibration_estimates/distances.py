@@ -9,13 +9,58 @@ from scipy.spatial.distance import jensenshannon
 from scipy.spatial import KDTree
 from scipy.stats import entropy
 
-def euclidean_distance(p: np.ndarray, q: np.ndarray):
+def avg_euclidean_distance(p: np.ndarray, q: np.ndarray):
+    """function for calculating the average euclidean 
+    distance between two samples of probabilistic predictions.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        _description_
+    q : np.ndarray
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
 
 
     assert p.shape == q.shape, "p and q must have the same shape"
     n_samples = p.shape[0]
-    dist = np.linalg.norm(p - q)
-    return dist
+    avg_dist = 0
+    for i in range(n_samples):
+        dist = np.linalg.norm(p[i] - q[i])
+        avg_dist += dist
+    avg_dist /= n_samples
+    return avg_dist
+
+def avg_kl_divergence(p: np.ndarray, q: np.ndarray):
+    """function for calculating the average KL divergence between two sets of samples p and q.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        matrix of probabilistic predictions for sample 1, shape (n_samples, n_classes)
+    q : np.ndarray
+        matrix of probabilistic predictions for sample 2, shape (n_samples, n_classes)
+
+    Returns
+    -------
+    float   
+        average pairwise KL divergence between p and q
+    """
+
+    assert p.shape == q.shape, "p and q must have the same shape"
+    n_samples = p.shape[0]
+    avg_kl = 0
+    for i in range(n_samples):
+        kl = entropy(p[i], q[i])
+        avg_kl += kl
+    avg_kl /= n_samples
+
+    return avg_kl
 
 
 def mmd(p: np.ndarray, q: np.ndarray, use_optim_bw: bool = True, bw: float = 1.0):
@@ -296,12 +341,12 @@ def median_heuristic(p_hat: np.ndarray, y_labels: np.ndarray):
  
 
 if __name__ == "__main__":
-    p = np.random.dirichlet([1] * 2, size=10)
-    q = np.random.dirichlet([1] * 2, size=10)
+    p = np.random.dirichlet([1] * 2, size=1000)
+    q = np.random.dirichlet([] * 2, size=1000)
     print(w1_distance(p, q))
     print(tv_distance(p, q))
     print(jensen_shannon_dist(p, q))
     print(kl_divergence(p, q))
     print(mmd(p, q))
     print(jensen_shannon_dist_2(p, q))
-    print(euclidean_distance(p, q))
+    print(avg_euclidean_distance(p, q))

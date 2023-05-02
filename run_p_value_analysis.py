@@ -11,7 +11,7 @@ from ensemblecalibration.calibration.calibration_estimates.distances import (
     tv_distance,
     l2_distance,
     mmd,
-    euclidean_distance,
+    avg_euclidean_distance
 )
 from ensemblecalibration.calibration.config import config_p_value_analysis
 from ensemblecalibration.calibration.p_value_analysis import (
@@ -94,7 +94,7 @@ def run_analysis_distances(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_iters", type=int, default=2)
+    parser.add_argument("--n_iters", type=int, default=1000)
     parser.add_argument("--n_features", type=int, default=100)
     parser.add_argument("--n_predictors", type=int, default=10)
     parser.add_argument("--n_classes", type=int, default=10)
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     elif args.dist_fct == "tv_distance":
         dist_fct = tv_distance
     elif args.dist_fct == "euclidean_distance":
-        dist_fct = euclidean_distance
+        dist_fct = avg_euclidean_distance
     elif args.dist_fct == "mmd":
         dist_fct = mmd
     else:
