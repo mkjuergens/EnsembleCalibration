@@ -238,6 +238,36 @@ def experiment_h0(
         return P, y, l
     else:
         return P, y
+    
+
+def experiment_h0_const_preds(N: int, K: int):
+    """experiment with one (constant) probabilistic predictor who gives equal 
+    probability to all classes.
+
+    Parameters
+    ----------
+    N : int
+        number of instances
+    K : int
+        number of classes
+
+    Returns
+    -------
+    p_m, y
+        matrix of shape (N, K) with the probabilities of the constant predictor
+        and the labels of the instances
+    """
+
+    y = []
+    p_m = np.zeros((N, K)) + 1 / K
+    for n in range(N):
+
+        y_n = np.argmax(multinomial(1, p_m[n, :]).rvs(size=1), axis=1)[0]
+        y.append(y_n)
+    y = np.array(y)
+
+    return p_m, y
+
 
 
 def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
@@ -309,3 +339,6 @@ if __name__ == "__main__":
     print(l_1)
     l_2 = np.random.dirichlet([1] * 10, 1)[0, :]
     print(l_2)
+    P_m, y = experiment_h0_const_preds(100, 10)
+    print(y)
+

@@ -4,7 +4,7 @@ import numpy as np
 from statsmodels.distributions.empirical_distribution import ECDF
 from tqdm import tqdm
 
-from ensemblecalibration.calibration.experiments import experiment_h0
+from ensemblecalibration.calibration.experiments import experiment_h0, experiment_h0_const_preds
 from ensemblecalibration.calibration.cal_test_new import calculate_min_new
 from ensemblecalibration.calibration.calibration_estimates.distances import w1_distance
 from ensemblecalibration.calibration.calibration_estimates.helpers import calculate_pbar
@@ -110,7 +110,49 @@ def distance_analysis_npbe(p_probs: np.ndarray, params: dict, dist_fct=w1_distan
         stats[n] = stat
     
     return p_vals, distances, stats
-                                                      
+
+
+def distance_analysis_const_pred(n_instances: int, n_classes: int, params: dict, dist_fct, n_iters: int = 1000):
+    """analyse the distance between one constant predictor, which predicts equal probabilities 
+    for all classes, and a precictor whose probabilities are sampled from a Dirichlet distribution
+    in each iteration.
+
+    Parameters
+    ----------
+    n_instances : int
+        number of instances
+    n_classes : int
+        number of classes
+    params : dict
+        test parameters
+    dist_fct : _type_
+        measure of distance between probabilistic predictions
+    n_iters : int, optional
+        number of iterations, by default 1000
+
+    Returns
+    -------
+    p_vals, distances, stats
+        
+    """
+
+    p_probs, y = experiment_h0_const_preds(N=n_instances, K=n_classes)
+    p_vals = []
+    dists = []
+    stats = []
+    for i in tqdm(range(n_iters)):
+        # random predictions
+        p_bar = np.random.dirichlet(np.ones(n_classes), size=n_instances)
+        # compute distances
+        dist = dist_fct(p_probs, p_bar)
+        # compute p-values, distances and test statistics
+        _, p_values, test_statistics = npbe_test_vaicenavicius(p_bar, 
+                                                                    y, params=params)
+        p_vals.append(p_values)
+        dists.append(dist)
+        stats.append(test_statistics)
+
+    return p_vals, dists, stats
 
 
 def npbe_test_null_hypothesis(

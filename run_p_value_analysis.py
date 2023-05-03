@@ -9,14 +9,16 @@ import pandas as pd
 from ensemblecalibration.calibration.calibration_estimates.distances import (
     w1_distance,
     tv_distance,
-    l2_distance,
     mmd,
-    avg_euclidean_distance
+    avg_euclidean_distance,
+    avg_kl_divergence,
 )
 from ensemblecalibration.calibration.config import config_p_value_analysis
 from ensemblecalibration.calibration.p_value_analysis import (
     distance_analysis_npbe,
     npbe_test_null_hypothesis,
+    npbe_test_distances_two_lambdas,
+    distance_analysis_const_preds
 )
 from ensemblecalibration.calibration.experiments import (
     experiment_h0,
@@ -55,6 +57,34 @@ def run_analysis_h0(
     df = df.T
     df.columns = [t for t in tests]
     df.to_csv(file_path, index=False)
+    return df
+
+def run_dummy_analysis_distances(
+        tests: dict, 
+        n_iters: int,
+        n_instances: int,
+        n_classes: int,
+        dist_fct=w1_distance,
+        save_path: str = "results/"
+):
+    file_name = f"results_p_value_distance_analysis_dummy_{n_iters}_{n_instances}_{n_classes}_{dist_fct.__name__}.csv"
+    os.makedirs(save_path, exist_ok=True)
+    file_path = os.path.join(save_path, file_name)
+
+    res = {}
+
+    for test in tests:
+        print(f"Running test {test}")
+        p_vals, dists, stats = distance_analysis_const_preds(n_instances=n_instances,
+                                                             n_classes=n_classes,
+                                                             params=tests[test]["params"],
+                                                             dist_fct=dist_fct,
+                                                                n_iters=n_iters)
+        res[test] = (p_vals, dists, stats)
+    
+    df = pd.DataFrame(res)
+    df.to_csv(file_path, index=False)
+
     return df
 
 
@@ -104,7 +134,7 @@ if __name__ == "__main__":
         "--dist_fct",
         type=str,
         default="w1_distance",
-        choices=["w1_distance", "tv_distance", "euclidean_distance", "mmd"],
+        choices=["w1_distance", "tv_distance", "euclidean_distance", "mmd", "kl"],
     )
 
     args = parser.parse_args()
@@ -118,12 +148,23 @@ if __name__ == "__main__":
         dist_fct = avg_euclidean_distance
     elif args.dist_fct == "mmd":
         dist_fct = mmd
+    elif args.dist_fct == "kl":
+        dist_fct = avg_kl_divergence
     else:
         raise NotImplementedError
 
     experiment = experiment_h0
     SAVE_DIR = "results/"
     conf = config_p_value_analysis
+
+    df_dummy = run_dummy_analysis_distances(
+        tests=conf,
+        n_iters=args.n_iters,
+        n_instances=args.n_features,
+        n_classes=args.n_classes,
+        dist_fct=dist_fct,
+        save_path=args.save_dir,
+    )
 
     res_dists, df = run_analysis_distances(
         tests=conf,
