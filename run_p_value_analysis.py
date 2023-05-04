@@ -105,7 +105,7 @@ def run_analysis_distances(
     res = {}
     p_probs, _ = experiment(N=n_features, M=n_predictors, K=n_classes, u=0.01)
     for test in tests:
-        print(f"Running test {test}")
+        print(f"Running dummy analysis for test {test}")
         p_vals, dists, stats = distance_analysis_npbe(
             p_probs=p_probs,
             params=tests[test]["params"],
