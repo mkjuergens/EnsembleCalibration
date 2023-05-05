@@ -18,7 +18,7 @@ from ensemblecalibration.calibration.p_value_analysis import (
     distance_analysis_npbe,
     npbe_test_null_hypothesis,
     npbe_test_distances_two_lambdas,
-    distance_analysis_const_preds
+    distance_analysis_const_pred
 )
 from ensemblecalibration.calibration.experiments import (
     experiment_h0,
@@ -75,7 +75,7 @@ def run_dummy_analysis_distances(
 
     for test in tests:
         print(f"Running test {test}")
-        p_vals, dists, stats = distance_analysis_const_preds(n_instances=n_instances,
+        p_vals, dists, stats = distance_analysis_const_pred(n_instances=n_instances,
                                                              n_classes=n_classes,
                                                              params=tests[test]["params"],
                                                              dist_fct=dist_fct,
