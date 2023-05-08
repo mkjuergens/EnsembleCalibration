@@ -22,11 +22,8 @@ from ensemblecalibration.calibration.p_value_analysis import (
 )
 from ensemblecalibration.calibration.experiments import (
     experiment_h0,
-    experiment_h1,
-    experiment_h0_feature_dependency,
-    experiment_h1_feature_dependecy,
+    
 )
-
 
 def run_analysis_h0(
     tests: dict,
@@ -177,12 +174,3 @@ if __name__ == "__main__":
         results_path=args.save_dir,
     )
 
-    df_h0 = run_analysis_h0(
-        tests=conf,
-        n_iters=args.n_iters,
-        n_features=args.n_features,
-        n_predictors=args.n_predictors,
-        n_classes=args.n_classes,
-        alpha=args.alpha,
-        results_path=args.save_dir,
-    )
