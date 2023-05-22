@@ -4,7 +4,6 @@ from ensemblecalibration.sampling.lambda_sampling import (
 )
 from ensemblecalibration.sampling.mcmc_sampling import mhar_sampling_p
 from ensemblecalibration.sampling.rejectance_sampling import rejectance_sampling_p
-from ensemblecalibration.calibration.experiments import experiment_h0_feature_dependency
 
 
 def sample_p_bar(p_probs, params: dict):
@@ -31,9 +30,3 @@ def sample_p_bar(p_probs, params: dict):
 
     return P_bar_b
 
-
-if __name__ == "__main__":
-    p_probs, y = experiment_h0_feature_dependency(100, 10, 10, 0.01)
-    params = {"sampling": "mcmc", "transform": "isometric"}
-    p_bar = sample_p_bar(p_probs=p_probs, params=params)
-    print(p_bar)

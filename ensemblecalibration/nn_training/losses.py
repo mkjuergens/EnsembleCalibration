@@ -24,11 +24,16 @@ class SKCELoss(nn.Module):
         Parameters
         ----------
         use_median_bw : bool, optional
-            _description_, by default False
+            whether to use the median heuristic for the bandwidth of the kernel, by default False
         bw : float, optional
-            _description_, by default 2.0
-        dist_fct : _type_, optional
-            _description_, by default tv_distance
+            bandwidth of the kernel, by default 2.0
+        dist_fct : optional
+            distance function used in the kernel, by default tv_distance.
+            Remark: needs to be in torch tensor format
+        use_square : bool, optional
+            whether to square the loss function, by default True
+        tensor_miscal : torch.Tensor, optional
+            tensor version of miscalibration measure, by default skce_ul_tensor
         """
         super().__init__()
         self.bw = bw
@@ -38,6 +43,22 @@ class SKCELoss(nn.Module):
         self.tensor_miscal = tensor_miscal
 
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
+        """forward pass of the loss function
+
+        Parameters
+        ----------
+        p_preds : torch.Tensor
+            tensor of shape (n_samples, n_predictors, n_classes) containing probabilistic predictions
+        weights_l : torch.Tensor
+            tensor of shape (n_samples, n_predictors) containing weight coefficients
+        y : torch.Tensor
+            tensor of shape (n_samples,) containing labels
+
+        Returns
+        -------
+        loss
+            value of loss function 
+        """
         # calculate matrix of point predictions of the convex combination
         p_bar = calculate_pbar_torch(
             weights_l=weights_l, p_preds=p_preds, reshape=False

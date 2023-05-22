@@ -39,6 +39,7 @@ class MLPCalW(nn.Module):
         out = self.layers(x_in)
         # reshape output to matrix of weights of two dimensions (N, M) 
         out = out.view(-1, out.shape[1])
+        # apply softmax to get weights in (0,1) and summing up to 1
         out = self.softmax(out)
         return out
     
@@ -49,6 +50,14 @@ class MLPDataset(Dataset):
     """
 
     def __init__(self, P: np.ndarray, y: np.ndarray):
+        """
+        Parameters
+        ----------
+        P : np.ndarray
+            tensor of shape (N, M, K) containing probabilistic predictions for each instance and each predictor
+        y : np.ndarray
+            array of shape (N,) containing labels
+        """
         super().__init__()
         self.p_probs = P
         self.y_true = y
