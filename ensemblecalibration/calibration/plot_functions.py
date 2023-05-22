@@ -4,6 +4,8 @@ from ast import literal_eval
 
 import numpy as np
 import pandas as pd
+import ternary
+import matplotlib
 import matplotlib.pyplot as plt
 
 
@@ -65,6 +67,55 @@ def plot_t1_erros_analysis(df: pd.DataFrame, list_errors: list, take_avg: bool =
     if title is not None:
         plt.suptitle(title)
     return fig
+
+def plot_heatmap_analysis(res: dict, params: dict, l_real: np.ndarray, figsize: tuple = (15, 6)):
+    """function for plotting the results of the distance analysis as heatmaps for each test
+
+    Parameters
+    ----------
+    res : dict
+        dictionary containing the results of the distance analysis, as returned by run_distance_analysis
+    params : dict
+        dictionary containing the parameters of the test
+    L_real : np.ndarray
+        array of shape (n_ensembles,) containing the real weights
+    figsize : tuple, optional
+        size of the figure, by default (15, 6)
+
+    Returns
+    -------
+    fig
+        matplotlib figure
+    """
+
+    n_cols = len(res) // 2
+    n_rows = len(res) // n_cols
+    fig, ax = plt.subplots( n_rows, n_cols, figsize=figsize, sharex=True, sharey=True)
+
+    for i, test in enumerate(params):
+        # set color scheme dependent of value of 
+        col = res[test]["stats"]
+
+        tax = ternary.TernaryAxesSubplot(ax=ax[i // n_cols, i % n_cols])
+        tax.gridlines(color='blue', multiple=0.2, linewidth=0.5)
+        tax.set_background_color(color="whitesmoke")
+        # plot real lambda in each plot
+        tax.scatter([tuple(l_real)], color='red', s=40, label='chosen $\lambda$', zorder=2)
+        # use logarithmic transformation for colorbar
+        tax.scatter([tuple(res[test]['l_all'][i]) for i in range(len(res[test]['l_all']))],
+                    alpha=0.5, c=col, colormap=plt.cm.viridis, colorbar=True, vmax=max(col),
+                    norm = matplotlib.colors.SymLogNorm(linthresh=0.05))
+        ax[i // n_cols, i % n_cols].set_title(test)
+
+    plt.legend()
+    plt.tight_layout()
+
+    return fig
+        
+        
+
+
+
 
 
 if __name__ == "__main__":

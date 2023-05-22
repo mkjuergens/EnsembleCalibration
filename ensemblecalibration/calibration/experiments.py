@@ -1,7 +1,10 @@
+from typing import Optional
 import numpy as np
 from scipy.stats import multinomial
 
 from ensemblecalibration.calibration.iscalibrated import is_calibrated
+from ensemblecalibration.calibration.calibration_estimates.helpers import calculate_pbar
+from ensemblecalibration.sampling import multinomial_label_sampling
 
 
 def get_ens_alpha(K: int, u: float, a0: np.ndarray):
@@ -49,6 +52,7 @@ def getBoundary(p_probs, p_mu, p_c):
     # determine boundary
     bi = 0
     for i in range(len(L)):
+        # stop if boundary is reached
         if not is_calibrated(p_probs, L[i, :]):
             bi = i - 1
             break
@@ -134,8 +138,7 @@ def experiment_h1_feature_dependecy(
     u : float
         parameter of the dirichlet distribution describing the "spread" or "uncertainty"
     random : bool, optional
-        whether the corner is randomly chosen or the closest corner is chosen, by default False
-
+        whether the corner is randomly chosen or the closest corner is chosen, by default False_p
     Returns
     -------
     _type_
@@ -179,6 +182,111 @@ def experiment_h1_feature_dependecy(
     return P, y
 
 
+def new_experiment_h0(n_instances: int, n_ensembles: int, n_classes: int,
+                        uct: float = 0.01, l_prior: Optional[np.ndarray] = None, 
+                        feature_dependent: bool = False):
+    """new setting for experiment where the null hypothesis is true. Here, an initial prior mean is
+    sampled from a Dirichlet distribution for each ensemble member, then the predictions are
+    sampled using a Dirichlet distribution defined over the respective prior.
+
+    Parameters
+    ----------
+    n_instances : int
+        number of instances
+    n_ensembles : int
+        number of ensemble members
+    n_classes : int
+        number of classes
+    uct : float, optional
+        parameter used to control the "spread" of the dsitribution of the ensemble prior means, by default 0.01
+    l_prior : Optional[np.ndarray], optional
+        _description_, by default None
+    feature_dependent : bool, optional
+        whether the convex combination is feature dependent or not, by default False
+
+    Returns
+    -------
+    p_probs, y_labels, l_weights
+        tensor of probabilistic predictions, array of labels and array of weights
+    """
+
+
+    # sample weight vector for (random convex combination)
+    if l_prior is None:
+        if feature_dependent:
+            l_weights = np.random.dirichlet([1/n_ensembles]* n_ensembles, n_instances)
+        else:
+            l_weights = np.random.dirichlet([1]*n_ensembles)
+    else:
+        if feature_dependent:
+            l_weights = np.random.dirichlet(l_prior, n_instances)
+        else:
+            l_weights = np.random.dirichlet(l_prior)
+
+
+    p_probs = []
+    for ens in range(n_ensembles):
+        # sample prior mean
+        mu = np.random.dirichlet([1/n_classes]* n_classes)
+        p_prior = (n_classes*mu)/uct
+        p_m = np.random.dirichlet(p_prior, n_instances)
+        p_probs.append(p_m)
+    
+    p_probs = np.stack(p_probs, axis=1)
+
+    # set one convex combination to be the calibrated one
+    if feature_dependent:
+        p_bar = calculate_pbar(l_weights, p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(l_weights, p_probs, reshape=False, n_dims=1)
+    # sample labels from categorical distribution
+    y_labels = np.apply_along_axis(multinomial_label_sampling, 1, p_bar)
+
+    return p_probs, y_labels, l_weights
+
+def new_experiment_h1(n_instances: int, n_ens: int, n_classes: int, uct: float = 0.01, 
+                      random: bool = False):
+    p_probs = []
+    # sample predictions for each ensemble
+    mu_ens = []
+    for ens in range(n_ens):
+
+        mu = np.random.dirichlet([1/n_classes]*n_classes)
+        p_prior = n_classes*mu/uct
+        p_m = np.random.dirichlet(p_prior, n_instances)
+        p_probs.append(p_m)
+        mu_ens.append(mu)
+
+    p_probs = np.stack(p_probs, axis=1)
+    mu_ens = np.stack(mu_ens)
+
+    for n in range(n_instances):
+        if not random:
+            # get index with highest probability
+            c = np.argmax(mu)
+        else:
+            c = np.random.randint(0, n_classes, 1)[0]
+
+    # one hot encoding of index
+    yc = np.eye(n_classes)[c, :]
+    # get boundary
+    if n_ens == 1:
+        yb = mu
+    else:
+        yb = getBoundary(Pm, mu, yc)
+    # get random convex combination
+    l = np.random.rand(1)[0]
+    l = l * yc + (1 - l) * yb
+    # sample instance
+    try:
+        yl = np.argmax(multinomial(1, l).rvs(size=1), axis=1)[0]
+    except ValueError as e:
+        yl = np.argmax(l)
+    P.append(Pm)
+    y.append(yl)
+
+
+
 def experiment_h0(
     N: int, M: int, K: int, u: float, l_prior: int = 1, output_weights: bool = False
 ):
@@ -219,7 +327,8 @@ def experiment_h0(
         # sample parameter of dirichlet distribution
         a = get_ens_alpha(K, u, [1 / K] * K)
         while np.any(a <= 0):
-            a = get_ens_alpha(K, u, [1 / K] * K)
+            a = get_ens_alpha
+            (K, u, [1 / K] * K)
         # sample probability
         Pm = np.random.dirichlet(a, M)  # of shape (M, K)
         Pbar = np.sum(Pm * L, axis=0)  # of shape (K,)
@@ -267,7 +376,6 @@ def experiment_h0_const_preds(N: int, K: int):
     y = np.array(y)
 
     return p_m, y
-
 
 
 def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
@@ -334,11 +442,13 @@ def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
 
 if __name__ == "__main__":
     P, y = experiment_h0_feature_dependency(100, 10, 3, 0.01)
-    print(P)
-    l_1 = np.random.dirichlet([1 / 10] * 10, 1)[0, :]
-    print(l_1)
-    l_2 = np.random.dirichlet([1] * 10, 1)[0, :]
-    print(l_2)
-    P_m, y = experiment_h0_const_preds(100, 10)
-    print(y)
+    
+    p_mu = np.random.dirichlet([1/3]*3)
+    p_c = np.random.dirichlet([1/3]*3)
+
+    y_b = getBoundary(P, p_mu, p_c)
+    print(y_b)
+
+    p_probs, y_labels, l_weights = new_experiment_h0(100, 10, 3, 0.01, feature_dependent=True)
+    print(p_probs.shape)
 

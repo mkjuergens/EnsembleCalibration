@@ -70,12 +70,12 @@ def solve_cobyla2D(
 
     Parameters
     ----------
-    P : np.ndarray
-        _description_
+    P : np.ndarray of shape (N, M, K)
+        matrix of point predictions for each instance and predcitor
     y : np.ndarray
-        _description_
+        labels
     params : dict
-        _description_
+        dictionary of test parameters
 
     Returns
     -------
@@ -104,11 +104,12 @@ def solve_cobyla2D(
         cons.append(lo)
         cons.append(up)
 
+    # TODO: adjust objectives to x dependecy argument
     solution = minimize(
-        params["obj_lambda"], l_0, (P, y, params), method="COBYLA", constraints=cons
+        params["obj_lambda"], l_0, (P, y, params, True), method="COBYLA", constraints=cons
     )
     l = np.array(solution.x)
-    minstat = params["obj_lambda"](l, P, y, params)
+    minstat = params["obj_lambda"](l, P, y, params, True)
 
     if enhanced_output:
         return l, minstat

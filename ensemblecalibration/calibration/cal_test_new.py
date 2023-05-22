@@ -64,7 +64,8 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
     return minstat, l
 
 
-def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
+def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict,
+                       correction: bool = False):
     """new version of the bootstrapping test using uniform sampling of the polytope for testing
     whether there exists a calibrated version in the convex hull
 
@@ -76,6 +77,8 @@ def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
         array containing labels
     params : dict
         dictionary of test parameters
+    correction : bool, optional
+        whether to use a correction for the test statistic, by default False
 
     Returns
     -------
@@ -112,11 +115,29 @@ def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
     return final_r
 
 
-def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params: dict):
+def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params: dict,
+                        make_cor: bool = False):
     """
     version of the test where alpha is given in as a function parameter
+
+    Parameters
+    ----------
+    p_probs : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing probabilistic predictions for each instance and classifier
+    y_labels : np.ndarray of shape (n_samples,)
+        array containing labels
+    alpha : float
+        significance level
+    params : dict
+        dictionary of test parameters
+    make_cor : bool, optional
+        whether to use a correction for the test statistic, by default False
     """
+    if make_cor:
+        n_tests = params["n_predictors"]
+        alpha = alpha / n_tests
     params["alpha"] = alpha
+
     result = npbe_test_v3_alpha(p_probs=p_probs, y_labels=y_labels, params=params)
     return result
 
