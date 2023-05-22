@@ -320,14 +320,19 @@ def skceultest(P, y, params):
     return stat, pval
 
 def skce_ul_obj_lambda(weights_l: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
-                        params: dict):
-    p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
+                        params: dict, x_dependency: bool = False):
+    if x_dependency:
+        p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
     stat = skce_ul_obj(p_bar=p_bar, y=y_labels, params=params)
-
     return stat
 
 def skce_uq_obj_lambda(weights_l: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
-                       params: dict):
-    p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
+                       params: dict, x_dependency: bool = False):
+    if x_dependency:
+        p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
     stat = skce_uq_obj(p_bar=p_bar, y=y_labels, params=params)
     return stat

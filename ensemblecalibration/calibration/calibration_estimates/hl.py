@@ -88,9 +88,33 @@ def hl_obj(p_bar, y, params):
 
     return stat
 
-def hl_obj_lambda(weights_l: np.ndarray,p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
+def hl_obj_lambda(weights_l: np.ndarray,p_probs: np.ndarray, y_labels: np.ndarray, params: dict,
+                  x_dependency: bool = False):
+    """objective of the Hiossmer-Lemeshow test to be minimized in the optimization problem
 
-    p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
+    Parameters
+    ----------
+    weights_l : np.ndarray
+        weights of the convex combination, can be either a vector of shape (n_ensembles,)
+          or a matrix of shape (n_instances, n_ensembles)
+    p_probs : np.ndarray
+        _description_
+    y_labels : np.ndarray
+        _description_
+    params : dict
+        _description_
+    x_dependency : bool, optional
+        _description_, by default False
+
+    Returns
+    -------
+    stat
+        value of statistic
+    """
+    if x_dependency:
+        p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(weights_l=weights_l, P=p_probs, reshape=False, n_dims=1)
     stat = hl_obj(p_bar=p_bar, y=y_labels, params=params)
 
     return stat
