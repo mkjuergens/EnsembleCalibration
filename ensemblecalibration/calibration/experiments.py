@@ -244,48 +244,6 @@ def new_experiment_h0(n_instances: int, n_ensembles: int, n_classes: int,
 
     return p_probs, y_labels, l_weights
 
-def new_experiment_h1(n_instances: int, n_ens: int, n_classes: int, uct: float = 0.01, 
-                      random: bool = False):
-    p_probs = []
-    # sample predictions for each ensemble
-    mu_ens = []
-    for ens in range(n_ens):
-
-        mu = np.random.dirichlet([1/n_classes]*n_classes)
-        p_prior = n_classes*mu/uct
-        p_m = np.random.dirichlet(p_prior, n_instances)
-        p_probs.append(p_m)
-        mu_ens.append(mu)
-
-    p_probs = np.stack(p_probs, axis=1)
-    mu_ens = np.stack(mu_ens)
-
-    for n in range(n_instances):
-        if not random:
-            # get index with highest probability
-            c = np.argmax(mu)
-        else:
-            c = np.random.randint(0, n_classes, 1)[0]
-
-    # one hot encoding of index
-    yc = np.eye(n_classes)[c, :]
-    # get boundary
-    if n_ens == 1:
-        yb = mu
-    else:
-        yb = getBoundary(Pm, mu, yc)
-    # get random convex combination
-    l = np.random.rand(1)[0]
-    l = l * yc + (1 - l) * yb
-    # sample instance
-    try:
-        yl = np.argmax(multinomial(1, l).rvs(size=1), axis=1)[0]
-    except ValueError as e:
-        yl = np.argmax(l)
-    P.append(Pm)
-    y.append(yl)
-
-
 
 def experiment_h0(
     N: int, M: int, K: int, u: float, l_prior: int = 1, output_weights: bool = False
