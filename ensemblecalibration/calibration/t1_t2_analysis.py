@@ -114,6 +114,7 @@ def _simulation_ha(
     for r in tqdm(range(R)):
         P, y = experiment(N, M, K, u, random=random)
         for test in tests:
+            print(f"Running alternative hypothesis analysis for test {test}")
             results[test] += 1 - np.array(
                 tests[test]["test"](P, y, alpha, tests[test]["params"])
             )
@@ -124,7 +125,7 @@ def _simulation_ha(
 
 
 def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
-    sys.stdout = None
+    #sys.stdout = None
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
     N = args.N
@@ -135,10 +136,6 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
     experiments = args.experiments
     sampling_method = args.sampling
     tests = args.config
-
-    # change sampling method in configuration
-    # for i in range(len(list(tests.keys()))):
-    #   tests[list(tests.keys())[i]]["params"]["sampling"] = sampling_method
 
     os.makedirs(results_dir, exist_ok=True)
 
@@ -203,8 +200,8 @@ if __name__ == "__main__":
     )
     # data args
     parser.add_argument("-N", dest="N", type=int, default=1000)
-    parser.add_argument("-M", dest="M", type=int, default=10)
-    parser.add_argument("-K", dest="K", type=int, default=10)
+    parser.add_argument("-M", dest="M", type=int, default=3)
+    parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
     parser.add_argument("-R", dest="R", type=int, default=1000)
     parser.add_argument("-experiments",dest="experiments", default="old", type=str)
