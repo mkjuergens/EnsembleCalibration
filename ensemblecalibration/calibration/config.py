@@ -166,23 +166,7 @@ config_new_v3 = {
             "test": skceul, # test used for the calibration measure of the #perfectly# calibrated model
             "obj": skce_ul_obj, # objective function for the minimzation part
             "sampling": "lambda",
-            "transform": "isometric",
-            "x_dependency": False
-        }
-    },
-    "SKCEuq": {
-        "test": _npbe_test_v3_alpha,
-        "params": {
-            "l_prior": 1, 
-            "optim": "cobyla",
-            "n_resamples": 100,
-            "n_predictors": 100,
-            "dist": tv_distance,
-            "sigma": 2.0, # to be used in the matrix valued kernel
-            "test": skceuq,
-            "obj": skce_uq_obj,
-            "sampling": "lambda",
-            "transform": "isometric",
+            "transform": "sqrt",
             "x_dependency": False
         }
     },
@@ -198,10 +182,71 @@ config_new_v3 = {
             "test": skceul,
             "obj": skce_ul_obj_new,
             "sampling": "lambda",
-            "transform": "isometric",
+            "transform": "sqrt",
             "x_dependency": False
         }
-    }      
+    },
+    "ECEconf5": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_predictors": 100,
+            "n_bins": 5,
+            "test": confece,
+            "obj": confece_obj,
+            "sampling": "lambda",
+            "transform": "sqrt",
+            "x_dependency": False
+        }      
+},
+    "ECEconf10": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_predictors": 100,
+            "n_bins": 10,
+            "test": confece,
+            "obj": confece_obj,
+            "sampling": "lambda",
+            "transform": "sqrt",
+            "x_dependency": False
+        }
+    },
+    "ECEclass5": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_predictors": 100,
+            "n_bins": 5,
+            "test": classece,
+            "obj": classece_obj,
+            "sampling": "lambda",
+            "transform": "sqrt",
+            "x_dependency": False
+        }
+    },
+    "ECEclass10": {
+        "test": _npbe_test_v3_alpha,
+        "params": {
+            "l_prior": 1,
+            "optim": "cobyla",
+            "n_resamples": 100,
+            "n_predictors": 100,
+            "n_bins": 10,
+            "test": classece,
+            "obj": classece_obj,
+            "sampling": "lambda",
+            "transform": "sqrt",
+            "x_dependency": False
+        }
+    }
+
 }
 
 config_new_mlp = {

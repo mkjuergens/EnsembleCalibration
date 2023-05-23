@@ -5,15 +5,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from multiprocess import Process, Queue
-
 sys.path.append("../..")
-from ensemblecalibration.calibration.config import (
-    config_tests_new_cobyla_2d,
-    config_tests_new_cobyla_1d,
-    config_tests_new_neldermead_1d,
-    config_tests_new_neldermead_2d,
-)
+
 from ensemblecalibration.calibration.config import (
     config_tests_cobyla_1d,
     config_tests_cobyla_2d,
@@ -27,7 +20,7 @@ from ensemblecalibration.calibration.experiments import (
     experiment_h0,
     experiment_h1,
     experiment_h0_feature_dependency,
-    experiment_h1_feature_dependecy,
+    experiment_h1_feature_dependency,
 )
 def _simulation_h0(
     tests,
@@ -167,7 +160,7 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
     if experiments == "new":
         print("Use new experiments..")
         exp_h0 = experiment_h0_feature_dependency
-        exp_ha = experiment_h1_feature_dependecy
+        exp_ha = experiment_h1_feature_dependency
     elif experiments == "old":
         exp_h0 = experiment_h0
         exp_ha = experiment_h1
@@ -209,7 +202,7 @@ if __name__ == "__main__":
         description="Experiments for type I and type II error in function of alpha"
     )
     # data args
-    parser.add_argument("-N", dest="N", type=int, default=100)
+    parser.add_argument("-N", dest="N", type=int, default=1000)
     parser.add_argument("-M", dest="M", type=int, default=10)
     parser.add_argument("-K", dest="K", type=int, default=10)
     parser.add_argument("-u", dest="u", type=float, default=0.01)

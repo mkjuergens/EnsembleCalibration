@@ -119,7 +119,7 @@ def experiment_h0_feature_dependency(
     return P, y
 
 
-def experiment_h1_feature_dependecy(
+def experiment_h1_feature_dependency(
     N: int, M: int, K: int, u: float, random: bool = False
 ):
     """returns P tensor and array of labels for the setting in Mortier et al where the null
