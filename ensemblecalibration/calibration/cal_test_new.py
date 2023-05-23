@@ -14,6 +14,8 @@ from ensemblecalibration.calibration.minimization import (
 from ensemblecalibration.sampling import multinomial_label_sampling, sample_p_bar
 from ensemblecalibration.nn_training.train import get_optim_lambda_mlp
 from ensemblecalibration.nn_training.model import MLPDataset
+from ensemblecalibration.calibration.cal_test_vaicenavicius import npbe_test_vaicenavicius
+from ensemblecalibration.calibration.helpers import sort_and_reject_alpha
 
 
 def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
@@ -82,12 +84,19 @@ def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict,
 
     Returns
     -------
-    int, in {0, 1}
-    test result
+    decision, (p_vals, stats)
+        decision: integer defining whether to reject (1) or accept (0) the null hypothesis
+       ( p_vals: array of p values for each predictor )
+       ( stats: array of test statistics for each predictor )
+
     """
 
     # array for saving decisions for each iteration
     decisions = np.zeros((params["n_predictors"], len(params["alpha"])))
+    # save p values for each predictor here
+    p_vals = np.zeros(params["n_predictors"])
+    stats = np.zeros(params["n_predictors"])
+
     for n in range(params["n_predictors"]):
         # sample predictor within convex hull
         p_bar = sample_p_bar(p_probs=p_probs, params=params)
@@ -95,25 +104,17 @@ def npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, params: dict,
         p_bar = np.trunc(p_bar*10**3)/(10**3)
         p_bar = np.clip(p_bar, 0, 1)
         # save test statistics for bootstrap iterations
-        stats = np.zeros(params["n_resamples"])
-        # bootstrap iterations
-        for b in range(params["n_resamples"]):
-            # randomly sample from p_bar
-            p_bar_b = np.stack(random.sample(p_bar.tolist(), p_bar.shape[0]))
-            # sample labels uniformly from the induced caftegorical distribution
-            y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_bar_b)
-            stats[b] = params["test"](p_bar_b, y_b, params)
-        # calculate quantile of empirical distribution
-        q_alpha = np.quantile(stats, 1 - np.array(params["alpha"]))
-        # calculate value of test statistic for original labels and predictor
-        minstat = params["obj"](p_bar, y_labels, params)
-        decision = list(map(int, np.abs(minstat) > q_alpha)) # zero if false, 1 (reject) if true 
-        decisions[n, :] = decision
-
-    # check if any test accepts, if yes, accept, else, no
-    final_r = np.min(decisions, axis=0)
-    return final_r
-
+        _, p_val, stat = npbe_test_vaicenavicius(p_bar, y_labels, params)
+        p_vals[n] = p_val
+        stats[n] = stat
+    if correction:
+        decs = sort_and_reject_alpha(p_vals, params["alpha"], method="hochberg")
+    else:
+        decs = sort_and_reject_alpha(p_vals, params["alpha"], method=None)
+    # global hypothesis: accept if any test accepts
+    # take minimum over second axis, for every level of alpha
+    decision = np.min(decs, axis=1)
+    return decision
 
 def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params: dict,
                         make_cor: bool = False):
@@ -133,12 +134,9 @@ def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params
     make_cor : bool, optional
         whether to use a correction for the test statistic, by default False
     """
-    if make_cor:
-        n_tests = params["n_predictors"]
-        alpha = alpha / n_tests
     params["alpha"] = alpha
 
-    result = npbe_test_v3_alpha(p_probs=p_probs, y_labels=y_labels, params=params)
+    result = npbe_test_v3_alpha(p_probs=p_probs, y_labels=y_labels, params=params, correction=True)
     return result
 
 

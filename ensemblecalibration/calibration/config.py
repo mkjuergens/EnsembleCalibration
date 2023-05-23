@@ -173,6 +173,7 @@ config_new_v3 = {
     "SKCEul": {
         "test": _npbe_test_v3_alpha,
         "params": {
+            "take_square": False,
             "l_prior": 1, 
             "optim": "cobyla",
             "n_resamples": 100,
@@ -180,7 +181,7 @@ config_new_v3 = {
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel
             "test": skceul,
-            "obj": skce_ul_obj_new,
+            "obj": skce_ul_obj,
             "sampling": "lambda",
             "transform": "sqrt",
             "x_dependency": False

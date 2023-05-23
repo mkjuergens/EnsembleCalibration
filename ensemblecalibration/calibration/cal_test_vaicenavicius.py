@@ -36,9 +36,10 @@ def npbe_test_vaicenavicius(p_probs: np.ndarray, y_labels: np.ndarray, params: d
     # calculate statistic on real data
     stat = params["obj"](p_probs, y_labels, params)
     # calculate alpha-quantile of the empirical distribution of the test statistic under the null hypothesis
-    q_alpha = np.quantile(stats_h0, 1 - params["alpha"])
+    q_alpha = np.quantile(stats_h0, 1 - np.array(params["alpha"]))
     # decision: reject test if stat > q_alpha
-    decision = int(np.abs(stat) > q_alpha)
+    decision = list(map(int, np.abs(stat) > q_alpha))
     # p-value: fraction of bootstrap samples that are larger than the test statistic on the real data
     p_val = np.sum(stats_h0 > stat) / params["n_resamples"]
+    
     return decision, p_val, stat

@@ -1,9 +1,55 @@
 """
 helping functions for the calibration tests
 """
+from typing import Optional
 import numpy as np
 
 from scipy.stats import dirichlet, multinomial
+
+def sort_and_reject(p_vals: np.ndarray, alpha: float, method: str = "hochberg"):
+    """ffunction for sorting a list of p values and using a given method of corredction to reject 
+    all p values below a critical value.
+
+    Parameters
+    ----------
+    p_vals : np.ndarray
+        list of p-values of all hypothesis tests
+    alpha : float or list
+        significance level
+    method: str
+        method of correction, by default "hochberg".
+
+    Returns
+    -------
+    decs
+        list of decisions for each hypothesis test
+    """
+    # sort in descending order
+    p_vals_sorted = np.sort(p_vals)
+    sort_idx = np.argsort(p_vals)
+    if method == "hochberg":
+        rej_coef = [(k/len(p_vals_sorted))* alpha for k in range(1, len(p_vals_sorted)+1)]
+    elif method is None:
+        rej_coef = [alpha]*len(p_vals_sorted)
+    else:
+        raise NotImplementedError(f"method {method} not implemented")
+    rej_coef = np.array(rej_coef)
+    # find first index where p_val <= rej_coef
+    idx = np.argmax(p_vals_sorted > rej_coef)
+    # reject all p_vals at index idx and above
+    decs = np.zeros(len(p_vals_sorted))
+    decs[:idx] = 1
+
+    return decs
+
+def sort_and_reject_alpha(p_vals: np.ndarray, alpha: list, method: str = "hochberg"):
+
+    decs_alpha = np.zeros((len(alpha), len(p_vals)))
+    for i, a in enumerate(alpha):
+        decs_alpha[i] = sort_and_reject(p_vals, a, method=method)
+    
+    return decs_alpha
+
 
 def sample_m(p: np.ndarray):
     """function which samples form the categorical distribution definded by the input probability vector.
@@ -30,12 +76,12 @@ def sample_l(P: np.ndarray):
 
     Parameters
     ----------
-    P : np.ndarray of shape (n_samples, n_predictoes, n_classes)
+    P : np.ndarray of shape (n_samples, n_predictors, n_classes)
         tensor containing predictions of each ensemble member for each sample
 
     Returns
     -------
-    np.ndarary
+    np.ndarray
         _description_
     """
     # take convex combination of ensemble predictions
@@ -107,8 +153,6 @@ def c1_constr_flat(l_flat: np.ndarray, n_rows: int):
     diff = prod - np.ones(l.shape[0])
 
     return diff
-
-
 
 def constraint2_new(l:np.ndarray):
     """constraint 2 in the optimization problem ensuring that the weights sum to 1.
@@ -225,4 +269,7 @@ def emp_dist_min_objective(params_tests, min_fct, experiment, n_iters: int = 100
 
 
 if __name__ == "__main__":
-    P = init_pmatrix(100, 10, 10)
+    p_vals = np.random.uniform(0,1,100)
+    alphas = [0.05, 0.1, 0.15]
+    decs = sort_and_reject_alpha(p_vals, alphas)
+    print(np.min(decs, axis=1))
