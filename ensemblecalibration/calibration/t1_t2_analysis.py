@@ -114,7 +114,6 @@ def _simulation_ha(
     for r in tqdm(range(R)):
         P, y = experiment(N, M, K, u, random=random)
         for test in tests:
-            print(f"Running alternative hypothesis analysis for test {test}")
             results[test] += 1 - np.array(
                 tests[test]["test"](P, y, alpha, tests[test]["params"])
             )
@@ -199,11 +198,11 @@ if __name__ == "__main__":
         description="Experiments for type I and type II error in function of alpha"
     )
     # data args
-    parser.add_argument("-N", dest="N", type=int, default=1000)
+    parser.add_argument("-N", dest="N", type=int, default=100)
     parser.add_argument("-M", dest="M", type=int, default=3)
     parser.add_argument("-K", dest="K", type=int, default=3)
     parser.add_argument("-u", dest="u", type=float, default=0.01)
-    parser.add_argument("-R", dest="R", type=int, default=1000)
+    parser.add_argument("-R", dest="R", type=int, default=100)
     parser.add_argument("-experiments",dest="experiments", default="old", type=str)
     parser.add_argument("-sampling", dest="sampling", type=str, default="lambda")
     parser.add_argument(

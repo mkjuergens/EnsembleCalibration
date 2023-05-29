@@ -86,7 +86,6 @@ def inv_transform_points(x_trans: np.ndarray, transform: str = 'sqrt'):
     """
     if x_trans.ndim == 1:
         x_trans = x_trans[np.newaxis, :]
-
     if transform == 'sqrt':
         assert x_trans.shape[1] == 2, "sqrt transformation only suitbale for 3 dimensional data"
         x = planes_to_coordinates3D(x_trans)
