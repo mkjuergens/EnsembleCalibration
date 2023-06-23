@@ -13,9 +13,85 @@ from ensemblecalibration.calibration.minimization import (
 )
 from ensemblecalibration.sampling import multinomial_label_sampling, sample_p_bar
 from ensemblecalibration.nn_training.train import get_optim_lambda_mlp
-from ensemblecalibration.nn_training.model import MLPDataset
+from ensemblecalibration.nn_training.dataset import MLPDataset
 from ensemblecalibration.calibration.cal_test_vaicenavicius import npbe_test_vaicenavicius
 from ensemblecalibration.calibration.helpers import sort_and_reject_alpha
+
+
+def calculate_min_inst_dependent(x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
+                                 params: dict):
+    if params["optim"] == "perceptron":
+        dataset = MLPDataset(x_train=x_inst, P=p_probs, y=y_labels)
+        l_weights = get_optim_lambda_mlp(dataset, loss=params["loss"], n_epochs=params["n_epochs"],
+                                         lr=params["lr"], batch_size = len(x_inst))
+    else:
+        raise NotImplementedError
+    # calculate p_bar
+    p_bar = calculate_pbar(l_weights, p_probs, reshape=True, n_dims=2)
+    # calculate test statistic
+    minstat = params["obj"](p_bar, y_labels, params)
+    
+    return minstat, l_weights
+
+
+def npbe_test_mlp_new(x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, params: dict):
+    """new version of the bootstrapping test using uniform sampling of the polytope for testing
+    whether there exists a calibrated version in the convex hull
+
+    Parameters
+    ----------
+    x_inst : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing predictions for each instance and classifier
+    p_probs : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing probabilistic predictions for each instance and classifier
+    y_labels : np.ndarray of shape (n_samples,)
+        array containing labels
+    params : dict
+        dictionary of test parameters
+    correction : bool, optional
+        whether to use a correction for the test statistic, by default False
+    Returns
+    -------
+    decision, (p_vals, stats)
+        decision: integer defining whether tso reject (1) or accept (0) the null hypothesis
+       ( p_vals: array of p values for each predictor )
+       ( stats: array of test statistics for each predictor )
+
+    """
+
+    # calculate optimal convex combination of predictions
+    minstat, l = calculate_min_inst_dependent(x_inst, p_probs=p_probs, y_labels=y_labels,
+                                               params=params)
+
+    stats = np.zeros(params["n_resamples"])  # save test statistics here
+    for b in range(params["n_resamples"]):
+        # bootstrap new matrix of predictions
+        P_b = random.sample(p_probs.tolist(), p_probs.shape[0])
+        P_b = np.stack(P_b)
+        # calculate predicted probabilities of optimal convex combination
+        P_bar_b = calculate_pbar(l, P_b, reshape=True, n_dims=2)
+        assert np.all(
+            (P_bar_b >= 0.0) | (P_bar_b <= 1.0)
+        ), "all the values of P_bar need to be between 0 and 1"
+        # sample the labels from the respective categorical dsitribution
+        y_b = np.apply_along_axis(multinomial_label_sampling, 1, P_bar_b)
+        # calculate calibration test statistic
+        stats[b] = params["test"](P_bar_b, y_b, params)
+
+    # calculate 1 - alpha quantile from the empirical distribution of the test statistic under the null hypothesis
+    q_alpha = np.quantile(stats, 1 - (np.array(params["alpha"])))
+    # decision: reject test if minstat > q_alpha
+    decision = list(map(int, np.abs(minstat) > q_alpha))
+
+    return decision, l
+
+def _npbe_test_mlp_new_alpha(x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, alpha,
+                              params: dict):
+
+    params["alpha"] = alpha
+    decision, l = npbe_test_mlp_new(x_inst, p_probs, y_labels, params)
+
+    return decision, l
 
 
 def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
@@ -62,6 +138,7 @@ def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
         raise NotImplementedError
     
     minstat = params["obj"](P, y, params)
+
 
     return minstat, l
 
@@ -141,7 +218,7 @@ def _npbe_test_v3_alpha(p_probs: np.ndarray, y_labels: np.ndarray, alpha, params
 
 
 
-def npbe_test_new(P: np.ndarray, y: np.ndarray, params: dict):
+def npbe_test_new_alpha(P: np.ndarray, y: np.ndarray, params: dict):
     """perform (updated) calibration test: It consists of first calculing the optimal convex combination
     of predictors, and then using the weight matrix for the bootstrapping to calculate the empirical distribution
     of the calibration measure under the null hypothesis
@@ -183,11 +260,11 @@ def npbe_test_new(P: np.ndarray, y: np.ndarray, params: dict):
         stats[b] = params["test"](P_bar_b, y_b, params)
 
     # calculate 1 - alpha quantile from the empirical distribution of the test statistic under the null hypothesis
-    q_alpha = np.quantile(stats, 1 - params["alpha"])
+    q_alpha = np.quantile(stats, 1 - (np.array(params["alpha"])))
     # decision: reject test if minstat > q_alpha
-    decision = int(np.abs(minstat) > q_alpha)
-
+    decision = list(map(int, np.abs(minstat) > q_alpha))
     return decision, l
+
 
 
 def npbe_test_new_alpha(P: np.ndarray, y: np.ndarray, params: dict):

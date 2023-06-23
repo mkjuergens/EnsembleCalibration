@@ -4,10 +4,32 @@ from ensemblecalibration.calibration.calibration_estimates.distances import tv_d
 
 from ensemblecalibration.calibration.calibration_estimates import *
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
-from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha, _npbe_test_v3_alpha
+from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha, _npbe_test_v3_alpha, _npbe_test_mlp_new_alpha
 from ensemblecalibration.calibration.p_value_analysis import npbe_test_p_values, npbe_test_v3_p_values
 from ensemblecalibration.nn_training.losses import SKCELoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
+
+config_new_mlp_binary = {
+    "SKCEul": {
+        "test": _npbe_test_mlp_new_alpha,
+        "params": {
+            "l_prior": 1, 
+            "optim": "perceptron",
+            "n_resamples": 100,
+            "dist": tv_distance,
+            "sigma": 2.0, # to be used in the matrix valued kernel
+            "test": skceul,
+            "obj": skce_ul_obj_new,
+            "loss": SKCELoss(use_median_bw=True, dist_fct=tv_distance_tensor, 
+                             tensor_miscal=skce_ul_tensor),
+            "n_epochs": 100,
+            "lr": 0.001,
+            "x_dependency": True
+        }
+    }      
+}
+
+
 
 config_p_value_analysis = {
     "SKCEul2": {
@@ -160,7 +182,7 @@ config_new_v3 = {
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_predictors": 100, # number of "guesses" for the c.c.
+            "n_predictors": 20, # number of "guesses" for the c.c.
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel
             "test": skceul, # test used for the calibration measure of the #perfectly# calibrated model
@@ -177,7 +199,7 @@ config_new_v3 = {
             "l_prior": 1, 
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_predictors": 100,
+            "n_predictors": 20,
             "dist": tv_distance,
             "sigma": 2.0, # to be used in the matrix valued kernel
             "test": skceul,
@@ -192,7 +214,7 @@ config_new_v3 = {
         "params": {
             "l_prior": 1,
             "optim": "cobyla",
-            "n_resamples": 100,
+            "n_resamples": 20,
             "n_predictors": 100,
             "n_bins": 5,
             "test": confece,
@@ -208,7 +230,7 @@ config_new_v3 = {
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_predictors": 100,
+            "n_predictors": 20,
             "n_bins": 10,
             "test": confece,
             "obj": confece_obj,
@@ -223,7 +245,7 @@ config_new_v3 = {
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_predictors": 100,
+            "n_predictors": 20,
             "n_bins": 5,
             "test": classece,
             "obj": classece_obj,
@@ -238,7 +260,7 @@ config_new_v3 = {
             "l_prior": 1,
             "optim": "cobyla",
             "n_resamples": 100,
-            "n_predictors": 100,
+            "n_predictors": 20,
             "n_bins": 10,
             "test": classece,
             "obj": classece_obj,

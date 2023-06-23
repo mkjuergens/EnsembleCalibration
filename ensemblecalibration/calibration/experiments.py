@@ -283,7 +283,7 @@ def experiment_h0(
     P, y = [], []
     for n in range(N):
         # sample parameter of dirichlet distribution
-        a = get_ens_alpha(K, u, [1 / K] * K)
+        a = get_ens_alpha(K, u, [1 / K] * K) 
         while np.any(a <= 0):
             a = get_ens_alpha
             (K, u, [1 / K] * K)

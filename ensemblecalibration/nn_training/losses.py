@@ -1,11 +1,14 @@
 import torch
 import numpy as np
 from torch import nn
+
+from torchvision.ops import focal_loss
+
 from ensemblecalibration.nn_training.distances import (
     skce_ul_tensor,
     tv_distance_tensor,
     median_heuristic,
-    skce_uq_tensor
+    skce_uq_tensor,
 )
 from ensemblecalibration.nn_training.helpers import calculate_pbar_torch
 
@@ -17,7 +20,7 @@ class SKCELoss(nn.Module):
         bw: float = 2.0,
         dist_fct=tv_distance_tensor,
         use_square: bool = True,
-        tensor_miscal: torch.Tensor = skce_ul_tensor
+        tensor_miscal: torch.Tensor = skce_ul_tensor,
     ) -> None:
         """_summary_
 
@@ -57,7 +60,7 @@ class SKCELoss(nn.Module):
         Returns
         -------
         loss
-            value of loss function 
+            value of loss function
         """
         # calculate matrix of point predictions of the convex combination
         p_bar = calculate_pbar_torch(
@@ -68,7 +71,9 @@ class SKCELoss(nn.Module):
         else:
             bw = self.bw
         # get tensor of SKCE values which is to be summed over
-        hat_skce_ul = self.tensor_miscal(p_bar=p_bar, y=y, dist_fct=self.dist_fct, sigma=bw)
+        hat_skce_ul = self.tensor_miscal(
+            p_bar=p_bar, y=y, dist_fct=self.dist_fct, sigma=bw
+        )
         # calculate mean
         loss = torch.mean(hat_skce_ul)
 
@@ -78,15 +83,43 @@ class SKCELoss(nn.Module):
         return loss
 
 
+class FocalLoss(nn.Module):
+
+
+    def __init__(self, alpha=1.0, gamma=2.0, reduction: str = "mean"):
+
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(
+        self, p_preds: torch.Tensor, weights_l: torch.Tensor, y_labels: torch.Tensor
+    ):
+        p_bar = calculate_pbar_torch(
+            weights_l=weights_l, p_preds=p_preds, reshape=False
+        )
+        # use predictions for class 1
+        p_pred = p_bar[:, 1]
+        y_labels = y_labels.float()
+
+        loss = focal_loss.sigmoid_focal_loss(
+            p_pred, y_labels, self.alpha, self.gamma, reduction=self.reduction
+        )
+        return loss
+    
+
 if __name__ == "__main__":
     loss = SKCELoss()
-    p = torch.from_numpy(np.random.dirichlet([1] * 10, size=(100, 10)))
-    lambdas = torch.from_numpy(np.random.dirichlet([1] * 10, size=100))
-    y = torch.randint(7, size=(100,))
+    loss_focal = FocalLoss()
+    p = torch.from_numpy(np.random.dirichlet([1] * 2, size=(100, 2)))
+    lambdas = torch.from_numpy(np.random.dirichlet([1] * 2, size=100))
+    y = torch.randint(2, size=(100,))
     print(y)
     out = loss(p, lambdas, y)
     print(out)
     loss_2 = SKCELoss(tensor_miscal=skce_uq_tensor)
     out_2 = loss_2(p, lambdas, y)
     print(out_2)
-    
+    out_focal = loss_focal(p, lambdas, y)
+    print(out_focal)
