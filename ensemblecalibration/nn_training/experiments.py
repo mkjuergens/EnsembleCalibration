@@ -108,6 +108,7 @@ def experiment_h0_nn(n_instances: int = 1000, n_classes: int = 2, n_ens: int = 2
 
 def binary_experiment_nn(n_instances: int, n_classes: int, fct: str = "linear", period_cycle: int = 100,
                          uct: float = 0.01):
+
     weights = _binary_weights_fct(n_instances, fct=fct, period=period_cycle)
     p_probs = np.zeros((n_instances, 2, n_classes))
     for ens in range(2):

@@ -158,6 +158,11 @@ def plot_scatterplot_ternary(
     -------
     fig
         matplotlib figure
+
+    Example
+    -------
+    
+
     """
 
     fig, tax = ternary.figure(scale=scale)

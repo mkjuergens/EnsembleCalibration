@@ -18,7 +18,7 @@ class MLPDataset(Dataset):
         Parameters
         ----------
         x_train : np.ndarray
-            array of shape (N, F) containing the training data
+            array of shape (N, F) containing the training data (instances)
         P : np.ndarray
             tensor of shape (N, M, K) containing probabilistic predictions for each instance and each predictor
         y : np.ndarray
