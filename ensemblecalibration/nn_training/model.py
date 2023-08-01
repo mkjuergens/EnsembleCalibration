@@ -69,7 +69,8 @@ class MLPCalW(nn.Module):
 if __name__ == "__main__":
     x_train = np.random.random(size=(1000, 1))
     print(x_train.shape)
-    model = MLPCalW(in_channels=1, hidden_dim=10, out_channels=5, use_relu=False)
+    model = MLPCalW(in_channels=1, hidden_dim=10, out_channels=5,
+                    hidden_layers = 0, use_relu=False)
     x_train = torch.from_numpy(x_train).float()
     out_weights = model(x_train)
     print(out_weights)

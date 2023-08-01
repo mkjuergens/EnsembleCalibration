@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 import numpy as np
 from torch import nn
@@ -11,6 +13,7 @@ from ensemblecalibration.nn_training.distances import (
     skce_uq_tensor,
 )
 from ensemblecalibration.nn_training.helpers import calculate_pbar_torch
+from ensemblecalibration.calibration.calibration_estimates.ece_kde import get_ece_kde, get_bandwidth
 
 
 class SKCELoss(nn.Module):
@@ -81,6 +84,47 @@ class SKCELoss(nn.Module):
             loss = torch.square(loss)
 
         return loss
+    
+
+class LpLoss(nn.Module):
+    """Lp Calibration error as a loss function, see also Poporadanoska et al. (2022)
+
+    """
+
+    def __init__(self, p: int, bw: Optional[float] = None, device: str = 'cpu',
+                 ) -> None:
+        """
+        Parameters
+        ----------
+        p : int
+            order of the Lp norm used in the calibration error
+        bw : Optional[float], optional
+            badnwidth of the kernel. If None, a heuristic method is used, by default None
+        device : str, optional
+            device on which the calculations are performed, by default 'cpu'
+        
+        """
+        super().__init__()
+        self.p = p
+        self.bw = bw
+        self.device = device
+
+    def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
+
+        # calculate convex combination
+        p_bar = calculate_pbar_torch(
+            weights_l=weights_l, p_preds=p_preds, reshape=False
+        )
+        p_bar = p_bar.float()
+        if self.bw is None:
+            bw = get_bandwidth(p_bar, y)
+        else:
+            bw = self.bw
+        assert np.isnan(p_bar.detach()).sum() == 0, f"p_bar contains {np.isnan(p_bar).sum()} NaNs"
+        lp_er = get_ece_kde(p_bar, y, bw, self.p, device=self.device, mc_type="canonical")
+
+        return lp_er
+
 
 
 class FocalLoss(nn.Module):
@@ -115,7 +159,6 @@ if __name__ == "__main__":
     p = torch.from_numpy(np.random.dirichlet([1] * 2, size=(100, 2)))
     lambdas = torch.from_numpy(np.random.dirichlet([1] * 2, size=100))
     y = torch.randint(2, size=(100,))
-    print(y)
     out = loss(p, lambdas, y)
     print(out)
     loss_2 = SKCELoss(tensor_miscal=skce_uq_tensor)
@@ -123,3 +166,6 @@ if __name__ == "__main__":
     print(out_2)
     out_focal = loss_focal(p, lambdas, y)
     print(out_focal)
+    loss = LpLoss(p=2, bw=None)
+    out_lp = loss(p, lambdas, y)
+    print(out_lp)
