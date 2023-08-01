@@ -45,6 +45,38 @@ def get_optim_lambda_mlp(dataset_train: torch.utils.data.Dataset, loss,
     optim_weights = optim_weights.detach().numpy()
     return optim_weights
 
+
+def train_one_epoch(model, loss, loader_train, optimizer, loader_val: Optional[DataLoader] = None):
+     
+    loss_epoch_train = 0
+    # iterate over train dataloader
+    for (p_probs, y_labels_train, x_train) in loader_train:
+        p_probs, x_train = p_probs.float(), x_train.float()
+        # predict weights as the output of the model on the given instances
+        weights_l = model(x_train)
+        # calculate loss
+        loss_train = loss(p_probs, weights_l, y_labels_train)
+        optimizer.zero_grad()
+        loss_train.backward()
+        optimizer.step()
+        loss_epoch_train += loss_train.item()
+    
+    loss_epoch_train /= len(loader_train)
+    loss_epoch_val = None
+    if loader_val is not None:
+        loss_epoch_val = 0
+        model.eval()
+        for (p_probs, y_labels_val, x_val) in loader_val:
+            p_probs, x_val = p_probs.float(), x_val.float()
+            weights_l = model(x_val)
+            loss_val = loss(p_probs, weights_l, y_labels_val)
+            loss_epoch_val += loss_val.item()
+
+        loss_epoch_val /= len(loader_val)
+    
+    return model, loss_epoch_train, loss_epoch_val
+
+
 def train_mlp(model,
     dataset_train: torch.utils.data.Dataset, loss, dataset_val: Optional[torch.utils.data.Dataset] = None, 
     n_epochs: int = 100, lr: float = 0.001, batch_size: int = 128, lower_bound: float = 0.0,
@@ -80,10 +112,11 @@ def train_mlp(model,
     model, loss_train, loss_val
         _description_
     """
-    n_classes = dataset_train.n_classes
     optimizer = optim(model.parameters(), lr=lr)
     loss_train = np.zeros(n_epochs)
+    loss_val = np.zeros(n_epochs)
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
+    loader_val = None
     # save validation losses if needed
     if dataset_val is not None:
         loader_val = DataLoader(dataset_val, batch_size=len(dataset_val))
@@ -91,8 +124,21 @@ def train_mlp(model,
 
     for n in range(n_epochs):
         # train
-        loss_epoch = []
         model.train()
+
+        model, loss_epoch_train, loss_epoch_val = train_one_epoch(model, loss, loader_train, optimizer,
+                                                                  loader_val )
+        loss_train[n] = loss_epoch_train
+        if loss_epoch_val is not None:
+            loss_val[n] = loss_epoch_val
+        if print_losses:
+            if (n +1) % every_n_epoch == 0:
+                print(f'Epoch: {n} train loss: {loss_epoch_train} val loss: {loss_epoch_val}')
+
+    return model, loss_train, loss_val
+        
+        
+"""
         for i, (p_probs, y_labels_train, x_train) in enumerate(loader_train):
             p_probs = p_probs.float()
             x_train = x_train.float()
@@ -133,7 +179,7 @@ def train_mlp(model,
         return model, loss_train
 
     
-
+"""
 
         
 

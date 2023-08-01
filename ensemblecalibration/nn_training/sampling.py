@@ -76,7 +76,7 @@ def sample_binary_predictions(
 
 
 def generate_weights_binary(
-    x_inst: np.ndarray, p_probs: np.ndarray, fct: str = "linear"
+    x_inst: np.ndarray, p_probs: np.ndarray, deg: int = 1
 ):
     """function for generating weights for the binary case. The weights are generated based on the
     instance values. The weights are generated as follows: for each instance, the weights of the
@@ -110,6 +110,14 @@ def generate_weights_binary(
             # let weights increase linearly with value of instance for even indices, decrease linearly for odd
             # indices
             if j % 2 == 0:
+                weights[i, j] = x_inst[i]**deg
+            else:
+                weights[i, j] = 1 - x_inst[i]**deg
+
+
+
+            """
+            if j % 2 == 0:
                 if fct == "linear":
                     weights[i, j] = x_inst[i]
                 elif fct == "quadratic":
@@ -123,10 +131,13 @@ def generate_weights_binary(
                     weights[i, j] = 1 - x_inst[i] ** 2
                 elif fct == "const":
                     weights[i, j] = j
-
+           """ 
     # Normalize the weights to sum to 1
     softmax = torch.nn.Softmax(dim=1)
     weights = softmax(torch.tensor(weights)).numpy()
+
+    # check if weights sum to 1
+    assert np.sum(weights, axis=1).all() == 1, "weights do not sum to 1"
 
     return weights
 
@@ -137,7 +148,7 @@ def experiment_binary_nn(
     x_lower: int = 0,
     x_upper: int = 1,
     scale_factor: int = 2,
-    fct: str = "linear",
+    deg: int = 1,
 ):
     """function for running an experiment for the binary case. The experiment consists of sampling
     instances and probabilities, generating weights and calculating the weighted average. The
@@ -154,7 +165,9 @@ def experiment_binary_nn(
     x_upper : int
         _description_
     scale_factor : int, optional
-        _description_, by default 2
+        factor used , by default 2
+    deg: int, optional
+        degree of the function used to generate the weights, by default 1
 
     Returns
     -------
@@ -179,7 +192,7 @@ def experiment_binary_nn(
         scale_factor=scale_factor,
     )
     # generate weights
-    weights = generate_weights_binary(x_inst=x_inst, p_probs=p_probs, fct=fct)
+    weights = generate_weights_binary(x_inst=x_inst, p_probs=p_probs, deg=deg)
     # calculate weighted average
     p_bar = calculate_pbar(weights, p_probs, reshape=True, n_dims=2)
     # sample labels from categorical distribution
@@ -192,6 +205,6 @@ def experiment_binary_nn(
 
 if __name__ == "__main__":
     x_inst, p_probs, weights, p_bar, y_labels = experiment_binary_nn(
-        n_samples=100, n_ens=2, x_lower=0, x_upper=1
+        n_samples=100, n_ens=2, x_lower=0, x_upper=1, deg=0
     )
     print(weights)
