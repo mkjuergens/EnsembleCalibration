@@ -6,29 +6,41 @@ from ensemblecalibration.calibration.calibration_estimates import *
 from ensemblecalibration.calibration.cal_tests import  _npbetest_alpha
 from ensemblecalibration.calibration.cal_test_new import _npbe_test_new_alpha, _npbe_test_v3_alpha, _npbe_test_mlp_new_alpha
 from ensemblecalibration.calibration.p_value_analysis import npbe_test_p_values, npbe_test_v3_p_values
-from ensemblecalibration.nn_training.losses import SKCELoss
+from ensemblecalibration.nn_training.losses import SKCELoss, LpLoss, FocalLoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
 
 config_new_mlp_binary = {
     "SKCEul": {
         "test": _npbe_test_mlp_new_alpha,
         "params": {
-            "l_prior": 1, 
             "optim": "perceptron",
             "n_resamples": 100,
             "dist": tv_distance,
-            "sigma": 2.0, # to be used in the matrix valued kernel
-            "test": skceul,
+            "sigma": 0.01, # to be used in the matrix valued kernel TODO: calculate it empirically
+            "test": skceul, 
             "obj": skce_ul_obj_new,
-            "loss": SKCELoss(use_median_bw=True, dist_fct=tv_distance_tensor, 
+            "loss": SKCELoss(bw=0.01, dist_fct=tv_distance_tensor, 
                              tensor_miscal=skce_ul_tensor),
             "n_epochs": 100,
-            "lr": 0.001,
-            "x_dependency": True
+            "lr": 0.0005,
         }
-    }      
-}
+    },
 
+"L_2": {
+"test": _npbe_test_mlp_new_alpha,
+"params": {
+    "optim": "perceptron",
+    "n_resamples": 100,
+    "p": 2,
+    "sigma": 0.01,
+    "test": ece_kde_obj,
+    "obj": ece_kde_obj,
+    "loss": LpLoss(p=2, bw=0.01),
+    "n_epochs": 100,
+    "lr": 0.0005,
+}
+}
+}     
 
 
 config_p_value_analysis = {
