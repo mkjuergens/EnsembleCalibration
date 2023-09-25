@@ -1,18 +1,13 @@
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
-
-from ensemblecalibration.nn_training.distances import tv_distance_tensor
 from ensemblecalibration.nn_training.model import MLPCalW
-from ensemblecalibration.nn_training.losses import SKCELoss
-from ensemblecalibration.calibration.experiments import (
-    experiment_h0_feature_dependency,
-    experiment_h0_feature_dependency,
-)
 
-def get_optim_lambda_mlp(dataset_train: torch.utils.data.Dataset, loss,
+from ensemblecalibration.nn_training.dataset import MLPDataset
+
+def get_optim_lambda_mlp(dataset_train: MLPDataset, loss, dataset_val: Optional[MLPDataset] = None,
                      n_epochs: int = 100, lr: float = 0.001, batch_size: int = 128,
                      optim=torch.optim.Adam, shuffle: bool = True):
     """function for finding the weight vector which results in the lowest calibration error,
@@ -37,29 +32,68 @@ def get_optim_lambda_mlp(dataset_train: torch.utils.data.Dataset, loss,
     """
     model = MLPCalW(in_channels=dataset_train.n_features, out_channels=dataset_train.n_ens,
                     hidden_dim=32)
-    model, loss_train = train_mlp(model, dataset_train=dataset_train, loss=loss, n_epochs=n_epochs,
-                                  lr=lr, print_losses=False, batch_size=batch_size, optim=optim)
+    # assert that daataset has x_train attribute
+    assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
+
+    model, loss_train, loss_val = train_mlp(model, dataset_train=dataset_train, dataset_val=dataset_val,
+                                             loss=loss,  n_epochs=n_epochs, lr=lr, print_losses=False, 
+                                             every_n_epoch=50, batch_size=batch_size,
+                                               optim=optim)
     # use features as input to model instead of probs
-    x_inst = dataset_train.x_train
+    x_inst = dataset_train.x_train.float()
+    model.eval()
     optim_weights = model(x_inst)
     optim_weights = optim_weights.detach().numpy()
     return optim_weights
 
 
-def train_one_epoch(model, loss, loader_train, optimizer, loader_val: Optional[DataLoader] = None):
+def train_one_epoch(model, loss, loader_train, optimizer, loader_val: Optional[DataLoader] = None,
+                    lr_scheduler = None, best_loss_val: Optional[float] = None, 
+                    save_best_model: bool = True, best_model: Optional[dict] = None):
+    """
+    training loop for one epoch for the given model, loss function, data loaders and optimizers.
+    Optionally, a learning rate scheduler can be used.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        model to be trained
+    loss : 
+        loss function used for training
+    loader_train: torch.utils.data.DataLoader
+        data loader for training data
+    optimizer : torch.optim.Optimizer
+        optimizer used for training
+    loader_val: torch.utils.data.DataLoader
+        data loader for validation data, by default None
+    lr_scheduler : of type torch.optim.lr_scheduler, optional
+        learning rate scheduler, by default None (i.e., no scheduler is used)
+    best_loss_val: float, Optional
+        best validation loss so far, by default None (i.e. no validation loss is used for model saving)
+    save_best_model: bool, optional
+        whether to save the best model, by default True
+    """
+
+    # check if validation data is provided if best model should be saved
+    if save_best_model:
+        assert loader_val is not None, "loader_val needs to be provided if save_best_model is True"
      
     loss_epoch_train = 0
     # iterate over train dataloader
     for (p_probs, y_labels_train, x_train) in loader_train:
         p_probs, x_train = p_probs.float(), x_train.float()
+        optimizer.zero_grad()
         # predict weights as the output of the model on the given instances
         weights_l = model(x_train)
         # calculate loss
         loss_train = loss(p_probs, weights_l, y_labels_train)
-        optimizer.zero_grad()
+        # set gradients to zero
         loss_train.backward()
         optimizer.step()
         loss_epoch_train += loss_train.item()
+    if lr_scheduler is not None:
+        # make a step in the learning rate scheduler:
+        lr_scheduler.step(loss_epoch_train)
     
     loss_epoch_train /= len(loader_train)
     loss_epoch_val = None
@@ -73,14 +107,18 @@ def train_one_epoch(model, loss, loader_train, optimizer, loader_val: Optional[D
             loss_epoch_val += loss_val.item()
 
         loss_epoch_val /= len(loader_val)
+        if best_loss_val is None or loss_epoch_val < best_loss_val:
+            best_loss_val = loss_epoch_val
+            best_model = model.state_dict()
     
-    return model, loss_epoch_train, loss_epoch_val
+    return model, loss_epoch_train, loss_epoch_val, best_loss_val, best_model
 
 
 def train_mlp(model,
     dataset_train: torch.utils.data.Dataset, loss, dataset_val: Optional[torch.utils.data.Dataset] = None, 
     n_epochs: int = 100, lr: float = 0.001, batch_size: int = 128, lower_bound: float = 0.0,
-    print_losses: bool = True, every_n_epoch: int = 1, optim=torch.optim.Adam, shuffle: bool = True):
+    print_losses: bool = True, every_n_epoch: int = 1, optim=torch.optim.Adam, shuffle: bool = True,
+    save_best_model: bool = False, lr_scheduler = None, patience: int = 10, **kwargs):
     """trains the MLP model to predict the optimal weight matrix for the given ensemble model
     such that the calibration error of the convex combination is minimized.
 
@@ -106,6 +144,18 @@ def train_mlp(model,
         whether to print train and validation loss at every epoch, by default True
     every_n_epoch : int, optional
         print losses every n epochs, by default 1
+    optim : torch.optim.Optimizer, optional
+        optimizer used for training, by default torch.optim.Adam
+    shuffle : bool, optional
+        whether to shuffle the training data, by default True
+    save_best_model: bool, optional
+        whether to save the best model, by default True
+    lr_scheduler : of type torch.optim.lr_scheduler, optional
+        learning rate scheduler, by default None (i.e., no scheduler is used)
+    patience : int, optional
+        number of epochs without improvement after which the training is stopped, by default 10
+    kwargs : dict
+        additional keyword arguments passed to the learning rate scheduler
 
     Returns
     -------
@@ -113,73 +163,70 @@ def train_mlp(model,
         _description_
     """
     optimizer = optim(model.parameters(), lr=lr)
-    loss_train = np.zeros(n_epochs)
-    loss_val = np.zeros(n_epochs)
+    if lr_scheduler is not None:
+        lr_scheduler = lr_scheduler(optimizer, **kwargs) #kwargs can be e.g. step_size or gamma
+    loss_train = []
+    loss_val = []
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
     loader_val = None
+    # save best validation loss here
+    best_loss_val = float('inf')
+    best_model = model.state_dict()
     # save validation losses if needed
     if dataset_val is not None:
         loader_val = DataLoader(dataset_val, batch_size=len(dataset_val))
-        loss_val = np.zeros(n_epochs)
 
+    early_stopping = EarlyStoping(patience=patience)
     for n in range(n_epochs):
         # train
         model.train()
-
-        model, loss_epoch_train, loss_epoch_val = train_one_epoch(model, loss, loader_train, optimizer,
-                                                                  loader_val )
-        loss_train[n] = loss_epoch_train
+        model, loss_epoch_train, loss_epoch_val, best_loss_val, best_model = train_one_epoch(model,
+                                                                 loss, loader_train, optimizer,
+                                                                  loader_val, lr_scheduler=lr_scheduler,
+                                                                  best_loss_val=best_loss_val,
+                                                                  save_best_model=save_best_model,
+                                                                  best_model=best_model)
+        loss_train.append(loss_epoch_train)
         if loss_epoch_val is not None:
-            loss_val[n] = loss_epoch_val
+            loss_val.append(loss_epoch_val)
         if print_losses:
             if (n +1) % every_n_epoch == 0:
-                print(f'Epoch: {n} train loss: {loss_epoch_train} val loss: {loss_epoch_val}')
+                print(f'Epoch: {n} train loss: {loss_epoch_train} val loss: {loss_epoch_val} \n lr: {optimizer.param_groups[0]["lr"]}')
+        
+        # check using early stopping if training should be stopped
+        early_stopping(loss_train, loss_val)
+        if early_stopping.stop:
+            print(f"Early stopping at epoch {n}")
+            break
 
+    if save_best_model:
+        model.load_state_dict(best_model)
     return model, loss_train, loss_val
-        
-        
-"""
-        for i, (p_probs, y_labels_train, x_train) in enumerate(loader_train):
-            p_probs = p_probs.float()
-            x_train = x_train.float()
-            # model takes instances as input
-            weights_l = model(x_train)
-            l = loss(p_probs, weights_l, y_labels_train)
-            optimizer.zero_grad()
-            l.backward()
-            optimizer.step()
-            loss_epoch.append(l.item())
-        
-        loss_n = sum(loss_epoch)/(len(loader_train))
-        if loss_n < lower_bound:
-            loss_n = lower_bound
-        loss_train[n] = loss_n
-        if print_losses:
-            if (n +1) % every_n_epoch == 0:
-                print(f'Epoch: {n} train loss: {loss_n}')
-        # validation 
-        if dataset_val is not None:
-            val_loss_epoch = []
-            model.eval()
-            for i, (p_probs_val, y_labels_val, x_val) in enumerate(loader_val):
-                p_probs_val = p_probs_val.float()
-                weights_val = model(x_val)
-                x_val = x_val.float()
-                loss_val_n = loss(p_probs_val, weights_val, y_labels_val)
-                val_loss_epoch.append(loss_val_n.item())
-            loss_val_n =sum(val_loss_epoch)/len(val_loss_epoch)
-            if print_losses:
-                if (n + 1) % every_n_epoch == 0:
-                    print(f"Validation loss: {loss_val_n}")
-            loss_val[n] = loss_val_n
 
-    if dataset_val is not None:
-        return model, loss_train, loss_val
-    else:
-        return model, loss_train
 
-    
-"""
+class EarlyStoping:
+    """
+    class for early stopping of training by evaluating the decreases of the training loss.
+    """
 
+    def __init__(self, patience: int = 10, min_delta: float = 0) -> None:
+        """
+        Parameters
+        ----------
+        patience : int, optional
+            number of epochs to wait unitl early stopping
+        min_delta : float, optional
+            , by default 0
+        """
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.stop = False
+
+    def __call__(self, train_loss, *args: Any, **kwds: Any) -> Any:
         
-
+        if (train_loss[-2] - train_loss[-1]) < self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.stop = True
+        
