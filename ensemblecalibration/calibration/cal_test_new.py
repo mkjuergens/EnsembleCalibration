@@ -62,6 +62,7 @@ def npbe_test_mlp_new(x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndar
     # calculate optimal convex combination of predictions
     minstat, l = calculate_min_inst_dependent(x_inst, p_probs=p_probs, y_labels=y_labels,
                                                params=params)
+    print(f'Minstat at : {minstat}')
 
     stats = np.zeros(params["n_resamples"])  # save test statistics here
     for b in range(params["n_resamples"]):
