@@ -20,8 +20,7 @@ class MLPCalW(nn.Module):
         in_channels: int,
         out_channels: int,
         hidden_dim: int,
-        relu: bool = True,
-        hidden_layers: int = 0,
+        hidden_layers: int = 1,
         use_relu: bool = True,
     ):
         """multi layer perceptron for training the optimal weights of a convex combination of

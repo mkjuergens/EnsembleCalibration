@@ -15,7 +15,6 @@ from ensemblecalibration.nn_training.distances import (
 from ensemblecalibration.nn_training.helpers import calculate_pbar_torch
 from ensemblecalibration.calibration.calibration_estimates.ece_kde import get_ece_kde, get_bandwidth
 
-
 class SKCELoss(nn.Module):
     def __init__(
         self,
@@ -115,7 +114,7 @@ class LpLoss(nn.Module):
         p_bar = calculate_pbar_torch(
             weights_l=weights_l, p_preds=p_preds, reshape=False
         )
-        p_bar = p_bar.float()
+        y = y.long()
         if self.bw is None:
             bw = get_bandwidth(p_bar, y)
         else:

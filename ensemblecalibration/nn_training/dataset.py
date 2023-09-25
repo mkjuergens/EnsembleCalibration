@@ -69,7 +69,7 @@ class DirichletDataset(Dataset):
     def __init__(self, n_samples: int = 10000, n_members: int = 10, n_classes: int = 10, 
                   u_s: float = 0.01, experiment=binary_experiment_nn, lambda_fct: str = "linear") -> None:
         """
-
+dataset_1 = ML
         Parameters
         ----------
         n_samples : int, optional

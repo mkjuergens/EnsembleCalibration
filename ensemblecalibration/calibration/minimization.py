@@ -7,7 +7,7 @@ combination of point predictions such that the calibration measure (defined here
 """
 
 
-import numpy as np
+import numpy as np 
 from scipy.optimize import minimize
 
 from pyswarm import pso
@@ -15,7 +15,9 @@ from pyswarm import pso
 from ensemblecalibration.calibration.calibration_estimates import (
     confece_obj_new,
     classece_obj_new,
+    skce_ul_obj_lambda
 )
+from ensemblecalibration.calibration.calibration_estimates.distances import tv_distance
 from ensemblecalibration.calibration.helpers import (
     c1_constr,
     c2_constr,
@@ -259,5 +261,7 @@ def solve_minimization(obj, l0, P, y):
 if __name__ == "__main__":
     P = np.random.dirichlet([1] * 3, size=(100, 10))
     y = np.random.randint(2, size=100)
-    config = {"obj": classece_obj_new, "n_bins": 5}
+    config = {"obj_lambda": skce_ul_obj_lambda, "dist": tv_distance, "sigma": 0.1,
+               "take_square": False}
     l_1 = solve_cobyla2D(P, y, config)
+    print(l_1)

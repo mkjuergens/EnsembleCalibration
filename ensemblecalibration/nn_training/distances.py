@@ -1,5 +1,7 @@
 import torch
 
+from scipy.spatial.distance import jensenshannon
+
 def tv_distance_tensor(p_1: torch.Tensor, p_2: torch.Tensor):
     """total variation distance between two point predictions.
 
