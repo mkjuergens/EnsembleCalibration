@@ -41,8 +41,7 @@ def cone_experiment_h0(n_samples: int, deg_fct: int, x_lower: float = 0.0, x_upp
 
     Returns
     -------
-    _type_
-        _description_
+    _x_inst, p_probs, y_labels, p_bar, weights
     """
 
     x_inst = sample_uniform_instances(n_samples=n_samples, x_lower=x_lower, x_upper=x_upper, 
@@ -60,13 +59,14 @@ def cone_experiment_h0(n_samples: int, deg_fct: int, x_lower: float = 0.0, x_upp
         weights[:, 1] = w_2
         p_bar = w_1 * p_probs[:, 0, :] + w_2 * p_probs[:, 1, :]
     else:
-        weights = generate_weights_ens_dep(x_inst=x_inst, p_probs=p_probs, deg=deg_fct)
-        p_bar = calculate_pbar(weights_l=weights, P=p_probs, reshape=True, n_dims=2)
-
+        p_bar = x_inst**deg_fct * p_probs[:, 0, :] + (1 - x_inst**deg_fct) * p_probs[:, 1, :]
+        weights = np.zeros((n_samples, 2))
+        weights[:, 0] = x_inst[:,0]**deg_fct
+        weights[:, 1] = 1 - x_inst[:,0]**deg_fct
     # sample labels accoridng to multinomial distribution
     y_labels = np.apply_along_axis(multinomial_label_sampling, 1, p_bar)
 
-    return x_inst, p_probs, y_labels, p_bar, weights
+    return x_inst, p_probs, y_labels, p_bar
 
 def cone_experiment_h1(n_samples: int, x_lower: float = 0.0, x_upper : float = 1.0, n_dim: int = 1,
                        frac_in: float = 0.5):
@@ -89,8 +89,8 @@ def cone_experiment_h1(n_samples: int, x_lower: float = 0.0, x_upper : float = 1
 
     Returns
     -------
-    _type_
-        _description_
+    x_inst, p_probs, y_labels, p_bar
+
     """
     x_inst = sample_uniform_instances(n_samples=n_samples, x_lower=x_lower, x_upper=x_upper,
                                       n_dim=n_dim)
