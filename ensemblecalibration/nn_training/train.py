@@ -9,7 +9,8 @@ from ensemblecalibration.nn_training.dataset import MLPDataset
 
 def get_optim_lambda_mlp(dataset_train: MLPDataset, loss, dataset_val: Optional[MLPDataset] = None,
                      n_epochs: int = 100, lr: float = 0.001, batch_size: int = 128,
-                     optim=torch.optim.Adam, shuffle: bool = True):
+                     hidden_dim: int = 8, hidden_layers: int = 0,
+                     optim=torch.optim.Adam, shuffle: bool = True, patience: int = 15):
     """function for finding the weight vector which results in the lowest calibration error,
     using a MLP model. The model is trained to predict the optimal weight vector for the given
 
@@ -31,16 +32,16 @@ def get_optim_lambda_mlp(dataset_train: MLPDataset, loss, dataset_val: Optional[
         resulting optimal weight vector
     """
     model = MLPCalW(in_channels=dataset_train.n_features, out_channels=dataset_train.n_ens,
-                    hidden_dim=32)
+                    hidden_dim=hidden_dim, hidden_layers=hidden_layers)
     # assert that daataset has x_train attribute
     assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
 
     model, loss_train, loss_val = train_mlp(model, dataset_train=dataset_train, dataset_val=dataset_val,
                                              loss=loss,  n_epochs=n_epochs, lr=lr, print_losses=False, 
                                              every_n_epoch=50, batch_size=batch_size,
-                                               optim=optim)
+                                               optim=optim, shuffle=shuffle, patience=patience)
     # use features as input to model instead of probs
-    x_inst = dataset_train.x_train.float()
+    x_inst = torch.from_numpy(dataset_train.x_train).float()
     model.eval()
     optim_weights = model(x_inst)
     optim_weights = optim_weights.detach().numpy()
@@ -225,7 +226,9 @@ class EarlyStoping:
 
     def __call__(self, train_loss, *args: Any, **kwds: Any) -> Any:
         
-        if (train_loss[-2] - train_loss[-1]) < self.min_delta:
+        if len(train_loss) < 2:
+            return
+        elif (train_loss[-2] - train_loss[-1]) < self.min_delta:
             self.counter += 1
             if self.counter >= self.patience:
                 self.stop = True
