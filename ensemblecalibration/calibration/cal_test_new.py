@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from tqdm import tqdm
 
 from scipy.optimize import minimize
 
@@ -23,13 +24,16 @@ def calculate_min_inst_dependent(x_inst: np.ndarray, p_probs: np.ndarray, y_labe
     if params["optim"] == "perceptron":
         dataset = MLPDataset(x_train=x_inst, P=p_probs, y=y_labels)
         l_weights = get_optim_lambda_mlp(dataset, loss=params["loss"], n_epochs=params["n_epochs"],
-                                         lr=params["lr"], batch_size = len(x_inst))
+                                         lr=params["lr"], batch_size = params["batch_size"],
+                                         hidden_dim=params["hidden_params"],
+                                         hidden_layers=params["hidden_layers"],
+                                         patience=params["patience"])
     else:
         raise NotImplementedError
     # calculate p_bar
     p_bar = calculate_pbar(l_weights, p_probs, reshape=True, n_dims=2)
     # calculate test statistic
-    minstat = params["obj"](p_bar, y_labels, params)
+    minstat = params["obj"](l_weights, p_probs, y_labels, params)
     
     return minstat, l_weights
 
@@ -92,7 +96,7 @@ def _npbe_test_mlp_new_alpha(x_inst: np.ndarray, p_probs: np.ndarray, y_labels: 
     params["alpha"] = alpha
     decision, l = npbe_test_mlp_new(x_inst, p_probs, y_labels, params)
 
-    return decision, l
+    return decision
 
 
 def calculate_min_new(P: np.ndarray, y: np.ndarray, params: dict):
