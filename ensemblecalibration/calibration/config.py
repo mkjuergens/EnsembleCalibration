@@ -10,11 +10,33 @@ from ensemblecalibration.nn_training.losses import SKCELoss, LpLoss, FocalLoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
 
 config_new_mlp_binary = {
+    "L_2": {
+"test": _npbe_test_mlp_new_alpha,
+"params": {
+    "n_samples": 20000,
+    "optim": "perceptron",
+    "n_resamples": 100, # number of bootstrap resamplings
+    "p": 2,
+    "sigma": 0.01,
+    "test": ece_kde_test,
+    "obj": ece_kde_obj,
+    "loss": LpLoss(p=2, bw=0.01),
+    "n_epochs": 100,
+    "lr": 0.0001,
+    "patience": 10,
+    "deg_fct": 1, # degree of the function which is approximated by the MLP
+    "hidden_layers": 0,
+    "hidden_params": 0,
+    "batch_size": 5000
+}
+},
     "SKCEul": {
         "test": _npbe_test_mlp_new_alpha,
         "params": {
+            "take_square": True,
+            "n_samples": 20000,
             "optim": "perceptron",
-            "n_resamples": 100,
+            "n_resamples": 100, # number of bootstrap resamples
             "dist": tv_distance,
             "sigma": 0.01, # to be used in the matrix valued kernel TODO: calculate it empirically
             "test": skceul, 
@@ -22,24 +44,14 @@ config_new_mlp_binary = {
             "loss": SKCELoss(bw=0.01, dist_fct=tv_distance_tensor, 
                              tensor_miscal=skce_ul_tensor),
             "n_epochs": 100,
-            "lr": 0.0005,
+            "lr": 0.0001,
+            "patience": 10,
+            "deg_fct": 1, # degree of the function which is approximated by the MLP
+            "hidden_layers": 0,
+            "hidden_params": 0,
+            "batch_size": 5000,
         }
-    },
-
-"L_2": {
-"test": _npbe_test_mlp_new_alpha,
-"params": {
-    "optim": "perceptron",
-    "n_resamples": 100,
-    "p": 2,
-    "sigma": 0.01,
-    "test": ece_kde_obj,
-    "obj": ece_kde_obj,
-    "loss": LpLoss(p=2, bw=0.01),
-    "n_epochs": 100,
-    "lr": 0.0005,
-}
-}
+    }
 }     
 
 
