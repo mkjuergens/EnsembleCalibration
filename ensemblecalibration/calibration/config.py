@@ -13,7 +13,7 @@ config_new_mlp_binary = {
     "L_2": {
 "test": _npbe_test_mlp_new_alpha,
 "params": {
-    "n_samples": 20000,
+    "n_samples": 10000,
     "optim": "perceptron",
     "n_resamples": 100, # number of bootstrap resamplings
     "p": 2,
@@ -23,18 +23,18 @@ config_new_mlp_binary = {
     "loss": LpLoss(p=2, bw=0.01),
     "n_epochs": 100,
     "lr": 0.0001,
-    "patience": 10,
+    "patience": 15,
     "deg_fct": 1, # degree of the function which is approximated by the MLP
     "hidden_layers": 0,
     "hidden_params": 0,
-    "batch_size": 5000
+    "batch_size": 1000
 }
 },
     "SKCEul": {
         "test": _npbe_test_mlp_new_alpha,
         "params": {
             "take_square": True,
-            "n_samples": 20000,
+            "n_samples": 10000,
             "optim": "perceptron",
             "n_resamples": 100, # number of bootstrap resamples
             "dist": tv_distance,
@@ -49,7 +49,7 @@ config_new_mlp_binary = {
             "deg_fct": 1, # degree of the function which is approximated by the MLP
             "hidden_layers": 0,
             "hidden_params": 0,
-            "batch_size": 5000,
+            "batch_size": 1000,
         }
     }
 }     
