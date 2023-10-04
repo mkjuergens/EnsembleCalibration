@@ -109,7 +109,7 @@ if __name__ == "__main__":
         description="Experiments for type I and type II error in function of alpha"
     )
     # data args
-    parser.add_argument("-N", dest="N", type=int, default=10000)
+    parser.add_argument("-N", dest="N", type=int, default=15000)
     parser.add_argument("-R", dest="R", type=int, default=100)
     parser.add_argument(
         "-config", dest="config", type=dict, default=config_new_mlp_binary

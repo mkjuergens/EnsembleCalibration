@@ -10,10 +10,30 @@ from ensemblecalibration.nn_training.losses import SKCELoss, LpLoss, FocalLoss
 from ensemblecalibration.nn_training.distances import tv_distance_tensor, skce_ul_tensor, skce_uq_tensor
 
 config_new_mlp_binary = {
+    "L_1": {
+"test": _npbe_test_mlp_new_alpha,
+"params": {
+    "n_samples": 15000,
+    "optim": "perceptron",
+    "n_resamples": 100, # number of bootstrap resamplings
+    "p": 1,
+    "sigma": 0.01,
+    "test": ece_kde_test,
+    "obj": ece_kde_obj,
+    "loss": LpLoss(p=1, bw=0.01),
+    "n_epochs": 100,
+    "lr": 0.0001,
+    "patience": 15,
+    "deg_fct": 1, # degree of the function which is approximated by the MLP
+    "hidden_layers": 0,
+    "hidden_params": 0,
+    "batch_size": 1000
+},
+    },
     "L_2": {
 "test": _npbe_test_mlp_new_alpha,
 "params": {
-    "n_samples": 10000,
+    "n_samples": 15000,
     "optim": "perceptron",
     "n_resamples": 100, # number of bootstrap resamplings
     "p": 2,
@@ -34,7 +54,7 @@ config_new_mlp_binary = {
         "test": _npbe_test_mlp_new_alpha,
         "params": {
             "take_square": True,
-            "n_samples": 10000,
+            "n_samples": 15000,
             "optim": "perceptron",
             "n_resamples": 100, # number of bootstrap resamples
             "dist": tv_distance,

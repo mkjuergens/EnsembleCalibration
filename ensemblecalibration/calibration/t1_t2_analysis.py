@@ -177,7 +177,7 @@ def main_t1_t2(args, test_h1: bool = True, results_dir: str = "results"):
         print("Start Ha simulation")
         res_h11 = _simulation_ha(tests, N, M, K, R, u, alpha)
         res = []
-        for r in res_h0:
+        for r in res_h11:
             res.append(list(res_h11[r]))
         results.append(res)
         print("Start second Ha simulation")
