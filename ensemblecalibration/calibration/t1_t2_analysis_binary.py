@@ -68,12 +68,13 @@ def main_t1_t2(
     n_samples = args.N
     n_resamples = args.R
     tests = args.config
+    prefix = args.prefix
 
     # create directory for results
     os.makedirs(results_dir, exist_ok=True)
 
     # specify name under which file is saved
-    file_name = "results_cone_experiment_t1t2_{}_{}.csv".format(
+    file_name = prefix + "{}_{}.csv".format(
         n_samples, n_resamples
     )
     save_dir = os.path.join(results_dir, file_name)
@@ -89,7 +90,7 @@ def main_t1_t2(
 
     print("Start H1 simulation...")
     res_h1 = _simulation_h1_cone(tests, n_samples=n_samples, n_resamples=n_resamples,
-                                    alpha=alpha, experiment=cone_experiment_h1)
+                                    alpha=alpha, experiment=experiment_h1)
     res = []
     for r in res_h1:
         res.append(list(res_h1[r]))
@@ -114,5 +115,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-config", dest="config", type=dict, default=config_new_mlp_binary
     )
+    parser.add_argument("-prefix", type=str, default="results_cone_experiment_t1t2_")
     args = parser.parse_args()
     main_t1_t2(args)
