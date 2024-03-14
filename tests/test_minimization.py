@@ -64,26 +64,5 @@ class TestNelderMeadMethod(unittest.TestCase):
         self.assertTrue(np.all((weights_l >= 0.0) & (weights_l <= 1.0)))
 
 
-"""
-class TestPySwarmMethod(unittest.TestCase):
-
-    def setUp(self) -> None:
-        self.y = np.ones(3, dtype=int)
-        P = [np.eye(3) for _ in range(3)]
-        self.P = np.stack(P, axis=0)
-        self.params = {"obj": classece_obj_new, "n_bins": 5}
-
-    def test_optim_lambda(self):
-        lambda_optim = np.array([1, 0, 0, 1, 0, 0, 1, 0, 0])
-        lambda_real = solve_pyswarm(self.P, self.y, self.params, maxiter=100)
-        obj_optim = classece_obj_new(lambda_optim, self.P, self.y, self.params)
-        obj_real = classece_obj_new(lambda_real, self.P, self.y, self.params)
-        print(f"Real min objective: {obj_optim}, calculated min objective Pyswarm: {obj_real}")
-
-        diff = np.sum(np.abs(lambda_optim - lambda_real))
-        self.assertLessEqual(diff, 0.01)
-        
-"""
-
 if __name__ == "__main__":
     unittest.main()

@@ -59,7 +59,7 @@ def plot_t1_erros_analysis(
                     ax[i, j].plot(alphas, literal_eval(df[list_errors[i]][j]))
                     if j == 0:
                         ax[i, j].plot(alphas, alphas, "--")
-                    ax[i, j].spines[["right", "top"]].set_visible(False)
+                    #ax[i, j].spines[["right", "top"]].set_visible(False)
                     ax[i, j].grid()
 
             for i in range(len(df)):

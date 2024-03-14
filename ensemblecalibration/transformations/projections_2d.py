@@ -124,9 +124,6 @@ def planes_to_coordinates3D(points2D: np.ndarray, scale: int = 1):
     return points3D
 
 
-    
-
-
 class IsometricLogTransform:
     """
     Class for projecting N-dimensional points from the (N-1) dimensional simplex to the (N-1) dimensional Euclidean plane.
