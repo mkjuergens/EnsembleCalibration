@@ -156,7 +156,7 @@ class MMDLoss(CalibrationLossBinary):
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
         bw = self.bw
-        mmd_er = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, sigma=bw)
+        mmd_er = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
 
         if self.lambda_bce > 0:
             bce_loss = self.bce_loss(p_bar[:, 1], y.float())

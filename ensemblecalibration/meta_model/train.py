@@ -9,7 +9,6 @@ from ensemblecalibration.meta_model.mlp_model import MLPCalW
 from ensemblecalibration.meta_model.losses import CalibrationLossBinary
 
 
-
 def get_optim_lambda_mlp(
     dataset_train: torch.utils.data.Dataset,
     loss: CalibrationLossBinary,
@@ -52,7 +51,7 @@ def get_optim_lambda_mlp(
     # assert that daataset has x_train attribute
     assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
 
-    model, loss_train, loss_val = train_mlp(
+    model, _, _ = train_mlp(
         model,
         dataset_train=dataset_train,
         dataset_val=dataset_val,
@@ -67,10 +66,14 @@ def get_optim_lambda_mlp(
         patience=patience,
     )
     # use features as input to model instead of probs
-    x_inst = torch.from_numpy(dataset_train.x_train).float()
+    x_inst = (
+        torch.from_numpy(dataset_train.x_train).float()
+        if isinstance(dataset_train.x_train, np.ndarray)
+        else dataset_train.x_train
+    )
     model.eval()
     optim_weights = model(x_inst)
-    optim_weights = optim_weights.detach().numpy()
+    optim_weights = optim_weights.detach()
     return optim_weights
 
 
@@ -104,7 +107,7 @@ def train_one_epoch(
     lr_scheduler : of type torch.optim.lr_scheduler, optional
         learning rate scheduler, by default None (i.e., no scheduler is used)
     best_loss_val: float, Optional
-        best validation loss so far, by default None (i.e. no validation loss is used for model 
+        best validation loss so far, by default None (i.e. no validation loss is used for model
         saving)
     save_best_model: bool, optional
         whether to save the best model, by default True

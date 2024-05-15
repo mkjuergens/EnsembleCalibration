@@ -5,9 +5,25 @@ implementation: https://github.com/tpopordanoska/ece-kde
 """
 
 import torch
+import numpy as np
 from torch import nn 
 
-def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bandwidth: float, p: int = 2):
+
+def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
+
+    # convert to torch tensors if necessary
+    if not isinstance(p_bar, torch.Tensor):
+        p_bar = torch.tensor(p_bar, dtype=torch.float32)
+    if not isinstance(y, torch.Tensor):
+        y = torch.tensor(y, dtype=torch.int64)
+    bw = params["bw"]
+    p = params["p"]
+
+    return get_ece_kde(p_bar, y, bw, p)
+
+
+
+def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
     """calculate estimate of the Lp calibration error.
 
     Parameters
@@ -27,9 +43,9 @@ def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bandwidth: float, p: int =
 
     # check if input is binary
     if p_bar.shape[1] == 1:
-        return 2 * get_ratio_binary(p_bar, y, p,  bandwidth)
+        return 2 * get_ratio_binary(p_bar, y, p,  bw)
     else:
-        return get_ratio_canonical(p_bar, y, p, bandwidth)
+        return get_ratio_canonical(p_bar, y, p, bw)
     
 def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float):
     assert preds.shape[1] == 1

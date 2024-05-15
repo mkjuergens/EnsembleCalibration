@@ -16,8 +16,18 @@ def rbf_kernel(u: torch.Tensor, v: torch.Tensor, bandwidth=1):
     return torch.exp(-diff_norm_mat / bandwidth)
 
 
+def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
+    if not isinstance(p_bar, torch.Tensor):
+        p_bar = torch.tensor(p_bar, dtype=torch.float32)
+    if not isinstance(y, torch.Tensor):
+        y = torch.tensor(y, dtype=torch.int64)
+    bw = params["bw"]
+
+    return mmd_kce(p_bar, y, kernel_fct=rbf_kernel, bw=bw)
+
+
 def mmd_kce(
-    p_bar: torch.Tensor, y: torch.tensor, kernel_fct=rbf_kernel, sigma: float = 0.1
+    p_bar: torch.Tensor, y: torch.tensor, kernel_fct=rbf_kernel, bw: float = 0.1
 ):
     """calculates the kenerl calibration error for the classification case using the maximum mean discrepancy.
 
@@ -44,7 +54,7 @@ def mmd_kce(
 
     n_classes = p_bar.shape[1]
     y_all = torch.eye(n_classes).to(p_bar.device)
-    k_yy = kernel_fct(y_all, y_all, sigma)
+    k_yy = kernel_fct(y_all, y_all, bw)
     q_yy = torch.einsum("ic,jd->ijcd", p_bar, p_bar)
     total_yy = q_yy * k_yy.unsqueeze(0)
 
@@ -54,7 +64,7 @@ def mmd_kce(
 
     loss_mat = total_yy.sum(dim=(2, 3))
     loss_mat2 = total_yj.sum(-1)
-    loss_mat3 = kernel_fct(y_one_hot, y_one_hot, sigma)
+    loss_mat3 = kernel_fct(y_one_hot, y_one_hot, bw)
 
     for i, value in enumerate([loss_mat, loss_mat2, loss_mat3]):
         if loss_mats[i] is None:

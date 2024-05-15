@@ -39,6 +39,8 @@ def exp_gp(
         whether the convex combination is a function dependent on the instance value, by default True
     deg : int, optional
         degree of the function in the case of h0==True and x_dep==True, by default 2
+    **kwargs : dict
+        additional arguments for the kernel
 
     Returns
     -------
@@ -50,32 +52,21 @@ def exp_gp(
     # sample predictions
     p_preds = sample_binary_preds_gp(x_inst, kernel, bounds_p, **kwargs)
 
-    if h0:
-        p_bar, weights_l = sample_pbar_h0(x_inst, p_preds, x_dep, deg)
+    p_bar_h0, weights_l = sample_pbar_h0(x_inst, p_preds, x_dep, deg)
 
-    else:
-        p_bar = sample_pbar_h1(x_inst, p_preds, kernel, **kwargs)
+    p_bar_h1 = sample_pbar_h1(x_inst, p_preds, kernel, **kwargs)
 
-    # now sample labels from categorical distributiuon induced by p_bar
+    # now sample labels from categorical distributiuon induced by p_bar_h0
     y_labels = torch.stack(
-        [multinomial_label_sampling(p, tensor=True) for p in torch.unbind(p_bar, dim=0)]
+        [multinomial_label_sampling(p, tensor=True) for p in torch.unbind(p_bar_h0, dim=0)]
     )
     x_inst = torch.from_numpy(x_inst).float().view(-1, 1)
     y_labels = y_labels.view(-1)
-    assert y_labels.shape[0] == len(
-        x_inst
-    ), f"y_labels shape: {y_labels.shape}, x_inst shape: {len(x_inst)}"
-    assert p_bar.shape[0] == len(
-        x_inst
-    ), f"p_bar shape: {p_bar.shape}, x_inst shape: {len(x_inst)}"
-    assert p_preds.shape[0] == len(
-        x_inst
-    ), f"p_preds shape: {p_preds.shape}, x_inst shape: {len(x_inst)}"
 
     return (
-        (x_inst, p_preds, p_bar, y_labels, weights_l)
+        (x_inst, p_preds, p_bar_h0, y_labels, weights_l)
         if h0
-        else (x_inst, p_preds, p_bar, y_labels)
+        else (x_inst, p_preds, p_bar_h1, y_labels)
     )
 
 
@@ -108,7 +99,8 @@ def sample_pbar_h1(x: np.ndarray, p_preds: np.ndarray, kernel, **kwargs):
     # initialize p_bar as a tensor
     p_bar = torch.zeros(len(x), p_preds.shape[2])
     # convert p_preds to tensor if it is not
-    p_preds = torch.tensor(p_preds)
+    if not isinstance(p_preds, torch.Tensor):
+        p_preds = torch.from_numpy(p_preds).float()
     # look at max and minimum of p_preds
     p_preds_max = torch.max(p_preds[:, :, 0]).item()
     p_preds_min = torch.min(p_preds[:, :, 0]).item()

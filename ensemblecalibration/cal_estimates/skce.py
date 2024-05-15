@@ -4,18 +4,18 @@ from scipy.stats import norm
 
 from ensemblecalibration.utils.distances import tv_distance
 
-def get_skce_ul(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0):
-    skce_ul_stats = skce_ul_tensor(p_bar, y, dist_fct=dist_fct, sigma=sigma)
+def get_skce_ul(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0):
+    skce_ul_stats = skce_ul_tensor(p_bar, y, dist_fct=dist_fct, bw=bw)
     skce_ul = torch.mean(skce_ul_stats)
     return skce_ul
 
 def get_skce_uq(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0):
-    skce_uq_stats = skce_uq_tensor(p_bar, y, dist_fct=dist_fct, sigma=sigma)
+    skce_uq_stats = skce_uq_tensor(p_bar, y, dist_fct=dist_fct, bw=sigma)
     skce_uq = torch.mean(skce_uq_stats)
     return skce_uq
 
 def skce_ul_tensor(
-    p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0
+    p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0
 ):
     """calculates the skce_ul calibration error used as a test statistic in Mortier et  al, 2022.
 
@@ -47,14 +47,14 @@ def skce_ul_tensor(
             yoh[(2 * i), :],
             yoh[(2 * i) + 1, :],
             dist_fct=dist_fct,
-            sigma=sigma,
+            sigma=bw,
         )
 
     return stats
 
 
 def skce_uq_tensor(
-    p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0
+    p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0
 ):
     """calculates the SKCEuq miscalibration measure introduced in Widman et al, 2019.
 
@@ -93,7 +93,7 @@ def skce_uq_tensor(
                 y_one_hot[i, :],
                 y_one_hot[j, :],
                 dist_fct=dist_fct,
-                sigma=sigma,
+                sigma=bw,
             )
             count += 1
 
