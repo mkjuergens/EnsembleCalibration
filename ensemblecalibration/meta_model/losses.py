@@ -87,7 +87,7 @@ class SKCELoss(CalibrationLossBinary):
         bw = self.bw
         # get tensor of SKCE values which is to be summed over
         hat_skce_ul = self.tensor_miscal(
-            p_bar=p_bar, y=y, dist_fct=self.dist_fct, sigma=bw
+            p_bar=p_bar, y=y, dist_fct=self.dist_fct, bw=bw
         )
         # calculate mean
         loss = torch.mean(hat_skce_ul)

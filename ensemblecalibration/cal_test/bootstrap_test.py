@@ -4,7 +4,51 @@ import random
 import numpy as np
 import torch
 
-from ensemblecalibration.utils.helpers import multinomial_label_sampling
+from ensemblecalibration.utils.helpers import multinomial_label_sampling, calculate_pbar
+from ensemblecalibration.utils.minimization import calculate_min
+
+
+def npbe_test_ensemble(
+    alpha: list,
+    x_inst: np.ndarray,
+    p_preds: np.ndarray,
+    y_labels: np.ndarray,
+    params: dict,
+):
+   
+   
+    """new version of the bootstrapping test using uniform sampling of the polytope for testing
+    whether there exists a calibrated version in the convex hull
+
+    Parameters
+    ----------
+    alpha : list
+        significance level(s) of the test
+    x_inst : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing predictions for each instance and classifier
+    p_preds : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing probabilistic predictions for each instance and classifier
+    y_labels : np.ndarray of shape (n_samples,)
+        array containing labels
+    params : dict
+        dictionary of test parameters
+    Returns
+    -------
+    decision, (p_vals, stats)
+        decision: integer defining whether tso reject (1) or accept (0) the null hypothesis
+        ( p_vals: array of p values for each predictor )
+        ( stats: array of test statistics for each predictor )
+
+    """
+
+    # calculate optimal weights
+    minstat, l_weights = calculate_min(x_inst, p_preds, y_labels, params)
+    # calculate p_bar # TODO: calculate pbar ehre or in loop!!!??
+    p_bar = calculate_pbar(l_weights, p_preds)
+    # run bootstrap test
+    decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar, y_labels, params)
+
+    return decision, p_val, stat
 
 
 def npbe_test_vaicenavicius(
@@ -40,7 +84,7 @@ def npbe_test_vaicenavicius(
         y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_probs_b)
         # calculate test statistic (miscalibration estimate) under null hypothesis
         stats_h0[b] = params["obj"](p_probs_b, y_b, params)
-      
+
     # calculate statistic on real data
     stat = params["obj"](p_probs, y_labels, params)
     # to numpy if torch tensor

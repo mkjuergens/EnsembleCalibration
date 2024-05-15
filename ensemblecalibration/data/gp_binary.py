@@ -36,7 +36,8 @@ def exp_gp(
         whether the null hypothesis is true, i.e. the convex combination lies in the convex hull,
         by default True
     x_dep : bool, optional
-        whether the convex combination is a function dependent on the instance value, by default True
+        whether the convex combination is a function dependent on the instance value, by default
+          True
     deg : int, optional
         degree of the function in the case of h0==True and x_dep==True, by default 2
     **kwargs : dict
@@ -44,8 +45,13 @@ def exp_gp(
 
     Returns
     -------
-    x_inst, p_preds, p_bar, y_labels
-        instance values, probabilistic predictions, convex combination or GP sample, and labels
+    if h0:
+        x_inst, p_preds, p_bar, y_labels, weights_l
+            instance values, probabilistic predictions, convex combination, labels, weights of cc
+              and labels
+    else:
+        x_inst, p_preds, p_bar, y_labels
+            instance values, probabilistic predictions, cc, labels
     """
     # sample instances uniformly
     x_inst = np.random.uniform(x_bound[0], x_bound[1], n_samples)

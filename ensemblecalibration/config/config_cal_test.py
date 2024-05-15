@@ -1,25 +1,30 @@
-
 from ensemblecalibration.cal_estimates import *
 from ensemblecalibration.cal_test import *
 from ensemblecalibration.meta_model.losses import *
 
 
-def create_config_binary_classification(cal_test = npbe_test_vaicenavicius,
-                                        loss: CalibrationLossBinary = LpLoss,
-                                        n_samples: int = 1000,
-                                        n_resamples: int = 100,
-                                        obj = ece_kde_obj,
-                                        n_epochs: int = 100,
-                                        lr: float = 0.01,
-                                        patience: int = 15,
-                                        hidden_layers: int = 1,
-                                        hidden_dim: int = 32,
-                                        **kwargs):
-    """function to create dictionary with configuration for running the calibration test 
+def create_config_binary_classification(
+    exp_name: str = "gp",
+    cal_test=npbe_test_vaicenavicius,
+    loss: CalibrationLossBinary = LpLoss,
+    n_samples: int = 1000,
+    n_resamples: int = 100,
+    obj=ece_kde_obj,
+    n_epochs: int = 150,
+    lr: float = 0.001,
+    batch_size: int = 128,
+    patience: int = 25,
+    hidden_layers: int = 4,
+    hidden_dim: int = 8,
+    **kwargs
+):
+    """function to create dictionary with configuration for running the calibration test
     for the setting of binary classification.
 
     Parameters
     ----------
+    exp_name : str, optional
+        name of the experiment, by default "gp"
     cal_test : function, optional
         the calibration test used, by default npbe_test_vaicenavicius
     loss : CalibrationLossBinary, optional
@@ -51,19 +56,21 @@ def create_config_binary_classification(cal_test = npbe_test_vaicenavicius,
     """
 
     config = {
+        "experiment": exp_name,
         "test": cal_test,
         "params": {
+            "optim": "mlp",
             "n_samples": n_samples,
             "n_resamples": n_resamples,
             "obj": obj,
             "loss": loss(**kwargs),
             "n_epochs": n_epochs,
             "lr": lr,
+            "batch_size": batch_size,
             "patience": patience,
             "hidden_layers": hidden_layers,
-            "hidden_dim": hidden_dim
-
-        }
+            "hidden_dim": hidden_dim,
+        },
     }
     for key, value in kwargs.items():
         config["params"][key] = value
@@ -79,8 +86,8 @@ config_binary_clasification = {
             "p": 2,
             "sigma": 0.01,
             "obj": get_ece_kde,
-            "loss": LpLoss(p = 2, bw = 0.01)
-        }
+            "loss": LpLoss(p=2, bw=0.01),
+        },
     }
 }
 

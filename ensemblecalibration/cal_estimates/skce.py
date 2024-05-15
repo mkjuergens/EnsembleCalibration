@@ -4,6 +4,18 @@ from scipy.stats import norm
 
 from ensemblecalibration.utils.distances import tv_distance
 
+
+def skce_obj(p_bar: torch.Tensor, y: torch.Tensor, params: dict):
+
+    # convert to torch tensors if necessary
+    if not isinstance(p_bar, torch.Tensor):
+        p_bar = torch.tensor(p_bar, dtype=torch.float32)
+    if not isinstance(y, torch.Tensor):
+        y = torch.tensor(y, dtype=torch.int64)
+    bw = params["bw"]
+
+    return get_skce_ul(p_bar, y, dist_fct=tv_distance, bw=bw)
+
 def get_skce_ul(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0):
     skce_ul_stats = skce_ul_tensor(p_bar, y, dist_fct=dist_fct, bw=bw)
     skce_ul = torch.mean(skce_ul_stats)
