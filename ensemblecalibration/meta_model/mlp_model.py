@@ -29,6 +29,8 @@ class MLPCalW(nn.Module):
             number of classes for which point predictions are given in the input tensor
         hidden_dim : int
             hidden dimension of the MLP inner layer
+        hidden_layers : int, optional
+            number of hidden layers, by default 1
         relu : bool, optional
             whether to use ReLU activation function, by default True
         """
@@ -46,7 +48,7 @@ class MLPCalW(nn.Module):
                 layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
                 # apply ReLU activation
                 if use_relu:
-                    layers.append(nn.ReLU())
+                    layers.append(nn.LeakyReLU())
             layers.append(nn.Linear(self.hidden_dim, out_channels))
 
         self.layers = nn.Sequential(*layers)
@@ -108,6 +110,8 @@ class MLPCalWLightning(pl.LightningModule):
         self.loss_fct = loss_fct
         self.lr = lr
         self.use_scheduler = use_scheduler
+        # log hyperparameters
+        self.save_hyperparameters()
 
 
     def forward(self, x):
@@ -135,7 +139,7 @@ class MLPCalWLightning(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         if self.use_scheduler:
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
             return {"optimizer": optimizer,
                     "lr_scheduler": scheduler}
  

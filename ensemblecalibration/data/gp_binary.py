@@ -58,21 +58,22 @@ def exp_gp(
     # sample predictions
     p_preds = sample_binary_preds_gp(x_inst, kernel, bounds_p, **kwargs)
 
-    p_bar_h0, weights_l = sample_pbar_h0(x_inst, p_preds, x_dep, deg)
-
-    p_bar_h1 = sample_pbar_h1(x_inst, p_preds, kernel, **kwargs)
+    if h0:
+        p_bar, weights_l = sample_pbar_h0(x_inst, p_preds, x_dep, deg)
+    else:
+        p_bar = sample_pbar_h1(x_inst, p_preds, kernel, **kwargs)
 
     # now sample labels from categorical distributiuon induced by p_bar_h0
     y_labels = torch.stack(
-        [multinomial_label_sampling(p, tensor=True) for p in torch.unbind(p_bar_h0, dim=0)]
+        [multinomial_label_sampling(p, tensor=True) for p in torch.unbind(p_bar, dim=0)]
     )
     x_inst = torch.from_numpy(x_inst).float().view(-1, 1)
     y_labels = y_labels.view(-1)
 
     return (
-        (x_inst, p_preds, p_bar_h0, y_labels, weights_l)
+        (x_inst, p_preds, p_bar, y_labels, weights_l)
         if h0
-        else (x_inst, p_preds, p_bar_h1, y_labels)
+        else (x_inst, p_preds, p_bar, y_labels)
     )
 
 

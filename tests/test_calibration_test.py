@@ -21,16 +21,20 @@ class TestCalibrationTest(unittest.TestCase):
         self.n_iter = 10
         # create configuration for calibration test
         self.params = create_config_binary_classification(
+            exp_name="gp",
             cal_test=self.test,
             loss=SKCELoss,
             n_samples=self.n_samples,
             n_resamples=100,
-            obj=skce_obj,
-            n_epochs=300,
-            lr=0.001,
-            patience=50,
-            bw=0.01,
-            lambda_bce = 0.1
+            obj=mmd_kce_obj,
+            n_epochs=250,
+            lr=0.0001,
+            patience=200,
+            hidden_layers=3,
+            hidden_dim=64,
+            bw=0.5,
+            lambda_bce=.1,
+            batch_size=32,
         )["params"]
 
     def test_null_alternative_hypothesis(self):
@@ -42,7 +46,7 @@ class TestCalibrationTest(unittest.TestCase):
 
         for i in range(self.n_iter):
             # sample data
-            x_inst_h0, p_preds, p_bar_h0, y_labels_h0, _ = exp_gp(
+            x_inst_h0, p_preds, p_bar, y_labels_h0, _ = exp_gp(
                 n_samples=self.n_samples,
                 bounds_p=self.bounds_p,
                 h0=True,

@@ -12,7 +12,6 @@ from ensemblecalibration.meta_model.losses import CalibrationLossBinary
 def get_optim_lambda_mlp(
     dataset_train: torch.utils.data.Dataset,
     loss: CalibrationLossBinary,
-    dataset_val: Optional[torch.utils.data.Dataset] = None,
     n_epochs: int = 100,
     lr: float = 0.001,
     batch_size: int = 128,
@@ -51,19 +50,17 @@ def get_optim_lambda_mlp(
     # assert that daataset has x_train attribute
     assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
 
-    model, _, _ = train_mlp(
+    model, loss = train_mlp(
         model,
         dataset_train=dataset_train,
-        dataset_val=dataset_val,
         loss=loss,
         n_epochs=n_epochs,
         lr=lr,
-        print_losses=False,
-        every_n_epoch=50,
         batch_size=batch_size,
         optim=optim,
         shuffle=shuffle,
         patience=patience,
+        print_losses=False
     )
     # use features as input to model instead of probs
     x_inst = (
@@ -74,7 +71,7 @@ def get_optim_lambda_mlp(
     model.eval()
     optim_weights = model(x_inst)
     optim_weights = optim_weights.detach()
-    return optim_weights
+    return optim_weights, loss
 
 
 def train_one_epoch(
@@ -82,11 +79,7 @@ def train_one_epoch(
     loss,
     loader_train,
     optimizer,
-    loader_val: Optional[DataLoader] = None,
     lr_scheduler=None,
-    best_loss_val: Optional[float] = None,
-    save_best_model: bool = True,
-    best_model: Optional[dict] = None,
 ):
     """
     training loop for one epoch for the given model, loss function, data loaders and optimizers.
@@ -102,22 +95,9 @@ def train_one_epoch(
         data loader for training data
     optimizer : torch.optim.Optimizer
         optimizer used for training
-    loader_val: torch.utils.data.DataLoader
-        data loader for validation data, by default None
-    lr_scheduler : of type torch.optim.lr_scheduler, optional
-        learning rate scheduler, by default None (i.e., no scheduler is used)
-    best_loss_val: float, Optional
-        best validation loss so far, by default None (i.e. no validation loss is used for model
-        saving)
-    save_best_model: bool, optional
-        whether to save the best model, by default True
+    lr_scheduler : torch.optim.lr_scheduler, optional
+        learning rate scheduler, by default None
     """
-
-    # check if validation data is provided if best model should be saved
-    if save_best_model:
-        assert (
-            loader_val is not None
-        ), "loader_val needs to be provided if save_best_model is True"
 
     loss_epoch_train = 0
     # iterate over train dataloader
@@ -137,40 +117,47 @@ def train_one_epoch(
         lr_scheduler.step(loss_epoch_train)
 
     loss_epoch_train /= len(loader_train)
-    loss_epoch_val = None
-    if loader_val is not None:
-        loss_epoch_val = 0
-        model.eval()
-        for p_probs, y_labels_val, x_val in loader_val:
-            p_probs, x_val = p_probs.float(), x_val.float()
-            weights_l = model(x_val)
-            loss_val = loss(p_probs, weights_l, y_labels_val)
-            loss_epoch_val += loss_val.item()
 
-        loss_epoch_val /= len(loader_val)
-        if best_loss_val is None or loss_epoch_val < best_loss_val:
-            best_loss_val = loss_epoch_val
-            best_model = model.state_dict()
+    return loss_epoch_train
 
-    return model, loss_epoch_train, loss_epoch_val, best_loss_val, best_model
+def build_optimizer(model, optimizer: str = "adam", lr: float = 0.001):
+    """builds the optimizer for the given model
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        model for which the optimizer is built
+    optim : str, optional
+        optimizer used, by default "adam"
+    lr : float, optional
+        learning rate, by default 0.001
+
+    Returns
+    -------
+    torch.optim.Optimizer
+        optimizer
+    """
+    if optimizer == "adam":
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    elif optimizer == "sgd":
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    else:
+        raise ValueError("Optimizer not implemented")
+    return optimizer
 
 
 def train_mlp(
     model,
     dataset_train: torch.utils.data.Dataset,
     loss,
-    dataset_val: Optional[torch.utils.data.Dataset] = None,
     n_epochs: int = 100,
     lr: float = 0.001,
     batch_size: int = 128,
-    lower_bound: float = 0.0,
-    print_losses: bool = True,
-    every_n_epoch: int = 1,
     optim=torch.optim.Adam,
     shuffle: bool = True,
-    save_best_model: bool = False,
     lr_scheduler=None,
     patience: int = 10,
+    print_losses: bool = True,
     **kwargs,
 ):
     """trains the MLP model to predict the optimal weight matrix for the given ensemble model
@@ -180,9 +167,7 @@ def train_mlp(
     ----------
     dataset_train : torch.utils.data.Dataset
         dataset containing probabilistic predictions of ensembnle members used for training
-    datasset_val : torch.utils.data.Dataset
-        validation dataset
-    loss : _type_
+    loss : 
         loss taking a tuple of the probabilistic predictions, the weights of the convex combination
         and the labels as input
     n_epochs : int
@@ -191,9 +176,6 @@ def train_mlp(
         learning rate
     batch_size : int, optional
         _description_, by default 128
-    lower_bound : float, optional
-        lower bound for the loss function, by default 0.0. Can be used e.g. to set "true" value
-        of miscalibration as a lower threshold.
     print_losses : bool, optional
         whether to print train and validation loss at every epoch, by default True
     every_n_epoch : int, optional
@@ -202,12 +184,12 @@ def train_mlp(
         optimizer used for training, by default torch.optim.Adam
     shuffle : bool, optional
         whether to shuffle the training data, by default True
-    save_best_model: bool, optional
-        whether to save the best model, by default True
     lr_scheduler : of type torch.optim.lr_scheduler, optional
         learning rate scheduler, by default None (i.e., no scheduler is used)
     patience : int, optional
         number of epochs without improvement after which the training is stopped, by default 10
+    print_losses : bool, optional
+        whether to print the training loss at every epoch, by default True
     kwargs : dict
         additional keyword arguments passed to the learning rate scheduler
 
@@ -222,51 +204,32 @@ def train_mlp(
             optimizer, **kwargs
         )  # kwargs can be e.g. step_size or gamma
     loss_train = []
-    loss_val = []
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
-    loader_val = None
-    # save best validation loss here
-    best_loss_val = float("inf")
-    best_model = model.state_dict()
-    # save validation losses if needed
-    if dataset_val is not None:
-        loader_val = DataLoader(dataset_val, batch_size=len(dataset_val))
 
     early_stopping = EarlyStoping(patience=patience)
     for n in range(n_epochs):
         # train
         model.train()
-        model, loss_epoch_train, loss_epoch_val, best_loss_val, best_model = (
+        loss_epoch_train = (
             train_one_epoch(
                 model,
                 loss,
                 loader_train,
                 optimizer,
-                loader_val,
                 lr_scheduler=lr_scheduler,
-                best_loss_val=best_loss_val,
-                save_best_model=save_best_model,
-                best_model=best_model,
             )
         )
         loss_train.append(loss_epoch_train)
-        if loss_epoch_val is not None:
-            loss_val.append(loss_epoch_val)
         if print_losses:
-            if (n + 1) % every_n_epoch == 0:
-                print(
-                    f'Epoch: {n} train loss: {loss_epoch_train} val loss: {loss_epoch_val} \n lr: {optimizer.param_groups[0]["lr"]}'
-                )
+            print(f"Epoch {n}: Train Loss: {loss_epoch_train}")
 
         # check using early stopping if training should be stopped
-        early_stopping(loss_train, loss_val)
+        early_stopping(loss_train)
         if early_stopping.stop:
             print(f"Early stopping at epoch {n}")
             break
 
-    if save_best_model:
-        model.load_state_dict(best_model)
-    return model, loss_train, loss_val
+    return model, loss_train
 
 
 class EarlyStoping:

@@ -107,8 +107,8 @@ class LpLoss(CalibrationLossBinary):
 
     def __init__(
         self,
-        p: int,
         bw: float,
+        p: int = 2,
         lambda_bce: float = 0.0,
     ) -> None:
         """
@@ -135,10 +135,10 @@ class LpLoss(CalibrationLossBinary):
         assert (
             np.isnan(p_bar.detach()).sum() == 0
         ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
-        lp_er = get_ece_kde(p_bar, y, bw, self.p)
+        lp_er = get_ece_kde(p_bar[:, 1].view(-1,1), y, bw, self.p)
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
+            bce_loss = self.bce_loss(p_bar[:,1], y.float())
             lp_er += self.lambda_bce * bce_loss
 
         return lp_er
@@ -159,7 +159,7 @@ class MMDLoss(CalibrationLossBinary):
         mmd_er = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
+            bce_loss = self.bce_loss(p_bar[:,1], y.float())
             mmd_er += self.lambda_bce * bce_loss
 
         return mmd_er

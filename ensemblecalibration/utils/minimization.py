@@ -7,7 +7,7 @@ def calculate_min(x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray,
                                  params: dict):
     if params["optim"] == "mlp":
         dataset = MLPDataset(x_train=x_inst, P=p_probs, y=y_labels)
-        l_weights = get_optim_lambda_mlp(dataset, loss=params["loss"], n_epochs=params["n_epochs"],
+        l_weights, loss = get_optim_lambda_mlp(dataset, loss=params["loss"], n_epochs=params["n_epochs"],
                                          lr=params["lr"], batch_size = params["batch_size"],
                                          hidden_dim=params["hidden_dim"],
                                          hidden_layers=params["hidden_layers"],
