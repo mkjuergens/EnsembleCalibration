@@ -5,14 +5,14 @@ from ensemblecalibration.meta_model.losses import *
 
 def create_config_binary_classification(
     exp_name: str = "gp",
-    cal_test=npbe_test_vaicenavicius,
+    cal_test=npbe_test_ensemble,
     loss: CalibrationLossBinary = LpLoss,
     bw: float = 0.01,
     n_samples: int = 2000,
     n_resamples: int = 100,
     obj=ece_kde_obj,
     n_epochs: int = 500,
-    lr: float =1e-4,
+    lr: float = 1e-4,
     batch_size: int = 16,
     patience: int = 100,
     hidden_layers: int = 3,
@@ -78,7 +78,6 @@ def create_config_binary_classification(
             "x_dep": x_dep,
             "deg": deg,
             "bounds_p": bounds_p,
-
         },
     }
     for key, value in kwargs.items():
@@ -87,17 +86,64 @@ def create_config_binary_classification(
 
 
 config_binary_clasification = {
-    "LP": {
-        "test": npbe_test_vaicenavicius,
-        "params": {
-            "n_samples": 1000,
-            "n_resamples": 100,
-            "p": 2,
-            "sigma": 0.01,
-            "obj": get_ece_kde,
-            "loss": LpLoss(p=2, bw=0.01),
-        },
-    }
+    "LP": create_config_binary_classification(
+        exp_name="gp",
+        cal_test=npbe_test_ensemble,
+        loss=LpLoss,
+        bw=0.1,
+        n_samples=2000,
+        n_resamples=100,
+        obj=ece_kde_obj,
+        n_epochs=200,
+        lr=1e-4,
+        batch_size=128,
+        patience=100,
+        hidden_layers=3,
+        hidden_dim=64,
+        x_dep=True,
+        deg=2,
+        bounds_p=[[0.5, 0.6], [0.8, 1.0]],
+        p=2,
+        lambda_bce=1.0,
+    ),
+    "SKCE": create_config_binary_classification(
+        exp_name="gp",
+        cal_test=npbe_test_ensemble,
+        loss=SKCELoss,
+        bw=0.5,
+        n_samples=2000,
+        n_resamples=100,
+        obj=skce_obj,
+        n_epochs=200,
+        lr=1e-4,
+        batch_size=64,
+        patience=100,
+        hidden_layers=3,
+        hidden_dim=64,
+        x_dep=True,
+        deg=2,
+        bounds_p=[[0.5, 0.6], [0.8, 1.0]],
+        lambda_bce=0.1,
+    ),
+    "MMD": create_config_binary_classification(
+        exp_name="gp",
+        cal_test=npbe_test_ensemble,
+        loss=MMDLoss,
+        bw=0.01,
+        n_samples=2000,
+        n_resamples=100,
+        obj=mmd_kce_obj,
+        n_epochs=300,
+        lr=1e-4,
+        batch_size=64,
+        patience=100,
+        hidden_layers=3,
+        hidden_dim=64,
+        x_dep=True,
+        deg=2,
+        bounds_p=[[0.5, 0.6], [0.8, 1.0]],
+        lambda_bce=0.5,
+    ),
 }
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
     bw = params["bw"]
     p = params["p"]
 
-    return get_ece_kde(p_bar[:,1], y, bw, p)
+    return get_ece_kde(p_bar[:,1].view(-1,1), y, bw, p) # TODO: check dimensions
 
 
 

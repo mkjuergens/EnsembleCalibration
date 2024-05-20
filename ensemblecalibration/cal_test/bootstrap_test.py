@@ -47,6 +47,7 @@ def npbe_test_ensemble(
     p_bar = calculate_pbar(l_weights, p_preds)
     # run bootstrap test
     decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar, y_labels, params)
+    print("Decision: ", decision)
 
     return decision, p_val, stat
 

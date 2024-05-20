@@ -49,4 +49,4 @@ def get_experiment(config: dict, h0: bool = True, batch_size: Optional[int] = No
     else:
         raise ValueError("Experiment not implemented")
     
-    return loader, dataset
+    return data, loader, dataset
