@@ -3,13 +3,13 @@ matplotlib
 pandas
 scipy=1.6.0
 statsmodels=0.12.0
-mhar
+# mhar
 # pycalib
 python-ternary
 composition_stats
 jupyter
 tqdm
-pytorch
-torchvision
+torch
+# torchvision
 composition_stats
-pyswarm
+# pyswarm
