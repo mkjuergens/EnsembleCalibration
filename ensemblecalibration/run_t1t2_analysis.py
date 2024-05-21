@@ -81,7 +81,7 @@ def main_t1_t2(
     os.makedirs(results_dir, exist_ok=True)
 
     # specify name under which file is saved
-    file_name = prefix + "{}.csv".format(n_resamples)
+    file_name = prefix + "_{}.csv".format(n_resamples)
     save_dir = os.path.join(results_dir, file_name)
 
     print("Start H0 simulation...")
