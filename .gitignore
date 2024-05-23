@@ -171,3 +171,5 @@ figures/
 .vscode/
 notebooks/lightning_logs/
 notebooks/wandb/
+wandb/
+results/
