@@ -1,8 +1,11 @@
 import os
 from tqdm import tqdm
+import json
+import pickle
 import numpy as np
 import pandas as pd
 import argparse
+import datetime
 
 from ensemblecalibration.cal_test import npbe_test_ensemble
 from ensemblecalibration.config.config_cal_test import config_binary_clasification
@@ -67,22 +70,31 @@ def _simulation_h1_binary(
 
 
 def main_t1_t2(
-    args,
-    results_dir: str = "results"
+    args
 ):
     results = []
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
 
     n_resamples = args.R
-    config = args.config
+    config = args.config.copy()
     prefix = args.prefix
+    results_dir = args.results_dir
 
     # create directory for results
-    os.makedirs(results_dir, exist_ok=True)
+    exp_name = config[list(config.keys())[0]]["experiment"]
+    experiment = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    save_dir = f"{results_dir}/{exp_name}/" + f"{experiment}"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     # specify name under which file is saved
     file_name = prefix + "_{}.csv".format(n_resamples)
-    save_dir = os.path.join(results_dir, file_name)
+    save_dir_file = os.path.join(save_dir, file_name)
+
+    # save config
+    save_dir_config = os.path.join(save_dir, "config.pkl")
+    with open(save_dir_config, "wb") as f:
+        pickle.dump(config, f)
 
     print("Start H0 simulation...")
     res_h0 = _simulation_h0_binary(dict_tests=config, n_resamples=n_resamples,alpha=alpha)
@@ -99,13 +111,11 @@ def main_t1_t2(
     results.append(res)
 
 
-
     # save in csv file
     results_df = pd.DataFrame(results)
     colnames = [t for t in config]
     results_df.columns = colnames
-    results_df.to_csv(save_dir, index=False)
-
+    results_df.to_csv(save_dir_file, index=False)
     
 
 
@@ -119,5 +129,6 @@ if __name__ == "__main__":
         "-config", dest="config", type=dict, default=config_binary_clasification
     )
     parser.add_argument("-prefix", type=str, default="results_binary_t1t2")
+    parser.add_argument("-results_dir", type=str, default="results")
     args = parser.parse_args()
     main_t1_t2(args)
