@@ -9,6 +9,7 @@ import torch
 import numpy as np
 
 import torch.nn.functional as F
+from ensemblecalibration.utils.helpers import calculate_pbar
 
 
 def rbf_kernel(u: torch.Tensor, v: torch.Tensor, bandwidth=1):
@@ -25,6 +26,18 @@ def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
 
     return mmd_kce(p_bar, y, kernel_fct=rbf_kernel, bw=bw)
 
+def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
+    if x_dep:
+        p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(weights_l, p_probs, reshape=False, n_dims=1)
+
+    obj = mmd_kce_obj(p_bar, y_labels, params)
+    # convert to numpy array if needed
+    if isinstance(obj, torch.Tensor):
+        obj = obj.numpy()
+
+    return obj
 
 def mmd_kce(
     p_bar: torch.Tensor, y: torch.tensor, kernel_fct=rbf_kernel, bw: float = 0.1

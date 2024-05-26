@@ -89,11 +89,13 @@ class SKCELoss(CalibrationLossBinary):
         hat_skce_ul = self.tensor_miscal(
             p_bar=p_bar, y=y, dist_fct=self.dist_fct, bw=bw
         )
+     #   if self.use_square:
+      #      hat_skce_ul = torch.square(hat_skce_ul)
         # calculate mean
         loss = torch.mean(hat_skce_ul)
 
         if self.use_square:
-            loss = torch.square(loss)
+            loss = torch.square(loss) # TODO: check if this is correct
         
         if self.lambda_bce > 0:
             bce_loss = self.bce_loss(p_bar[:, 1], y.float())

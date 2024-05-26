@@ -156,6 +156,7 @@ def train_mlp(
     optim=torch.optim.Adam,
     shuffle: bool = True,
     lr_scheduler=None,
+    early_stopping: bool = True,
     patience: int = 10,
     print_losses: bool = True,
     **kwargs,
@@ -206,7 +207,7 @@ def train_mlp(
     loss_train = []
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
 
-    early_stopping = EarlyStoping(patience=patience)
+    stopper = EarlyStoping(patience=patience)
     for n in range(n_epochs):
         # train
         model.train()
@@ -224,10 +225,12 @@ def train_mlp(
             print(f"Epoch {n}: Train Loss: {loss_epoch_train}")
 
         # check using early stopping if training should be stopped
-        early_stopping(loss_train)
-        if early_stopping.stop:
-            print(f"Early stopping at epoch {n}")
-            break
+        # check every n epochs
+        if early_stopping:
+            stopper(loss_train)
+            if stopper.stop:
+                print(f"Early stopping at epoch {n}")
+                break
 
     return model, loss_train
 
@@ -257,5 +260,7 @@ class EarlyStoping:
             return
         elif (train_loss[-2] - train_loss[-1]) < self.min_delta:
             self.counter += 1
-            if self.counter >= self.patience:
-                self.stop = True
+        elif (train_loss[-2] - train_loss[-1]) > self.min_delta:
+            self.counter = 0
+        if self.counter >= self.patience:
+            self.stop = True

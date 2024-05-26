@@ -8,7 +8,7 @@ import argparse
 import datetime
 
 from ensemblecalibration.cal_test import npbe_test_ensemble
-from ensemblecalibration.config.config_cal_test import config_binary_clasification
+from ensemblecalibration.config.config_cal_test import config_binary_classification_mlp
 from ensemblecalibration.data.experiments import get_experiment
 
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # data args
     parser.add_argument("-R", dest="R", type=int, default=100)
     parser.add_argument(
-        "-config", dest="config", type=dict, default=config_binary_clasification
+        "-config", dest="config", type=dict, default=config_binary_classification_mlp
     )
     parser.add_argument("-prefix", type=str, default="results_binary_t1t2")
     parser.add_argument("-results_dir", type=str, default="results")

@@ -42,7 +42,7 @@ def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
     Returns
     -------
     np.ndarray or torch.tensor
-        
+
     """
     try:
         draws = multinomial(1, probs).rvs(size=1)[0, :]
@@ -50,7 +50,7 @@ def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
 
     except ValueError as e:
         y = np.argmax(probs)
-    
+
     if tensor:
         y = torch.tensor(y, dtype=torch.long)
 
@@ -58,7 +58,10 @@ def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
 
 
 def calculate_pbar(
-    weights_l: torch.Tensor, p_preds: torch.Tensor, reshape: bool = False
+    weights_l: torch.Tensor,
+    p_preds: torch.Tensor,
+    reshape: bool = False,
+    n_dims: int = 2,
 ):
     """function to calculate the tensor of convex combinations. Taeks as input
     the weights (per instance) and the tensor of probabilistic predictions.
@@ -73,18 +76,18 @@ def calculate_pbar(
     reshape : bool, optional
         whether to reshape the weights. Only needed in case of instance-dependency.
          By default False
+    n_dims : int, optional
+        number of dimensions of the weight tensor. If 2, we have instance-wise dependency of
+        the convex combination P_bar. By default 2
 
     Returns
     -------
-    torch.Tensor
+    torch.Tensor or np.ndarray
         tensor of shape (n_samples, n_classes) containing the convex combinations
     """
 
     # number of samples for which we have predictions
     n_inst = p_preds.shape[0]
-    # make arrays tensors if they are not
-   # weights_l = torch.tensor(weights_l) if weights_l is not torch.Tensor else weights_l
-   # p_preds = torch.tensor(p_preds) if p_preds is not torch.Tensor else p_preds
 
     if reshape:
         assert (
@@ -96,8 +99,15 @@ def calculate_pbar(
         weights_l.shape[:2] == p_preds.shape[:2],
         " number of samples need to be the same for P and weights_l",
     )
-
-    # calculate convex combination: sum over the second dimension
-    p_bar = torch.sum(weights_l.unsqueeze(2) * p_preds, dim=1)
+    if n_dims == 2:
+        # calculate convex combination: sum over the second dimension
+        p_bar = torch.sum(weights_l.unsqueeze(2) * p_preds, dim=1)
+    elif n_dims == 1:
+        # convert to numpy array if needed
+        if isinstance(weights_l, torch.Tensor):
+            weights_l = weights_l.numpy()
+        if isinstance(p_preds, torch.Tensor):
+            p_preds = p_preds.numpy()
+        p_bar = np.matmul(np.swapaxes(p_preds, 1, 2), weights_l)
 
     return p_bar

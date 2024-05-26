@@ -101,7 +101,7 @@ def sample_pbar_h0(
     return p_bar, weights_l
 
 
-def sample_pbar_h1(x: np.ndarray, p_preds: np.ndarray, kernel, **kwargs):
+def sample_pbar_h1(x: np.ndarray, p_preds: np.ndarray, kernel, part_in: float = 0.0, **kwargs):
 
     # initialize p_bar as a tensor
     p_bar = torch.zeros(len(x), p_preds.shape[2])

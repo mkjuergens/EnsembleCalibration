@@ -6,7 +6,9 @@ implementation: https://github.com/tpopordanoska/ece-kde
 
 import torch
 import numpy as np
-from torch import nn 
+from torch import nn
+
+from ensemblecalibration.utils.helpers import calculate_pbar
 
 
 def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
@@ -19,8 +21,18 @@ def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
     bw = params["bw"]
     p = params["p"]
 
-    return get_ece_kde(p_bar[:,1].view(-1,1), y, bw, p) # TODO: check dimensions
+    return get_ece_kde(p_bar[:, 1].view(-1, 1), y, bw, p)  # TODO: check dimensions
 
+def ece_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
+    if x_dep:
+        p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
+    else:
+        p_bar = calculate_pbar(weights_l, p_probs, reshape=False, n_dims=1)
+    obj = ece_kde_obj(p_bar, y_labels, params)
+    # convert to numpy array if needed
+    if isinstance(obj, torch.Tensor):
+        obj = obj.numpy()
+    return obj
 
 
 def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
@@ -43,10 +55,11 @@ def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
 
     # check if input is binary
     if p_bar.shape[1] == 1:
-        return 2 * get_ratio_binary(p_bar, y, p,  bw)
+        return 2 * get_ratio_binary(p_bar, y, p, bw)
     else:
         return get_ratio_canonical(p_bar, y, p, bw)
-    
+
+
 def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float):
     assert preds.shape[1] == 1
 
@@ -54,19 +67,20 @@ def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: fl
 
     return get_kde_for_ece(preds, y, log_kern, p)
 
+
 def get_kde_for_ece(f, y, log_kern, p):
     f = f.squeeze()
     N = len(f)
     # Select the entries where y = 1
     idx = torch.where(y == 1)[0]
     if not idx.numel():
-        return torch.sum((torch.abs(-f))**p) / N
+        return torch.sum((torch.abs(-f)) ** p) / N
 
     if idx.numel() == 1:
         # because of -inf in the vector
-        log_kern = torch.cat((log_kern[:idx], log_kern[idx+1:]))
+        log_kern = torch.cat((log_kern[:idx], log_kern[idx + 1 :]))
         f_one = f[idx]
-        f = torch.cat((f[:idx], f[idx+1:]))
+        f = torch.cat((f[:idx], f[idx + 1 :]))
 
     log_kern_y = torch.index_select(log_kern, 1, idx)
 
@@ -75,12 +89,13 @@ def get_kde_for_ece(f, y, log_kern, p):
 
     log_ratio = log_num - log_den
     ratio = torch.exp(log_ratio)
-    ratio = torch.abs(ratio - f)**p
+    ratio = torch.abs(ratio - f) ** p
 
     if idx.numel() == 1:
-        return (ratio.sum() + f_one ** p)/N
+        return (ratio.sum() + f_one**p) / N
 
     return torch.mean(ratio)
+
 
 def get_ratio_canonical(f, y, bandwidth, p):
     if f.shape[1] > 60:
@@ -97,7 +112,7 @@ def get_ratio_canonical(f, y, bandwidth, p):
     den = torch.clamp(den, min=1e-10)
 
     ratio = kern_y / den.unsqueeze(-1)
-    ratio = torch.sum(torch.abs(ratio - f)**p, dim=1)
+    ratio = torch.sum(torch.abs(ratio - f) ** p, dim=1)
 
     return torch.mean(ratio)
 
@@ -114,10 +129,11 @@ def get_ratio_canonical_log(f, y, bandwidth, p):
         log_kern_y = log_kern + (torch.ones([f.shape[0], 1]) * log_y[:, k].unsqueeze(0))
         log_inner_ratio = torch.logsumexp(log_kern_y, dim=1) - log_den
         inner_ratio = torch.exp(log_inner_ratio)
-        inner_diff = torch.abs(inner_ratio - f[:, k])**p
+        inner_diff = torch.abs(inner_ratio - f[:, k]) ** p
         final_ratio += inner_diff
 
     return torch.mean(final_ratio)
+
 
 def get_kernel(f, bandwidth):
     # if num_classes == 1
@@ -131,11 +147,11 @@ def get_kernel(f, bandwidth):
 
 def beta_kernel(z, zi, bandwidth=0.1):
     p = zi / bandwidth + 1
-    q = (1-zi) / bandwidth + 1
+    q = (1 - zi) / bandwidth + 1
     z = z.unsqueeze(-2)
 
     log_beta = torch.lgamma(p) + torch.lgamma(q) - torch.lgamma(p + q)
-    log_num = (p-1) * torch.log(z) + (q-1) * torch.log(1-z)
+    log_num = (p - 1) * torch.log(z) + (q - 1) * torch.log(1 - z)
     log_beta_pdf = log_num - log_beta
 
     return log_beta_pdf
@@ -144,8 +160,10 @@ def beta_kernel(z, zi, bandwidth=0.1):
 def dirichlet_kernel(z, bandwidth=0.1):
     alphas = z / bandwidth + 1
 
-    log_beta = (torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(torch.sum(alphas, dim=1)))
-    log_num = torch.matmul(torch.log(z), (alphas-1).T)
+    log_beta = torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
+        torch.sum(alphas, dim=1)
+    )
+    log_num = torch.matmul(torch.log(z), (alphas - 1).T)
     log_dir_pdf = log_num - log_beta
 
     return log_dir_pdf

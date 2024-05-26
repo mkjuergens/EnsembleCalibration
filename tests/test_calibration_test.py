@@ -2,7 +2,8 @@ import unittest
 import numpy as np
 import torch
 
-from ensemblecalibration.config import create_config_binary_classification
+from ensemblecalibration.config import create_config_binary_mlp
+from ensemblecalibration.config.config_cal_test import config_binary_const_weights
 from ensemblecalibration.cal_test import npbe_test_vaicenavicius, npbe_test_ensemble
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.meta_model.losses import LpLoss, MMDLoss, SKCELoss
@@ -14,13 +15,13 @@ class TestCalibrationTest(unittest.TestCase):
 
     def setUp(self) -> None:
         # generate data for experiment for case when null hypothesis is true
-        self.n_samples = 1000
+        self.n_samples = 2000
         self.bounds_p = [[0.4, 0.6], [0.8, 1.0]]
         self.alphas = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
         self.test = npbe_test_ensemble
         self.n_iter = 10
         # create configuration for calibration test
-        self.params = create_config_binary_classification(
+        self.params = create_config_binary_mlp(
             exp_name="gp",
             cal_test=self.test,
             loss=SKCELoss,
@@ -36,6 +37,7 @@ class TestCalibrationTest(unittest.TestCase):
             lambda_bce=.1,
             batch_size=32,
         )["params"]
+        self.params_const = config_binary_const_weights["LP"]["params"]
 
     def test_null_alternative_hypothesis(self):
         results_h0 = np.zeros((self.n_iter, len(self.alphas)))
@@ -60,7 +62,7 @@ class TestCalibrationTest(unittest.TestCase):
                 x_inst=x_inst_h0,
                 p_preds=p_preds,
                 y_labels=y_labels_h0,
-                params=self.params,
+                params=self.params_const,
             )
             results_h0[i] = result
             print(f"H0: {result}")
@@ -90,7 +92,7 @@ class TestCalibrationTest(unittest.TestCase):
                 x_inst=x_inst_h1,
                 p_preds=p_preds,
                 y_labels=y_labels_h1,
-                params=self.params,
+                params=self.params_const,
             )
             results_h1[i] = result
             print(f"H1: {result}")
