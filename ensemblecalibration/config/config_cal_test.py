@@ -149,6 +149,7 @@ config_binary_classification_mlp = {
 
 config_binary_const_weights = {
     "LP": {
+        "experiment": "gp",
         "test": npbe_test_ensemble,
         "params": {
             "optim": "COBYLA",
@@ -156,7 +157,7 @@ config_binary_const_weights = {
             "n_resamples": 100,
             "obj": ece_kde_obj,
             "obj_lambda": ece_kde_obj_lambda,
-            "bw": 0.005,
+            "bw": 0.002,
             "x_dep": False,
             "deg": 2,
             "bounds_p": [[0.4, 0.6], [0.8, 1.0]],
@@ -164,11 +165,12 @@ config_binary_const_weights = {
         },
     },
     "SKCE": {
+        "experiment": "gp",
         "test": npbe_test_ensemble,
         "params": {
             "optim": "COBYLA",
             "n_samples": 2000,
-            "n_resamples": 200,
+            "n_resamples": 100,
             "obj": skce_obj,
             "obj_lambda": skce_obj_lambda,
             "bw": 0.1,
@@ -178,6 +180,7 @@ config_binary_const_weights = {
         },
     },
     "MMD": {
+        "experiment": "gp",
         "test": npbe_test_ensemble,
         "params": {
             "optim": "COBYLA",

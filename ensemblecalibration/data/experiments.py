@@ -38,9 +38,14 @@ def get_experiment(config: dict, h0: bool = True, batch_size: Optional[int] = No
         dataset = MLPDataset(data[0], data[1], data[3])
         dataset.weights_l = data[4] if h0 else None
         if batch_size is None:
-            loader = torch.utils.data.DataLoader(
-                dataset, batch_size=config["params"]["batch_size"], shuffle=True
-            )
+            # check if batch size is defined in the config
+            # check if key exists
+            if "batch_size" in config["params"]:
+                loader = torch.utils.data.DataLoader(
+                    dataset, batch_size=config["params"]["batch_size"], shuffle=True
+                )
+            else:
+                loader = None
         else:
             loader = torch.utils.data.DataLoader(
                 dataset, batch_size=batch_size, shuffle=True
