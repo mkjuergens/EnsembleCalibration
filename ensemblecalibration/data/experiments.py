@@ -5,7 +5,13 @@ from ensemblecalibration.data.gp_binary import exp_gp
 from ensemblecalibration.data.dataset import MLPDataset
 
 
-def get_experiment(config: dict, h0: bool = True, batch_size: Optional[int] = None, **kwargs):
+def get_experiment(
+    config: dict,
+    h0: bool = True,
+    setting: int = 1,
+    batch_size: Optional[int] = None,
+    **kwargs
+):
     """generate data for the experiment, depending on the configuration
 
     Parameters
@@ -14,6 +20,9 @@ def get_experiment(config: dict, h0: bool = True, batch_size: Optional[int] = No
         configuration for the experiment
     h0 : bool, optional
         whether the null hypothesis is true, by default True
+    s_1 : bool, optional
+        whether the GP sample is close to the boundary of the probability simplex (in case the 
+        null hypothesis is false), by default False
     **kwargs : dict
         additional keyword arguments (e.g. for the kernel used in the GP)
 
@@ -31,9 +40,10 @@ def get_experiment(config: dict, h0: bool = True, batch_size: Optional[int] = No
             h0=h0,
             x_dep=config["params"]["x_dep"],
             deg=config["params"]["deg"],
+            setting=setting,
             **kwargs,
         )
-            
+
         # data
         dataset = MLPDataset(data[0], data[1], data[3])
         dataset.weights_l = data[4] if h0 else None
@@ -53,5 +63,5 @@ def get_experiment(config: dict, h0: bool = True, batch_size: Optional[int] = No
 
     else:
         raise ValueError("Experiment not implemented")
-    
+
     return data, loader, dataset

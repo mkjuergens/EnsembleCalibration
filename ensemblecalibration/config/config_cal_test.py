@@ -92,7 +92,7 @@ config_binary_classification_mlp = {
         cal_test=npbe_test_ensemble,
         loss=LpLoss,
         bw=0.002,
-        n_samples=1000,
+        n_samples=2000,
         n_resamples=100,
         obj=ece_kde_obj,
         n_epochs=300,
@@ -103,7 +103,7 @@ config_binary_classification_mlp = {
         hidden_dim=64,
         x_dep=True,
         deg=2,
-        bounds_p=[[0.4, 0.6], [0.8, 1.0]],
+        bounds_p=[[0.5, 0.8], [0.7, .9]],
         p=2,
         lambda_bce=0.5,  # TODO: check this
     ),
@@ -111,11 +111,11 @@ config_binary_classification_mlp = {
         exp_name="gp",
         cal_test=npbe_test_ensemble,
         loss=SKCELoss,
-        bw=0.1,
-        n_samples=1000,
-        n_resamples=200,
+        bw=0.05,
+        n_samples=2000,
+        n_resamples=100,
         obj=skce_obj,
-        n_epochs=600,
+        n_epochs=400,
         lr=1e-4,
         batch_size=512,
         patience=300,
@@ -123,18 +123,18 @@ config_binary_classification_mlp = {
         hidden_dim=64,
         x_dep=True,
         deg=2,
-        bounds_p=[[0.4, 0.6], [0.8, 1.0]],
-        lambda_bce=0.05,  
+        bounds_p=[[0.5, 0.8], [0.7, .9]],
+        lambda_bce=0.01,  
     ),
     "MMD": create_config_binary_mlp(
         exp_name="gp",
         cal_test=npbe_test_ensemble,
         loss=MMDLoss,
         bw=0.1,
-        n_samples=1000,
+        n_samples=2000,
         n_resamples=100,
         obj=mmd_kce_obj,
-        n_epochs=600,
+        n_epochs=400,
         lr=1e-4,
         batch_size=512,
         patience=300,
@@ -142,10 +142,11 @@ config_binary_classification_mlp = {
         hidden_dim=64,
         x_dep=True,
         deg=2,
-        bounds_p=[[0.4, 0.6], [0.8, 1.0]],
+        bounds_p=[[0.5, 0.8], [0.7, .9]],
         lambda_bce=0.1,  
     ),
 }
+
 
 config_binary_const_weights = {
     "LP": {
@@ -160,7 +161,7 @@ config_binary_const_weights = {
             "bw": 0.002,
             "x_dep": False,
             "deg": 2,
-            "bounds_p": [[0.4, 0.6], [0.8, 1.0]],
+            "bounds_p": [[0.5, 0.8], [0.7, .9]],
             "p": 2,
         },
     },
@@ -176,7 +177,7 @@ config_binary_const_weights = {
             "bw": 0.1,
             "x_dep": False,
             "deg": 2,
-            "bounds_p": [[0.4, 0.6], [0.8, 1.0]],
+            "bounds_p": [[0.5, 0.8], [0.7, .9]],
         },
     },
     "MMD": {
@@ -191,11 +192,13 @@ config_binary_const_weights = {
             "bw": 0.1,
             "x_dep": False,
             "deg": 2,
-            "bounds_p": [[0.4, 0.6], [0.8, 1.0]],
+            "bounds_p": [[0.5, 0.8], [0.7, .9]],
         },
 
     },
 }
+ 
+
 
 
 if __name__ == "__main__":

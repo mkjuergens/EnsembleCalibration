@@ -32,7 +32,8 @@ def calculate_min(
     NotImplementedError
         if the optimization method is not implemented
     """
-    n_dims = 2 if params["x_dep"] else 1
+    #n_dims = 2 if params["x_dep"] else 1
+    n_dims = 2 if params["optim"] == "mlp" else 1
     if params["optim"] == "mlp":
         dataset = MLPDataset(x_train=x_inst, P=p_probs, y=y_labels)
         l_weights, loss = get_optim_lambda_mlp(

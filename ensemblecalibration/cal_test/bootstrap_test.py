@@ -44,7 +44,8 @@ def npbe_test_ensemble(
     # calculate optimal weights
     minstat, l_weights = calculate_min(x_inst, p_preds, y_labels, params)
     # calculate p_bar # TODO: calculate pbar ehre or in loop!!!??
-    n_dims = 2 if params["x_dep"] else 1
+    # n_dims = 2 if params["x_dep"] else 1
+    n_dims = 2 if params["optim"] == "mlp" else 1
     p_bar = calculate_pbar(l_weights, p_preds, n_dims=n_dims)
     # run bootstrap test
     decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar, y_labels, params)

@@ -45,6 +45,7 @@ def _simulation_h1_binary(
     dict_tests,
     n_resamples: int,
     alpha: list,
+    setting: int,
 ):
 
     results = {}
@@ -53,7 +54,7 @@ def _simulation_h1_binary(
 
     for _ in tqdm(range(n_resamples)):
         # generate data for the test run
-        data, _, _ = get_experiment(config=dict_tests[test], h0=False)
+        data, _, _ = get_experiment(config=dict_tests[test], h0=False, setting=setting)
         # save results (1 - p-value) for each test
         for test in dict_tests:
             results[test] += 1 - np.array(
@@ -83,6 +84,9 @@ def main_t1_t2(args):
         config = config_binary_const_weights
     prefix = args.prefix
     results_dir = args.results_dir
+    # change x_dep parameter in config to the value from args
+    for test in config:
+        config[test]["params"]["x_dep"] = args.x_dep
 
     # create directory for results
     exp_name = config[list(config.keys())[0]]["experiment"]
@@ -110,13 +114,30 @@ def main_t1_t2(args):
     results.append(res)
 
     print("Start H1 simulation...")
-    res_h1 = _simulation_h1_binary(
-        dict_tests=config, n_resamples=n_resamples, alpha=alpha
+    res_h1_s1 = _simulation_h1_binary(
+        dict_tests=config, n_resamples=n_resamples, alpha=alpha, setting=1,
     )
     res = []
-    for r in res_h1:
-        res.append(list(res_h1[r]))
+    for r in res_h1_s1:
+        res.append(list(res_h1_s1[r]))
     results.append(res)
+
+    res_h1_s2 = _simulation_h1_binary(
+        dict_tests=config, n_resamples=n_resamples, alpha=alpha, setting=2,
+    )
+    res = []
+    for r in res_h1_s2:
+        res.append(list(res_h1_s2[r]))
+    results.append(res)
+
+    res_h1_s3 = _simulation_h1_binary(
+        dict_tests=config, n_resamples=n_resamples, alpha=alpha, setting=3,
+    )
+    res = []
+    for r in res_h1_s3:
+        res.append(list(res_h1_s3[r]))
+    results.append(res)
+
 
     # save in csv file
     results_df = pd.DataFrame(results)
@@ -134,5 +155,6 @@ if __name__ == "__main__":
     parser.add_argument("-optim", type=str, default="mlp")
     parser.add_argument("-prefix", type=str, default="results_binary_t1t2")
     parser.add_argument("-results_dir", type=str, default="results")
+    parser.add_argument("-x_dep", type=bool, default=True)
     args = parser.parse_args()
     main_t1_t2(args)

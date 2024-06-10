@@ -11,10 +11,11 @@ def exp_gp(
     n_samples: int,
     x_bound: list = [0.0, 5.0],
     kernel=rbf_kernel,
-    bounds_p: list = [[0, 0.2], [0.5, 0.7]],
+    bounds_p: list = [[0.5, 0.7], [0.6, 0.8]],
     h0: bool = True,
     x_dep: bool = True,
     deg: int = 2,
+    setting: int = 1,
     **kwargs,
 ):
     """experiment for generating probabilistic predictions of binary classifiers,
@@ -40,6 +41,8 @@ def exp_gp(
           True
     deg : int, optional
         degree of the function in the case of h0==True and x_dep==True, by default 2
+    s_1 : bool, optional
+        whether the GP sample is close to the boundary of the probability simplex, by default False
     **kwargs : dict
         additional arguments for the kernel
 
@@ -61,7 +64,7 @@ def exp_gp(
     if h0:
         p_bar, weights_l = sample_pbar_h0(x_inst, p_preds, x_dep, deg)
     else:
-        p_bar = sample_pbar_h1(x_inst, p_preds, kernel, **kwargs)
+        p_bar = sample_pbar_h1(x_inst, p_preds, kernel, setting=setting, **kwargs)
 
     # now sample labels from categorical distributiuon induced by p_bar_h0
     y_labels = torch.stack(
@@ -101,7 +104,14 @@ def sample_pbar_h0(
     return p_bar, weights_l
 
 
-def sample_pbar_h1(x: np.ndarray, p_preds: np.ndarray, kernel, part_in: float = 0.0, **kwargs):
+def sample_pbar_h1(
+    x: np.ndarray,
+    p_preds: np.ndarray,
+    kernel,
+    setting: int = 1,
+    eps: float = 1e-4,
+    **kwargs,
+):
 
     # initialize p_bar as a tensor
     p_bar = torch.zeros(len(x), p_preds.shape[2])
@@ -112,15 +122,34 @@ def sample_pbar_h1(x: np.ndarray, p_preds: np.ndarray, kernel, part_in: float = 
     p_preds_max = torch.max(p_preds[:, :, 0]).item()
     p_preds_min = torch.min(p_preds[:, :, 0]).item()
     # look which one is closeer to the borders of (0,1)
-    dist_max = np.abs(p_preds_max - 1)
-    dist_min = np.abs(p_preds_min - 0)
-    # sample pbar from bigger interval which does not contain (p_preds_min, p_preds_max)
-    ivl_pbar = [0, p_preds_min] if dist_min > dist_max else [p_preds_max, 1]
-    # sample pbar not as a convex combination, but as a GP sample outside of the convex hull
-    p_bar_0 = gp_sample_prediction(x, kernel=kernel, bounds_p=ivl_pbar, **kwargs)
-    p_bar_1 = 1 - p_bar_0
-    p_bar[:, 0] = p_bar_0
-    p_bar[:, 1] = p_bar_1
+    dist_1 = np.abs(p_preds_max - 1)
+    dist_0 = np.abs(p_preds_min - 0)
+
+    if setting == 1:
+        # add small random noise to upper OR lower bound (based on which is further to
+        # the boundary), set pbar to this values
+        p_bar[:, 0] = (
+            p_preds[:, 0, 0] - np.random.uniform(0.03, 0.05, len(x))
+            if dist_0 > dist_1
+            else p_preds[:, 1, 0] + np.random.uniform(0.03, 0.05, len(x))
+        )
+        # make sure it lies in interval [0,1]
+        p_bar[:, 0] = torch.clamp(p_bar[:, 0], 0, 1)
+
+    elif setting == 2:
+        # sample pbar from smaller interval with values clost to the boundaries
+        ivl_pbar = (
+            [0 + dist_0 / 2, p_preds_min - eps]
+            if dist_0 < dist_1
+            else [p_preds_max + eps, 1 - dist_1 / 2]
+        )
+        p_bar[:, 0] = gp_sample_prediction(x, kernel=kernel, bounds_p=ivl_pbar, **kwargs)
+    else:
+        # sample pbar from bigger interval which does not contain (p_preds_min, p_preds_max)
+        ivl_pbar = [0, p_preds_min] if dist_0 > dist_1 else [p_preds_max, 1]
+        p_bar[:, 0] = gp_sample_prediction(x, kernel=kernel, bounds_p=ivl_pbar, **kwargs)
+    
+    p_bar[:, 1] = 1 - p_bar[:, 0]
 
     return p_bar
 
@@ -236,8 +265,19 @@ def sample_function(x: np.ndarray, deg: int = 1):
       y : ndarray (n_samples,)
         Function values.
     """
-    #
+
     y = np.polyval(np.polyfit(x, np.random.rand(len(x)), deg), x)
     # use min max scaling to ensure values in [0,1]
     y = ab_scale(y, 0, 1)
     return y
+
+
+# Function to enforce the range constraints
+def enforce_range(samples, ranges):
+    constrained_samples = np.copy(samples)
+    for i, (min_val, max_val) in enumerate(ranges):
+        if samples[i] < min_val:
+            constrained_samples[i] = min_val
+        elif samples[i] > max_val:
+            constrained_samples[i] = max_val
+    return constrained_samples

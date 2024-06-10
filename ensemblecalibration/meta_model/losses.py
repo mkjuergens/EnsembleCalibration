@@ -146,7 +146,6 @@ class LpLoss(CalibrationLossBinary):
         return lp_er
 
 
-# TODO!!
 class MMDLoss(CalibrationLossBinary):
 
     def __init__(self, bw: float, kernel_fct=rbf_kernel, lambda_bce: float = 0.0) -> None:
@@ -165,6 +164,8 @@ class MMDLoss(CalibrationLossBinary):
             mmd_er += self.lambda_bce * bce_loss
 
         return mmd_er
+    
+
 
 
 class FocalLoss(nn.Module):
