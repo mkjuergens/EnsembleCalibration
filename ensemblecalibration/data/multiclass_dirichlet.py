@@ -18,6 +18,7 @@ def exp_dirichlet(
     x_dep: bool = True,
     uc: float = 0.5,
     setting: int = 1,
+    deg: int = 2,
 ):
     """generates sytnhetic data for the multiclass case, where the predictions are sampled from
     a Dirichlet distribution. The weights of the convex combination are sampled from a Dirichlet
@@ -41,6 +42,8 @@ def exp_dirichlet(
         uncertainty budget, by default 0.5
     setting: int, optional
         setting in the case h1==True, by default 1. Options: {1, 2}.
+    deg : int, optional
+        degree of the polynomial function used to sample the weights, by default 2
 
     Returns
     -------
@@ -58,11 +61,11 @@ def exp_dirichlet(
     )
     # sort
     p_preds, dir_params = sample_ensemble_preds(
-        x_inst, n_ens=n_members, n_classes=n_classes
+        x_inst, n_ens=n_members, n_classes=n_classes, uncertainty=uc
     )
     if h0:
         # sample weights
-        weights_l = sample_weights_h0(x_inst, n_members, x_dep=x_dep)
+        weights_l = sample_weights_h0(x_inst, n_members, x_dep=x_dep, deg=deg)
         p_bar = calculate_pbar(weights_l, p_preds)
 
         y_labels = torch.stack(
@@ -77,10 +80,9 @@ def exp_dirichlet(
             x_inst=x_inst,
             p_preds=p_preds,
             dir_params=dir_params,
-            uncertainty=uc,
             setting=setting,
         )
-
+    x_inst = x_inst.view(-1, 1)
     return (
         (x_inst, p_preds, p_bar, y_labels, weights_l)
         if h0

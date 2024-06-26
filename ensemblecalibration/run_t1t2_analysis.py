@@ -10,15 +10,29 @@ import datetime
 from ensemblecalibration.config.config_cal_test import (
     config_binary_classification_mlp,
     config_binary_const_weights,
+    config_dirichlet_mlp,
+    config_dirichlet_const_weights,
 )
 from ensemblecalibration.data.experiments import get_experiment
 
 
+def _get_config(optim: str, exp_name: str):
+    if optim == "mlp":
+        if exp_name == "dirichlet":
+            return config_dirichlet_mlp
+        elif exp_name == "gp":
+            return config_binary_classification_mlp
+    elif optim == "cobyla":
+        if exp_name == "dirichlet":
+            return config_dirichlet_const_weights
+        elif exp_name == "gp":
+            return config_binary_const_weights
+    else:
+        raise ValueError("Unknown optimization method.")
+
+
 def _simulation_h0_binary(
-    dict_tests,
-    n_resamples: int,
-    alpha: list,
-    x_dep: bool = True
+    dict_tests, n_resamples: int, alpha: list, x_dep: bool = True
 ):
     results = {}
     for test in dict_tests:
@@ -80,14 +94,12 @@ def main_t1_t2(args):
     alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
 
     n_resamples = args.R
-    if args.optim == "mlp":
-        config = config_binary_classification_mlp
-    elif args.optim == "cobyla":
-        config = config_binary_const_weights
+    # get config
+    config = _get_config(args.optim, args.exp)
     prefix = args.prefix
     results_dir = args.results_dir
     # change x_dep parameter in config to the value from args
-   # for test in config:
+    # for test in config:
     #    config[test]["params"]["x_dep"] = args.x_dep
 
     # create directory for results
@@ -128,7 +140,10 @@ def main_t1_t2(args):
 
     print("Start H1 simulation...")
     res_h1_s1 = _simulation_h1_binary(
-        dict_tests=config, n_resamples=n_resamples, alpha=alpha, setting=1,
+        dict_tests=config,
+        n_resamples=n_resamples,
+        alpha=alpha,
+        setting=1,
     )
     res = []
     for r in res_h1_s1:
@@ -136,7 +151,10 @@ def main_t1_t2(args):
     results.append(res)
 
     res_h1_s2 = _simulation_h1_binary(
-        dict_tests=config, n_resamples=n_resamples, alpha=alpha, setting=2,
+        dict_tests=config,
+        n_resamples=n_resamples,
+        alpha=alpha,
+        setting=2,
     )
     res = []
     for r in res_h1_s2:
@@ -144,13 +162,15 @@ def main_t1_t2(args):
     results.append(res)
 
     res_h1_s3 = _simulation_h1_binary(
-        dict_tests=config, n_resamples=n_resamples, alpha=alpha, setting=3,
+        dict_tests=config,
+        n_resamples=n_resamples,
+        alpha=alpha,
+        setting=3,
     )
     res = []
     for r in res_h1_s3:
         res.append(list(res_h1_s3[r]))
     results.append(res)
-
 
     # save in csv file
     results_df = pd.DataFrame(results)
@@ -166,8 +186,9 @@ if __name__ == "__main__":
     # data args
     parser.add_argument("-R", dest="R", type=int, default=100)
     parser.add_argument("-optim", type=str, default="mlp")
+    parser.add_argument("-exp", type=str, default="dirichlet")
     parser.add_argument("-prefix", type=str, default="results_binary_t1t2")
     parser.add_argument("-results_dir", type=str, default="results")
-    #parser.add_argument("-x_dep", type=bool, default=True)
+    # parser.add_argument("-x_dep", type=bool, default=True)
     args = parser.parse_args()
     main_t1_t2(args)

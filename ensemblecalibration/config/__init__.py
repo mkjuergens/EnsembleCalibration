@@ -1,1 +1,1 @@
-from ensemblecalibration.config.config_cal_test import create_config_binary_mlp
+from ensemblecalibration.config.config_cal_test import create_config_mlp
