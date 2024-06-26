@@ -139,38 +139,51 @@ def main_t1_t2(args):
     results.append(res)
 
     print("Start H1 simulation...")
-    res_h1_s1 = _simulation_h1_binary(
-        dict_tests=config,
-        n_resamples=n_resamples,
-        alpha=alpha,
-        setting=1,
-    )
-    res = []
-    for r in res_h1_s1:
-        res.append(list(res_h1_s1[r]))
-    results.append(res)
+    for setting in range(1, args.n_settings + 1):
+        res_h1_s1 = _simulation_h1_binary(
+            dict_tests=config,
+            n_resamples=n_resamples,
+            alpha=alpha,
+            setting=setting,
+        )
+        res = []
+        for r in res_h1_s1:
+            res.append(list(res_h1_s1[r]))
+        results.append(res)
 
-    res_h1_s2 = _simulation_h1_binary(
-        dict_tests=config,
-        n_resamples=n_resamples,
-        alpha=alpha,
-        setting=2,
-    )
-    res = []
-    for r in res_h1_s2:
-        res.append(list(res_h1_s2[r]))
-    results.append(res)
 
-    res_h1_s3 = _simulation_h1_binary(
-        dict_tests=config,
-        n_resamples=n_resamples,
-        alpha=alpha,
-        setting=3,
-    )
-    res = []
-    for r in res_h1_s3:
-        res.append(list(res_h1_s3[r]))
-    results.append(res)
+    # res_h1_s1 = _simulation_h1_binary(
+    #     dict_tests=config,
+    #     n_resamples=n_resamples,
+    #     alpha=alpha,
+    #     setting=1,
+    # )
+    # res = []
+    # for r in res_h1_s1:
+    #     res.append(list(res_h1_s1[r]))
+    # results.append(res)
+
+    # res_h1_s2 = _simulation_h1_binary(
+    #     dict_tests=config,
+    #     n_resamples=n_resamples,
+    #     alpha=alpha,
+    #     setting=2,
+    # )
+    # res = []
+    # for r in res_h1_s2:
+    #     res.append(list(res_h1_s2[r]))
+    # results.append(res)
+
+    # res_h1_s3 = _simulation_h1_binary(
+    #     dict_tests=config,
+    #     n_resamples=n_resamples,
+    #     alpha=alpha,
+    #     setting=3,
+    # )
+    # res = []
+    # for r in res_h1_s3:
+    #     res.append(list(res_h1_s3[r]))
+    # results.append(res)
 
     # save in csv file
     results_df = pd.DataFrame(results)
@@ -189,6 +202,7 @@ if __name__ == "__main__":
     parser.add_argument("-exp", type=str, default="dirichlet")
     parser.add_argument("-prefix", type=str, default="results_binary_t1t2")
     parser.add_argument("-results_dir", type=str, default="results")
+    parser.add_argument("-n_settings", type=int, default=2)
     # parser.add_argument("-x_dep", type=bool, default=True)
     args = parser.parse_args()
     main_t1_t2(args)
