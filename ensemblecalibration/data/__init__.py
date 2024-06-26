@@ -1,0 +1,2 @@
+from ensemblecalibration.data.gp_binary import exp_gp
+from ensemblecalibration.data.multiclass_dirichlet import exp_dirichlet

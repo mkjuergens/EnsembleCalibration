@@ -26,6 +26,7 @@ def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
 
     return mmd_kce(p_bar, y, kernel_fct=rbf_kernel, bw=bw)
 
+
 def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
     if x_dep:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
@@ -39,10 +40,11 @@ def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False
 
     return obj
 
+
 def mmd_kce(
     p_bar: torch.Tensor, y: torch.tensor, kernel_fct=rbf_kernel, bw: float = 0.1
 ):
-    """calculates the kenerl calibration error for the classification case using the maximum mean discrepancy.
+    """calculates the kernel calibration error for the classification case using the maximum mean discrepancy.
 
 
     Parameters
@@ -68,7 +70,7 @@ def mmd_kce(
     n_classes = p_bar.shape[1]
     y_all = torch.eye(n_classes).to(p_bar.device)
     k_yy = kernel_fct(y_all, y_all, bw)
-    q_yy = torch.einsum("ic,jd->ijcd", p_bar, p_bar)
+    q_yy = torch.einsum("ic,jd->ijcd", p_bar, p_bar)  
     total_yy = q_yy * k_yy.unsqueeze(0)
 
     k_yj = k_yy[:, y].T

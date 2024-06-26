@@ -2,9 +2,13 @@ import numpy as np
 from sklearn.metrics.pairwise import linear_kernel, rbf_kernel, polynomial_kernel
 from numpy import random
 import torch
-from torch.utils.data import Dataset
 
-from ensemblecalibration.utils.helpers import calculate_pbar, multinomial_label_sampling
+from ensemblecalibration.utils.helpers import (
+    calculate_pbar,
+    multinomial_label_sampling,
+    sample_function,
+    ab_scale
+)
 
 
 def exp_gp(
@@ -143,12 +147,16 @@ def sample_pbar_h1(
             if dist_0 < dist_1
             else [p_preds_max + eps, 1 - dist_1 / 2]
         )
-        p_bar[:, 0] = gp_sample_prediction(x, kernel=kernel, bounds_p=ivl_pbar, **kwargs)
+        p_bar[:, 0] = gp_sample_prediction(
+            x, kernel=kernel, bounds_p=ivl_pbar, **kwargs
+        )
     else:
         # sample pbar from bigger interval which does not contain (p_preds_min, p_preds_max)
         ivl_pbar = [0, p_preds_min] if dist_0 > dist_1 else [p_preds_max, 1]
-        p_bar[:, 0] = gp_sample_prediction(x, kernel=kernel, bounds_p=ivl_pbar, **kwargs)
-    
+        p_bar[:, 0] = gp_sample_prediction(
+            x, kernel=kernel, bounds_p=ivl_pbar, **kwargs
+        )
+
     p_bar[:, 1] = 1 - p_bar[:, 0]
 
     return p_bar
@@ -186,25 +194,6 @@ def sample_binary_preds_gp(
         p_preds[:, i, 1] = 1 - preds
 
     return p_preds
-
-
-def ab_scale(x: np.ndarray, a: float, b: float):
-    """scales array x to [a,b]
-    Parameters
-    ----------
-    x : np.ndarray
-        Array to be scaled.
-    a : float
-        Lower bound.
-    b : float
-        Upper bound.
-
-    Returns
-    -------
-    np.ndarray
-        Scaled array.
-    """
-    return ((b - a) * ((x - np.min(x)) / (np.max(x) - np.min(x)))) + a
 
 
 def gp_sample_prediction(
@@ -250,26 +239,6 @@ def gp_sample_prediction(
         return torch.from_numpy(p_pred_sc).float()
     else:
         return p_pred_sc
-
-
-# function for generating determinisitc, monotonous functions with values in [0,1]
-def sample_function(x: np.ndarray, deg: int = 1):
-    """
-    Arguments:
-      x : ndarray (n_samples,)
-        Inputs.
-      deg: int (default=1)
-        Degree of polynomial function.
-
-    Output:
-      y : ndarray (n_samples,)
-        Function values.
-    """
-
-    y = np.polyval(np.polyfit(x, np.random.rand(len(x)), deg), x)
-    # use min max scaling to ensure values in [0,1]
-    y = ab_scale(y, 0, 1)
-    return y
 
 
 # Function to enforce the range constraints

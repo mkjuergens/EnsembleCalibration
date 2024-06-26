@@ -96,9 +96,8 @@ def calculate_pbar(
         weights_l = weights_l.reshape(n_inst, -1)
 
     assert (
-        weights_l.shape[:2] == p_preds.shape[:2],
-        " number of samples need to be the same for P and weights_l",
-    )
+        weights_l.shape[:2] == p_preds.shape[:2]
+        ), " number of samples need to be the same for P and weights_l"
     if n_dims == 2:
         # calculate convex combination: sum over the second dimension
         p_bar = torch.sum(weights_l.unsqueeze(2) * p_preds, dim=1)
@@ -111,3 +110,42 @@ def calculate_pbar(
         p_bar = np.matmul(np.swapaxes(p_preds, 1, 2), weights_l)
 
     return p_bar
+
+
+def sample_function(x: np.ndarray, deg: int = 1, ivl: tuple = (0, 1)):
+    """
+    Arguments:
+      x : ndarray (n_samples,)
+        Inputs.
+      deg: int (default=1)
+        Degree of polynomial function.
+
+    Output:
+      y : ndarray (n_samples,)
+        Function values.
+    """
+
+    y = np.polyval(np.polyfit(x, np.random.rand(len(x)), deg), x)
+    # use min max scaling to ensure values in [0,1]
+    y = ab_scale(y, ivl[0], ivl[1])
+    return y
+
+
+
+def ab_scale(x: np.ndarray, a: float, b: float):
+    """scales array x to [a,b]
+    Parameters
+    ----------
+    x : np.ndarray
+        Array to be scaled.
+    a : float
+        Lower bound.
+    b : float
+        Upper bound.
+
+    Returns
+    -------
+    np.ndarray
+        Scaled array.
+    """
+    return ((b - a) * ((x - np.min(x)) / (np.max(x) - np.min(x)))) + a
