@@ -12,15 +12,14 @@ from scipy.spatial import ConvexHull
 from ensemblecalibration.utils.projections import project_points2D
 
 
-def plot_t1_erros_analysis(
+def plot_error_analysis(
     df: pd.DataFrame,
     list_errors: list,
-    take_avg: bool = False,
-    plot_ha: bool = False,
+    #plot_ha: bool = False,
     figsize: tuple = (8, 12),
     title: Optional[str] = None,
     list_col_titles: list = ["S_0", "S_1", "S_2", "S_3"],
-    n_type_1: int = 1,
+    scatter_line: bool = True,
 ):
     if "alpha" in df:
         alphas = df["alpha"].values
@@ -28,62 +27,48 @@ def plot_t1_erros_analysis(
         alphas = np.array(
             [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
         )
-    if take_avg:
-        results = np.zeros((len(list_errors), len(df)))
-    else:
-        results = np.zeros((len(list_errors), len(alphas)))
-    for i in range(len(list_errors)):
-        results_i = df[list_errors[i]]
-        if take_avg:
+    # if not plot_ha:
+    #     fig, ax = plt.subplots(len(list_errors), 1, figsize=figsize)
+    #     for j in range(len(list_errors)):
+    #         ax[j].plot(alphas, results[j])
+    #         ax[j].plot(alphas, alphas, "--")
+    #         ax[j].set_title(f"{list_errors[j]}", fontsize=15)
+    #         ax[j].set_xlabel(r"$\alpha$")
+    #         # y label closer to plot
+    #         ax[j].yaxis.set_label_coords(-0.1, 0.5)
+    #         ax[j].set_ylabel(r"Type $1$ error", fontsize=14)
+    #         ax[j].grid()
+    # else:
+    #     pass
+    fig, ax = plt.subplots(
+        len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True
+    )
+    if len(list_errors) > 1:
+        for i in range(len(list_errors)):
+            ax[i, 0].set_ylabel(f"{list_errors[i]}", fontsize=15)
             for j in range(len(df)):
-                val_ij = sum(literal_eval(results_i[j])) / len(
-                    literal_eval(results_i[j])
-                )
-                results[i, j] = val_ij
-        else:  # averagea are already saved in the dataframe
-            for j in range(len(alphas)):
-                val_ij = literal_eval(results_i[0])[j]
-                results[i, j] = val_ij
-    if not plot_ha:
-        fig, ax = plt.subplots(len(list_errors), 1, figsize=figsize)
-        for j in range(len(list_errors)):
-            ax[j].plot(alphas, results[j])
-            ax[j].plot(alphas, alphas, "--")
-            ax[j].set_title(f"{list_errors[j]}", fontsize=15)
-            ax[j].set_xlabel(r"$\alpha$")
-            # y label closer to plot
-            ax[j].yaxis.set_label_coords(-0.1, 0.5)
-            ax[j].set_ylabel(r"Type $1$ error", fontsize=14)
-            ax[j].grid()
-    else:
-        fig, ax = plt.subplots(
-            len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True
-        )
-        if len(list_errors) > 1:
-            for i in range(len(list_errors)):
-                ax[i, 0].set_ylabel(f"{list_errors[i]}")
-                for j in range(len(df)):
-                    ax[i, j].plot(alphas, literal_eval(df[list_errors[i]][j]))
-                    if j in range(n_type_1):
-                        ax[i, j].plot(alphas, alphas, "--")
-                    # ax[i, j].spines[["right", "top"]].set_visible(False)
-                    ax[i, j].grid()
+                ax[i, j].plot(alphas, literal_eval(df[list_errors[i]].iloc[j]))
+                if scatter_line:
+                    ax[i, j].plot(alphas, alphas, "--")
+                # ax[i, j].spines[["right", "top"]].set_visible(False)
+                ax[i, j].grid()
 
-            for i, col_title in enumerate(list_col_titles):
-                ax[0, i].set_title(col_title, fontsize=15)
-        else:
-            ax[0].set_ylabel(f"{list_errors[0]}")
-            for j in range(len(df)):
-                ax[j].plot(alphas, literal_eval(df[list_errors[0]][j]))
-                if j == 0:
-                    ax[j].plot(alphas, alphas, "--")
-                ax[j].spines[["right", "top"]].set_visible(False)
-                ax[j].grid()
+        for i, col_title in enumerate(list_col_titles):
+            ax[0, i].set_title(col_title, fontsize=15)
+    else:
+        ax[0].set_ylabel(f"{list_errors[0]}")
+        for j in range(len(df)):
+            ax[j].plot(alphas, literal_eval(df[list_errors[0]].iloc[j]))
+            if j == 0:
+                ax[j].plot(alphas, alphas, "--")
+            ax[j].spines[["right", "top"]].set_visible(False)
+            ax[j].grid()
     fig.supxlabel(r"$\alpha$", fontsize=15)
-    fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
+    #fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
     # plt.tight_layout()
     if title is not None:
-        plt.suptitle(title, fontsize=16)
+        plt.suptitle(title, fontsize=16, y=1.02)
+    fig.subplots_adjust(hspace=0.1)
     return fig
 
 

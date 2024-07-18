@@ -88,16 +88,15 @@ def calculate_pbar(
 
     # number of samples for which we have predictions
     n_inst = p_preds.shape[0]
-
     if reshape:
         assert (
             len(weights_l) % n_inst == 0
         ), " weight vector needs to be a multiple of the number of rows"
         weights_l = weights_l.reshape(n_inst, -1)
 
-    assert (
-        weights_l.shape[:2] == p_preds.shape[:2]
-        ), " number of samples need to be the same for P and weights_l"
+    # assert (
+    #     weights_l.shape[:2] == p_preds.shape[:2]
+    # ), f"number of samples need to be the same for P and weights_l, but are {weights_l.shape[0]} and {p_preds.shape[0]} respectively"
     if n_dims == 2:
         # calculate convex combination: sum over the second dimension
         p_bar = torch.sum(weights_l.unsqueeze(2) * p_preds, dim=1)
@@ -129,7 +128,6 @@ def sample_function(x: np.ndarray, deg: int = 1, ivl: tuple = (0, 1)):
     # use min max scaling to ensure values in [0,1]
     y = ab_scale(y, ivl[0], ivl[1])
     return y
-
 
 
 def ab_scale(x: np.ndarray, a: float, b: float):

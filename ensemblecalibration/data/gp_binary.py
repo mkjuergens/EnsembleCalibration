@@ -133,9 +133,9 @@ def sample_pbar_h1(
         # add small random noise to upper OR lower bound (based on which is further to
         # the boundary), set pbar to this values
         p_bar[:, 0] = (
-            p_preds[:, 0, 0] - np.random.uniform(0.03, 0.05, len(x))
+            p_preds[:, 0, 0] - np.ones(len(x))*.03
             if dist_0 > dist_1
-            else p_preds[:, 1, 0] + np.random.uniform(0.03, 0.05, len(x))
+            else p_preds[:, 1, 0] + np.ones(len(x))*.03
         )
         # make sure it lies in interval [0,1]
         p_bar[:, 0] = torch.clamp(p_bar[:, 0], 0, 1)

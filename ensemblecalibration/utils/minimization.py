@@ -34,6 +34,7 @@ def calculate_min(
     """
     #n_dims = 2 if params["x_dep"] else 1
     n_dims = 2 if params["optim"] == "mlp" else 1
+    #print(f"n_dims: {n_dims}")
     if params["optim"] == "mlp":
         dataset = MLPDataset(x_train=x_inst, P=p_probs, y=y_labels)
         l_weights, loss = get_optim_lambda_mlp(
