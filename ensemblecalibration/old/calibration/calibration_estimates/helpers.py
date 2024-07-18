@@ -1,6 +1,8 @@
+import sys
+sys.path.append("../")
 import numpy as np
 
-from ensemblecalibration.calibration.calibration_estimates.distances import tv_distance
+from calibration_estimates.distances import tv_distance
 
 
 def calculate_pbar(

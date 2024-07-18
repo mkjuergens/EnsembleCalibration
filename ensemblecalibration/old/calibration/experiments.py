@@ -1,10 +1,12 @@
+import sys
+sys.path.append("../")
 from typing import Optional
 import numpy as np
 from scipy.stats import multinomial
 
-from ensemblecalibration.calibration.iscalibrated import is_calibrated
-from ensemblecalibration.calibration.calibration_estimates.helpers import calculate_pbar
-from ensemblecalibration.sampling import multinomial_label_sampling
+from iscalibrated import is_calibrated
+from calibration_estimates.helpers import calculate_pbar
+#from sampling import multinomial_label_sampling
 
 
 def get_ens_alpha(K: int, u: float, a0: np.ndarray):
@@ -376,13 +378,15 @@ def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
             c = np.argmax(mu)
         else:
             c = np.random.randint(0, K, 1)[0]
+        # get corner of the simplex (as one-hot encoded vector of the respective class)
         yc = np.eye(K)[c, :]
         # get boundary
         if M == 1:
             yb = mu
         else:
+            # get boundary vector closest to the corner
             yb = getBoundary(Pm, mu, yc)
-        # get random convex combination
+        # sample from connecting line between yc and yb
         l = np.random.rand(1)[0]
         l = l * yc + (1 - l) * yb
         # sample instance
@@ -397,6 +401,29 @@ def experiment_h1(N: int, M: int, K: int, u: float, random: bool = False):
 
     return P, y
 
+
+def multinomial_label_sampling(probs: np.ndarray):
+    """draws a sample y from the categorical distribution
+    defined by a probaibility vector.
+
+    Parameters
+    ----------
+    probs : np.ndarray
+        probability vector that sums up to one
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    try:
+        draws = multinomial(1, probs).rvs(size=1)[0, :]
+        y = np.argmax(draws)
+
+    except ValueError as e:
+        y = np.argmax(probs)
+
+    return y
 
 if __name__ == "__main__":
     P, y = experiment_h0_feature_dependency(100, 10, 3, 0.01)

@@ -31,7 +31,7 @@ def _get_config(optim: str, exp_name: str):
         raise ValueError("Unknown optimization method.")
 
 
-def _simulation_h0_binary(
+def _simulation_h0(
     dict_tests, n_resamples: int, alpha: list, x_dep: bool = True
 ):
     results = {}
@@ -57,7 +57,7 @@ def _simulation_h0_binary(
     return results
 
 
-def _simulation_h1_binary(
+def _simulation_h1(
     dict_tests,
     n_resamples: int,
     alpha: list,
@@ -106,6 +106,40 @@ def main_t1_t2(args):
     exp_name = config[list(config.keys())[0]]["experiment"]
     experiment = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     save_dir = f"{results_dir}/{exp_name}/" + f"{experiment}"
+
+    print("Start H0 simulation...")
+    # first no x-dependecy
+    print("no x-dependency..")
+    res_h0_no_x_dep = _simulation_h0(
+        dict_tests=config, n_resamples=n_resamples, x_dep=False, alpha=alpha
+    )
+    res = []
+    for r in res_h0_no_x_dep:
+        res.append(list(res_h0_no_x_dep[r]))
+    results.append(res)
+    # then with x-dependency
+    print("x-dependency..")
+    res_h0_x_dep = _simulation_h0(
+        dict_tests=config, n_resamples=n_resamples, x_dep=True, alpha=alpha
+    )
+    res = []
+    for r in res_h0_x_dep:
+        res.append(list(res_h0_x_dep[r]))
+    results.append(res)
+
+    print("Start H1 simulation...")
+    for setting in range(1, args.n_settings + 1):
+        res_h1_s1 = _simulation_h1(
+            dict_tests=config,
+            n_resamples=n_resamples,
+            alpha=alpha,
+            setting=setting,
+        )
+        res = []
+        for r in res_h1_s1:
+            res.append(list(res_h1_s1[r]))
+        results.append(res)
+
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -117,39 +151,6 @@ def main_t1_t2(args):
     save_dir_config = os.path.join(save_dir, "config.pkl")
     with open(save_dir_config, "wb") as f:
         pickle.dump(config, f)
-
-    print("Start H0 simulation...")
-    # first no x-dependecy
-    print("no x-dependency..")
-    res_h0_no_x_dep = _simulation_h0_binary(
-        dict_tests=config, n_resamples=n_resamples, x_dep=False, alpha=alpha
-    )
-    res = []
-    for r in res_h0_no_x_dep:
-        res.append(list(res_h0_no_x_dep[r]))
-    results.append(res)
-    # then with x-dependency
-    print("x-dependency..")
-    res_h0_x_dep = _simulation_h0_binary(
-        dict_tests=config, n_resamples=n_resamples, x_dep=True, alpha=alpha
-    )
-    res = []
-    for r in res_h0_x_dep:
-        res.append(list(res_h0_x_dep[r]))
-    results.append(res)
-
-    print("Start H1 simulation...")
-    for setting in range(1, args.n_settings + 1):
-        res_h1_s1 = _simulation_h1_binary(
-            dict_tests=config,
-            n_resamples=n_resamples,
-            alpha=alpha,
-            setting=setting,
-        )
-        res = []
-        for r in res_h1_s1:
-            res.append(list(res_h1_s1[r]))
-        results.append(res)
 
 
     # res_h1_s1 = _simulation_h1_binary(
