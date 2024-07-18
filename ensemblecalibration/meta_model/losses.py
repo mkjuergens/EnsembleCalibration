@@ -190,6 +190,21 @@ class FocalLoss(nn.Module):
         )
         return loss
 
+# Brier score
+class BrierLoss(nn.Module):
+    def __init__(self, ) -> None:
+        super().__init__()
+
+    def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
+
+        p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
+        # one-hot encoding of labels
+        y_onehot = torch.eye(p_bar.shape[1])[y, :]
+        # calculate brier score
+        brier = torch.mean(torch.sum((p_bar - y_onehot) ** 2, dim=1))
+
+        return brier
+
 
 if __name__ == "__main__":
     loss = SKCELoss()
