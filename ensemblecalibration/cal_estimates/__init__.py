@@ -14,3 +14,4 @@ from ensemblecalibration.cal_estimates.mmd_kce import (
     mmd_kce_obj,
     mmd_kce_obj_lambda,
 )
+from ensemblecalibration.cal_estimates.brier import brier_obj, brier_obj_lambda
