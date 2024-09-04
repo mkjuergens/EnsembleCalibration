@@ -18,7 +18,8 @@ def exp_dirichlet(
     x_dep: bool = True,
     uc: float = 0.5,
     setting: int = 1,
-    deg: int = 2,
+    deg_pol: int = 2,
+    deg_h1: float = None,
 ):
     """generates sytnhetic data for the multiclass case, where the predictions are sampled from
     a Dirichlet distribution. The weights of the convex combination are sampled from a Dirichlet
@@ -42,8 +43,10 @@ def exp_dirichlet(
         uncertainty budget, by default 0.5
     setting: int, optional
         setting in the case h1==True, by default 1. Options: {1, 2}.
-    deg : int, optional
+    deg_pol : int, optional
         degree of the polynomial function used to sample the weights, by default 2
+    deg_h1 : float, optional
+        degree of distance from the polytope in case h1==True, by default None
 
     Returns
     -------
@@ -65,7 +68,7 @@ def exp_dirichlet(
     )
     if h0:
         # sample weights
-        weights_l = sample_weights_h0(x_inst, n_members, x_dep=x_dep, deg=deg)
+        weights_l = sample_weights_h0(x_inst, n_members, x_dep=x_dep, deg=deg_pol)
         p_bar = calculate_pbar(weights_l, p_preds)
 
         y_labels = torch.stack(
@@ -81,6 +84,7 @@ def exp_dirichlet(
             p_preds=p_preds,
             dir_params=dir_params,
             setting=setting,
+            deg_h1=deg_h1
         )
     x_inst = x_inst.view(-1, 1)
     return (
@@ -165,7 +169,8 @@ def sample_p_bar_h1(
     x_inst: torch.tensor,
     p_preds: torch.tensor,
     dir_params: torch.tensor,
-    setting: int = 1,
+    deg_h1: float = None,
+    setting: int = None,
 ):
     """generates data for the Dirichlet synthetic experiment for the case when the null hypothesis is false,
     i.e. the calibrated prediction lies outside the polytope spanned by the predictors.
@@ -174,23 +179,48 @@ def sample_p_bar_h1(
     ----------
     x_inst : torch.tensor
         instance values
-    n_ens : int
-        number of ensemble members
-    n_classes : int
-        number of classes
-    uncertainty : float, optional
-        "uncertainty buidget"", by default 0.5
+    p_preds : torch.tensor
+        probabilistic predictions of the ensemble members
+    dir_params : torch.tensor
+        parameters of the Dirichlet distribution from which the predictions are sampled
+    deg_h1: float,
+        degree of distance from the polytope. Has to be in [0,1] or None.
+        If None, setting has to be provided.
+
     setting : bool, optional
         setting for the experiment, by default 1
         Setting 1:
         Setting 2:
-        TODO: add more fine-grained description, and settings
 
     Returns
     -------
     p_preds, p_bar, y_labels
         ensemble predictons, calibrated predictions, labels
     """
+    if setting is not None:
+
+        p_bar, y_labels = sample_p_bar_h1_fixed(
+            x_inst=x_inst, p_preds=p_preds, dir_params=dir_params, setting=setting
+        )
+
+    elif deg_h1 is not None:
+        # sample p_bar and y_labels at a certain degree of distance from the polytope
+        p_bar, y_labels = sample_p_bar_h1_deg(
+            x_inst=x_inst, p_preds=p_preds, dir_params=dir_params, deg=deg_h1
+        )
+
+    else:
+        raise NotImplementedError(
+            "Please provide a setting or a degree for the experiment"
+        )
+
+    return p_bar, y_labels
+
+
+def sample_p_bar_h1_fixed(
+    x_inst: torch.tensor, p_preds: torch.tensor, dir_params: torch.tensor, setting: int
+):
+
     n_ens = p_preds.shape[1]
     n_classes = p_preds.shape[2]
     y_labels, p_bar = [], []
@@ -213,8 +243,6 @@ def sample_p_bar_h1(
             )
         # get corner of the simplex (as one-hot encoded vector of the respective class)
         p_c = torch.eye(n_classes)[c, :]
-        assert preds_n.shape == (n_ens, n_classes)
-        assert p_mean.shape == (n_classes,)
         p_b = get_boundary(preds_n, p_mean, p_c)
         # sample from connecting line between p_c and p_b
         l = torch.rand(1)[0]
@@ -225,7 +253,43 @@ def sample_p_bar_h1(
             y_l = torch.argmax(p_l)
         y_labels.append(y_l)
         p_bar.append(p_l)
-    # p_preds = torch.stack(p_preds)
+
+    y_labels = torch.stack(y_labels)
+    p_bar = torch.stack(p_bar)
+
+    return p_bar, y_labels
+
+
+def sample_p_bar_h1_deg(
+    x_inst: torch.tensor, p_preds: torch.tensor, dir_params: torch.tensor, deg: float
+):
+    n_ens = p_preds.shape[1]
+    n_classes = p_preds.shape[2]
+    y_labels, p_bar = [], []
+    for n in range(x_inst.shape[0]):
+        # get center of underlying Dirichlet distribution (mean)
+        p_mean = torch.distributions.Dirichlet(dir_params[n]).mean
+        preds_n = p_preds[n, :, :]
+        # sample predictions from Dirichlet distribution for each ensemble member
+        # preds_n = torch.distributions.Dirichlet(p_mean).sample((n_ens,))
+        # p_preds.append(preds_n)
+        # sample random class
+        c = torch.randint(0, n_classes, (1,)).item()
+        #c = torch.argmax(p_mean).item()
+
+        # get corner of the simplex (as one-hot encoded vector of the respective class)
+        p_c = torch.eye(n_classes)[c, :]
+
+        p_b = get_boundary(preds_n, p_mean, p_c)
+        # calculate p_l, i.e. the prediction that is deg distance from the polytope
+        p_l = deg * p_c + (1 - deg) * p_b
+        try:
+            y_l = torch.multinomial(p_l, 1)[0]
+        except ValueError as e:
+            y_l = torch.argmax(p_l)
+        y_labels.append(y_l)
+        p_bar.append(p_l)
+    
     y_labels = torch.stack(y_labels)
     p_bar = torch.stack(p_bar)
 

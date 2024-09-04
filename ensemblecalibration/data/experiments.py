@@ -10,7 +10,9 @@ def get_experiment(
     config: dict,
     h0: bool = True,
     x_dep: bool = True,
-    setting: int = 1,
+    deg_pol: int = 2,
+    setting: int = None,
+    deg_h1: float = None,
     batch_size: Optional[int] = None,
     **kwargs
 ):
@@ -22,9 +24,15 @@ def get_experiment(
         configuration for the experiment
     h0 : bool, optional
         whether the null hypothesis is true, by default True
-    s_1 : bool, optional
-        whether the GP sample is close to the boundary of the probability simplex (in case the
-        null hypothesis is false), by default False
+    x_dep : bool, optional
+        whether in case h0==True, the convex combination is a non-constant function in the
+        instance space, by default True
+    deg_pol : int, optional
+        degree of the polynomial function used to sample the weights, by default 2
+    setting : int, optional
+        setting in the case h1==True, by default None
+    deg_h1 : float, optional
+        degree of distance from the polytope in case h1==True, by default None
     **kwargs : dict
         additional keyword arguments (e.g. for the kernel used in the GP)
 
@@ -55,7 +63,9 @@ def get_experiment(
             x_bound=config["params"]["x_bound"],
             x_dep=x_dep,
             h0=h0,
-            setting=setting
+            setting=setting,
+            deg_pol=config["params"]["deg"],
+            deg_h1=deg_h1,
         )
     else:
         raise ValueError("Experiment not implemented")

@@ -1,4 +1,5 @@
 import torch
+import re
 import numpy as np
 from scipy.stats import multinomial
 
@@ -147,3 +148,22 @@ def ab_scale(x: np.ndarray, a: float, b: float):
         Scaled array.
     """
     return ((b - a) * ((x - np.min(x)) / (np.max(x) - np.min(x)))) + a
+
+
+def clean_and_convert(s):
+    # Extract numbers using regular expression
+    numbers = re.findall(r"np\.float64\((.*?)\)", s)
+    # Convert to list of floats
+    return [float(num) for num in numbers]
+
+
+def process_df(df):
+
+    # apply clean and convert to all columns
+    for col in df.columns:
+        try:
+            df[col] = df[col].apply(clean_and_convert)
+        except:
+            pass
+
+    return df

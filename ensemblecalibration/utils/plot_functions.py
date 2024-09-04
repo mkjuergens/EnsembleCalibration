@@ -10,12 +10,12 @@ from scipy.spatial import ConvexHull
 
 
 from ensemblecalibration.utils.projections import project_points2D
+from ensemblecalibration.utils.helpers import process_df
 
 
 def plot_error_analysis(
     df: pd.DataFrame,
     list_errors: list,
-    #plot_ha: bool = False,
     figsize: tuple = (8, 12),
     title: Optional[str] = None,
     list_col_titles: list = ["S_0", "S_1", "S_2", "S_3"],
@@ -27,27 +27,18 @@ def plot_error_analysis(
         alphas = np.array(
             [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
         )
-    # if not plot_ha:
-    #     fig, ax = plt.subplots(len(list_errors), 1, figsize=figsize)
-    #     for j in range(len(list_errors)):
-    #         ax[j].plot(alphas, results[j])
-    #         ax[j].plot(alphas, alphas, "--")
-    #         ax[j].set_title(f"{list_errors[j]}", fontsize=15)
-    #         ax[j].set_xlabel(r"$\alpha$")
-    #         # y label closer to plot
-    #         ax[j].yaxis.set_label_coords(-0.1, 0.5)
-    #         ax[j].set_ylabel(r"Type $1$ error", fontsize=14)
-    #         ax[j].grid()
-    # else:
-    #     pass
     fig, ax = plt.subplots(
         len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True
     )
+    # process the dataframe if needed
+    df = process_df(df)
     if len(list_errors) > 1:
         for i in range(len(list_errors)):
             ax[i, 0].set_ylabel(f"{list_errors[i]}", fontsize=15)
+            # set y lim to (0,1)
+            ax[i, 0].set_ylim(0, 1)
             for j in range(len(df)):
-                ax[i, j].plot(alphas, literal_eval(df[list_errors[i]].iloc[j]))
+                ax[i, j].plot(alphas, df[list_errors[i]].iloc[j])
                 if scatter_line:
                     ax[i, j].plot(alphas, alphas, "--")
                 # ax[i, j].spines[["right", "top"]].set_visible(False)

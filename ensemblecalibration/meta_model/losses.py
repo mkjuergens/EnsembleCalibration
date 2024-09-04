@@ -18,7 +18,7 @@ class CalibrationLossBinary(nn.Module):
     def __init__(self, lambda_cal: float = 1.0):
         super().__init__()
         self.lambda_cal = lambda_cal
-        self.bce_loss = BCELoss()
+        self.bce_loss = BCELoss() # TODO: add one hot encoded y
 
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
@@ -137,6 +137,7 @@ class LpLoss(CalibrationLossBinary):
         assert (
             np.isnan(p_bar.detach()).sum() == 0
         ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
+        # check that all y's lie in {0,1}
         lp_er = get_ece_kde(p_bar[:, 1].view(-1,1), y, bw, self.p)
 
         if self.lambda_bce > 0:

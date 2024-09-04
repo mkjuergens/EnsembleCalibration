@@ -48,7 +48,9 @@ def calculate_min(
             patience=params["patience"],
         )
     elif params["optim"] == "COBYLA":
-        l_weights = minimize_const_weights(p_probs, y_labels, params)
+        l_weights = minimize_const_weights(p_probs, y_labels, params, method="COBYLA")
+    elif params["optim"] == "SLSQP":
+        l_weights = minimize_const_weights(p_probs, y_labels, params, method="SLSQP")
     else:
         raise NotImplementedError("Only 'mlp' and 'COBYLA' are implemented.")
     p_bar = calculate_pbar(l_weights, p_probs, reshape=False, n_dims=n_dims)
@@ -58,7 +60,8 @@ def calculate_min(
     return minstat, l_weights
 
 def minimize_const_weights(
-    p_probs: np.ndarray, y: np.ndarray, params: dict, enhanced_output: bool = False
+    p_probs: np.ndarray, y: np.ndarray, params: dict, enhanced_output: bool = False,
+    method: str = "COBYLA"
 ):
     """returns the vector of weights which results in a convex combination of predictors with 
         the minimal calibration error.
@@ -72,6 +75,10 @@ def minimize_const_weights(
         labels
     params : dict
         dictionary of test parameters
+    enhanced_output : bool, optional
+        whether to return the minimal statistic, by default False
+    method : str, optional
+        optimization method, by default "COBYLA". Options: {"COBYLA", "SLSQP"}
     """
 
     # inittial guess: equal weights
