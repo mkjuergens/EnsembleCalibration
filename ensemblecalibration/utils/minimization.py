@@ -52,7 +52,7 @@ def calculate_min(
     elif params["optim"] == "SLSQP":
         l_weights = minimize_const_weights(p_probs, y_labels, params, method="SLSQP")
     else:
-        raise NotImplementedError("Only 'mlp' and 'COBYLA' are implemented.")
+        raise NotImplementedError("Only 'mlp', 'COBYLA' and 'SLSQP' are implemented.")
     p_bar = calculate_pbar(l_weights, p_probs, reshape=False, n_dims=n_dims)
     # calculate test statistic
     minstat = params["obj"](p_bar, y_labels, params)

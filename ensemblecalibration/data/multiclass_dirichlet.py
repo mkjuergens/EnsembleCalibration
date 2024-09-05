@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import torch
 
@@ -116,7 +118,7 @@ def sample_weights_h0(
 
 
 def sample_dir_params(
-    x_inst: torch.tensor, dir_prior: torch.tensor, uncertainty: float = 0.5
+    x_inst: torch.tensor, dir_prior: torch.tensor, uncertainty: Union[float, callable]
 ):
     """samples parameters of the Dirichlet distribution per instance based on a given prior
     and uncertainty level
@@ -127,14 +129,17 @@ def sample_dir_params(
         tensor of instance values
     dir_prior : torch.tensor
         tensor of shape (n_classes,) containing the prior
-    uncertainty : float, optional
-        uncertainty level (the higher, the less certain), by default 0.5
+    uncertainty : function
+        uncertainty level (the higher, the less certain), defined as a function on the instance space
 
     Returns
     -------
     torch.tensor of shape (n_samples, n_classes)
         tensor of parameters for the Dirichlet distribution from which to sample
     """
+    # evaluate function on x_inst if it is a function
+    if callable(uncertainty):
+        uncertainty = uncertainty(x_inst)
     params_m = np.zeros((x_inst.shape[0], dir_prior.shape[0]))
     for c in range(dir_prior.shape[0]):
         params_m[:, c] = (dir_prior[c] * dir_prior.shape[0]) / uncertainty
@@ -143,15 +148,15 @@ def sample_dir_params(
 
 
 def sample_ensemble_preds(
-    x_inst: torch.tensor, n_ens: int, n_classes: int, uncertainty: float = 0.5
-):
+    x_inst: torch.tensor, n_ens: int, n_classes: int, uncertainty: Union[float, callable]):
     p_preds = torch.zeros((x_inst.shape[0], n_ens, n_classes))
     # sample (same) prior for all ensemble members
     dir_prior = torch.distributions.Dirichlet(
-        torch.ones(n_classes) / (int(n_classes / 2))
+        torch.ones(n_classes) / (int(n_classes/2))
     ).sample()
     dir_params = sample_dir_params(x_inst, dir_prior=dir_prior, uncertainty=uncertainty)
 
+    # note: this has to be changed! now we sample the predictions 
     p_preds = (
         torch.distributions.Dirichlet(dir_params)
         .sample((n_ens,))

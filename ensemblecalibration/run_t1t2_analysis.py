@@ -8,11 +8,7 @@ import argparse
 import datetime
 
 from ensemblecalibration.config.config_cal_test import (
-    create_config,
-    config_binary_classification_mlp,
-    config_binary_classification_cobyla,
-    config_dirichlet_mlp,
-    config_dirichlet_cobyla,
+    create_config
 )
 from ensemblecalibration.data.experiments import get_experiment
 from ensemblecalibration.cal_test import npbe_test_ensemble
@@ -40,20 +36,20 @@ def _get_config_from_parser(args: dict):
     return config
 
 
-def _get_config(optim: str, exp_name: str):
+# def _get_config(optim: str, exp_name: str):
 
-    if optim == "mlp":
-        if exp_name == "dirichlet":
-            return config_dirichlet_mlp
-        elif exp_name == "gp":
-            return config_binary_classification_mlp
-    elif optim == "cobyla":
-        if exp_name == "dirichlet":
-            return config_dirichlet_cobyla
-        elif exp_name == "gp":
-            return config_binary_classification_cobyla
-    else:
-        raise ValueError("Unknown optimization method.")
+#     if optim == "mlp":
+#         if exp_name == "dirichlet":
+#             return config_dirichlet_mlp
+#         elif exp_name == "gp":
+#             return config_binary_classification_mlp
+#     elif optim == "cobyla":
+#         if exp_name == "dirichlet":
+#             return config_dirichlet_cobyla
+#         elif exp_name == "gp":
+#             return config_binary_classification_cobyla
+#     else:
+#         raise ValueError("Unknown optimization method.")
 
 
 def _simulation_h0(dict_tests, n_resamples: int, alpha: list, x_dep: bool = True):
