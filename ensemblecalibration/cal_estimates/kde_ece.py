@@ -10,6 +10,32 @@ from torch import nn
 
 from ensemblecalibration.utils.helpers import calculate_pbar
 
+"""
+own code
+"""
+
+def get_bandwidth(f):
+    """
+    Select a bandwidth for the kernel based on maximizing the leave-one-out likelihood (LOO MLE).
+
+    :param f: The vector containing the probability scores, shape [num_samples, num_classes]
+    :param device: The device type: 'cpu' or 'cuda'
+
+    :return: The bandwidth of the kernel
+    """
+    bandwidths = torch.cat((torch.logspace(start=-5, end=-1, steps=15), torch.linspace(0.2, 1, steps=5)))
+    max_b = -1
+    max_l = 0
+    n = len(f)
+    for b in bandwidths:
+        log_kern = get_kernel(f, b)
+        log_fhat = torch.logsumexp(log_kern, 1) - torch.log(torch.tensor(n-1))
+        l = torch.sum(log_fhat)
+        if l > max_l:
+            max_l = l
+            max_b = b
+
+    return max_b
 
 def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
 
@@ -21,7 +47,7 @@ def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
     bw = params["bw"]
     p = params["p"]
 
-    return get_ece_kde(p_bar[:, 1].view(-1, 1), y, bw, p)  # TODO: check dimensions
+    return get_ece_kde(p_bar, y, bw, p)  # TODO: check dimensions
 
 def ece_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
     if x_dep:
@@ -34,6 +60,9 @@ def ece_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False
         obj = obj.numpy()
     return obj
 
+"""
+Popordanoska et al. (2022) code
+"""
 
 def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
     """calculate estimate of the Lp calibration error.
@@ -52,12 +81,12 @@ def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
     torch.tensor
         estimate of the Lp calibration error
     """
-
+    check_input(p_bar, bw)
     # check if input is binary
     if p_bar.shape[1] == 1:
-        return 2 * get_ratio_binary(p_bar, y, p, bw)
+        return 2 * get_ratio_binary(p_bar, y, bw, p)
     else:
-        return get_ratio_canonical(p_bar, y, p, bw)
+        return get_ratio_canonical(f=p_bar, y=y, bandwidth=bw, p=p)
 
 
 def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float):
@@ -158,8 +187,9 @@ def beta_kernel(z, zi, bandwidth=0.1):
 
 
 def dirichlet_kernel(z, bandwidth=0.1):
+    # add small value to avoid log of 0
+    z = torch.clamp(z, min=1e-10, max=1.0 - 1e-10)
     alphas = z / bandwidth + 1
-
     log_beta = torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
         torch.sum(alphas, dim=1)
     )
@@ -167,3 +197,14 @@ def dirichlet_kernel(z, bandwidth=0.1):
     log_dir_pdf = log_num - log_beta
 
     return log_dir_pdf
+
+
+def check_input(f, bandwidth,):
+    assert not isnan(f)
+    assert len(f.shape) == 2
+    assert bandwidth > 0
+    assert torch.min(f) >= 0
+    assert torch.max(f) <= 1
+
+def isnan(a):
+    return torch.any(torch.isnan(a))
