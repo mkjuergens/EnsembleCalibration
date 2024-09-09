@@ -32,9 +32,9 @@ def skce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
 def get_skce_ul(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0,
                  take_square: bool = True):
     skce_ul_stats = skce_ul_tensor(p_bar, y, dist_fct=dist_fct, bw=bw)
-    skce_ul = torch.mean(skce_ul_stats)
+    skce_ul = torch.mean(skce_ul_stats) # sum instead of mean ?
     if take_square:
-        skce_ul = torch.sqrt(skce_ul ** 2)
+        skce_ul = torch.sqrt(skce_ul ** 2) # take square root of the sum
     return skce_ul
 
 def get_skce_uq(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0):
@@ -162,9 +162,7 @@ def tensor_h_ij(
     gamma_ij = tensor_kernel(p_i, p_j, dist_fct=dist_fct, sigma=sigma).float()
     y_ii = (y_i - p_i).float()
     y_jj = (y_j - p_j).float()
-
-    h_ij = torch.matmul(y_ii, torch.matmul(gamma_ij, y_jj))
-
+    h_ij = torch.matmul(y_ii.T, torch.matmul(gamma_ij, y_jj))
     return h_ij
 
 
@@ -194,4 +192,4 @@ def tensor_kernel(
 
     assert len(p) == len(q), "vectors need to be of the same length"
     id_k = torch.eye(len(p))  # identity matrix
-    return torch.exp((-1 / sigma) * (dist_fct(p, q) ** 2) * id_k)
+    return torch.exp((-1 / sigma) * (dist_fct(p, q) ** 2))*id_k #BUGFIX!! id matrix should be multiplied by the exponential, not inside
