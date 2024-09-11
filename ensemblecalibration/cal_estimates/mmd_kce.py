@@ -42,7 +42,11 @@ def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False
 
 
 def mmd_kce(
-    p_bar: torch.Tensor, y: torch.tensor, kernel_fct=rbf_kernel, bw: float = 0.1
+    p_bar: torch.Tensor,
+    y: torch.tensor,
+    kernel_fct=rbf_kernel,
+    bw: float = 0.1,
+    take_square: bool = True,
 ):
     """calculates the kernel calibration error for the classification case using the maximum mean discrepancy.
 
@@ -57,6 +61,8 @@ def mmd_kce(
         kernel function to be used
     sigma : float
         bandwidth of the kernel
+    take_square : bool
+        whether to take the square of the kernel calibration error
 
     Returns
     -------
@@ -70,7 +76,7 @@ def mmd_kce(
     n_classes = p_bar.shape[1]
     y_all = torch.eye(n_classes).to(p_bar.device)
     k_yy = kernel_fct(y_all, y_all, bw)
-    q_yy = torch.einsum("ic,jd->ijcd", p_bar, p_bar)  
+    q_yy = torch.einsum("ic,jd->ijcd", p_bar, p_bar)
     total_yy = q_yy * k_yy.unsqueeze(0)
 
     k_yj = k_yy[:, y].T
@@ -92,6 +98,8 @@ def mmd_kce(
         - 2 * mean_no_diag(loss_mats[1])
         + mean_no_diag(loss_mats[2])
     )
+    if take_square:
+        kernel_out = torch.sqrt(kernel_out ** 2)
 
     return kernel_out
 

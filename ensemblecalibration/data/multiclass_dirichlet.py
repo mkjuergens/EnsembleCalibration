@@ -86,7 +86,7 @@ def exp_dirichlet(
             p_preds=p_preds,
             dir_params=dir_params,
             setting=setting,
-            deg_h1=deg_h1
+            deg_h1=deg_h1,
         )
     x_inst = x_inst.view(-1, 1)
     return (
@@ -117,6 +117,46 @@ def sample_weights_h0(
     return weights_l
 
 
+def sample_ensemble_preds(
+    x_inst: torch.tensor,
+    n_ens: int,
+    n_classes: int,
+    uncertainty: Union[float, callable],
+):
+    """samples probabilistic, instance dependent probabilistic predictions from a Dirichlet distribution
+    for each ensemble member
+
+    Parameters
+    ----------
+    x_inst : torch.tensor
+        tensor of instance values
+    n_ens : int
+        number of ensemble members
+    n_classes : int
+        number of classes
+    uncertainty : Union[float, callable]
+        uncertainty level (the higher, the less certain), defined as either
+          a constant or a function on the instance space
+
+    Returns
+    -------
+    torch.tensor, torch.tensor
+        probabilistic predictions, parameters of the underlying Dirichlet distribution
+    """
+    p_preds = torch.zeros((x_inst.shape[0], n_ens, n_classes))
+    # sample (same) prior for each instance from uniform Dirichlet distribution
+    dir_prior = torch.distributions.Dirichlet(torch.ones(n_classes)).sample(
+        (x_inst.shape[0],)
+    )  # sample new prior for each instance
+    dir_params = sample_dir_params(x_inst, dir_prior=dir_prior, uncertainty=uncertainty)
+
+    # sample predictions for each ensemble member
+    p_preds = (
+        torch.distributions.Dirichlet(dir_params).sample((n_ens,)).permute(1, 0, 2)
+    )
+    return p_preds, dir_params
+
+
 def sample_dir_params(
     x_inst: torch.tensor, dir_prior: torch.tensor, uncertainty: Union[float, callable]
 ):
@@ -139,35 +179,16 @@ def sample_dir_params(
     """
     # evaluate function on x_inst if it is a function
     if callable(uncertainty):
+        # if uncertainty is a function on the instance space, evaluate it
         uncertainty = uncertainty(x_inst)
-    params_m = np.zeros((x_inst.shape[0], dir_prior.shape[0]))
-    for c in range(dir_prior.shape[0]):
-        params_m[:, c] = (dir_prior[c] * dir_prior.shape[0]) / uncertainty
+    params_m = np.zeros((x_inst.shape[0], dir_prior.shape[1]))
+    params_m = (
+        dir_prior * dir_prior.shape[1] / uncertainty.repeat(dir_prior.shape[1], 1).T
+    )
+    # for c in range(dir_prior.shape[1]):
+    #     params_m[:, c] = (dir_prior[:, c] * dir_prior.shape[1]) / uncertainty
     params_m = torch.tensor(params_m)
     return params_m
-
-
-def sample_ensemble_preds(
-    x_inst: torch.tensor, n_ens: int, n_classes: int, uncertainty: Union[float, callable]):
-    p_preds = torch.zeros((x_inst.shape[0], n_ens, n_classes))
-    # sample (same) prior for all ensemble members
-    dir_prior = torch.distributions.Dirichlet(
-        torch.ones(n_classes) / (int(n_classes/2))
-    ).sample()
-    dir_params = sample_dir_params(x_inst, dir_prior=dir_prior, uncertainty=uncertainty)
-
-    # note: this has to be changed! now we sample the predictions 
-    p_preds = (
-        torch.distributions.Dirichlet(dir_params)
-        .sample((n_ens,))
-        .view(x_inst.shape[0], n_ens, n_classes)
-    )
-    # for i in range(n_ens):
-    #     # dir_params = sample_dir_params(
-    #     #     x_inst, dir_prior=dir_prior, uncertainty=uncertainty
-    #     # )
-    #     p_preds[:, i, :] = torch.distributions.Dirichlet(dir_params).sample()
-    return p_preds, dir_params
 
 
 def sample_p_bar_h1(
@@ -280,7 +301,7 @@ def sample_p_bar_h1_deg(
         # p_preds.append(preds_n)
         # sample random class
         c = torch.randint(0, n_classes, (1,)).item()
-        #c = torch.argmax(p_mean).item()
+        # c = torch.argmax(p_mean).item()
 
         # get corner of the simplex (as one-hot encoded vector of the respective class)
         p_c = torch.eye(n_classes)[c, :]
@@ -294,7 +315,7 @@ def sample_p_bar_h1_deg(
             y_l = torch.argmax(p_l)
         y_labels.append(y_l)
         p_bar.append(p_l)
-    
+
     y_labels = torch.stack(y_labels)
     p_bar = torch.stack(p_bar)
 

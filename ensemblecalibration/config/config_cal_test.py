@@ -36,7 +36,7 @@ def create_config(
     loss : CalibrationLossBinary, optional
         loss function for obtaining the optimal convex combination, by default LpLoss
     optim: str
-        optimization method, by default "mlp". Options: {"mlp", "COBYLA"}
+        optimization method, by default "mlp". Options: {"mlp", "COBYLA", "SLSQP"}
     n_samples : int, optional
         number of (training) samples, by default 1000
     n_resamples : int, optional
@@ -72,6 +72,31 @@ def create_config(
     #     loss = loss(bw=bw)
 
     config = {
+        "MMD": {
+            "experiment": exp_name,
+            "test": cal_test,
+            "params": {
+                "optim": optim,
+                "n_samples": n_samples,
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "obj": mmd_kce_obj,
+                "obj_lambda": mmd_kce_obj_lambda,
+                "bw": 0.001, # TODO: check this
+                "loss": MMDLoss(bw=0.001, lambda_bce=0.0), # changed!!
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "x_dep": x_dep,
+                "deg": deg,
+                "lambda_bce": 0.0, # TODO: check this
+                **kwargs
+        }
+        },
         "Brier": {
             "experiment": exp_name,
             "test": cal_test,
@@ -108,7 +133,7 @@ def create_config(
                 "n_members": n_members,
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
-                "bw": 0.002, # TODO: check this
+                "bw": 0.01, # TODO: check this
                 "loss": BrierLoss(), # changed
                 "n_epochs": n_epochs,
                 "lr": lr,
@@ -134,7 +159,7 @@ def create_config(
                 "n_members": n_members,
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
-                "bw": 0.05, # TODO: check this
+                "bw": 0.01, # TODO: check this
                 "loss": SKCELoss(bw=0.05, lambda_bce=0.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
@@ -149,29 +174,6 @@ def create_config(
             }
         }
     }
-
-    # config = {
-    #     "experiment": exp_name,
-    #     "test": cal_test,
-    #     "params": {
-    #         "optim": "mlp",
-    #         "n_samples": n_samples,
-    #         "n_resamples": n_resamples,
-    #         "obj": obj,
-    #         "bw": bw,
-    #         "loss": loss(bw=bw, lambda_bce=lambda_bce),
-    #         "n_epochs": n_epochs,
-    #         "lr": lr,
-    #         "batch_size": batch_size,
-    #         "patience": patience,
-    #         "hidden_layers": hidden_layers,
-    #         "hidden_dim": hidden_dim,
-    #         "x_dep": x_dep,
-    #         "deg": deg
-    #     },
-    # }
-    # for key, value in kwargs.items():
-    #     config["params"][key] = value
     return config
 
 """
