@@ -53,7 +53,7 @@ def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
         y = np.argmax(probs)
 
     if tensor:
-        y = torch.tensor(y, dtype=torch.long)
+        y = torch.tensor(y).long()
 
     return y
 

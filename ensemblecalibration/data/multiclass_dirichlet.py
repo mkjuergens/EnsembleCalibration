@@ -181,13 +181,16 @@ def sample_dir_params(
     if callable(uncertainty):
         # if uncertainty is a function on the instance space, evaluate it
         uncertainty = uncertainty(x_inst)
+    else:
+        # if uncertainty is a constant, repeat it for each instance
+        uncertainty = torch.tensor([uncertainty] * x_inst.shape[0])
     params_m = np.zeros((x_inst.shape[0], dir_prior.shape[1]))
     params_m = (
         dir_prior * dir_prior.shape[1] / uncertainty.repeat(dir_prior.shape[1], 1).T
     )
     # for c in range(dir_prior.shape[1]):
     #     params_m[:, c] = (dir_prior[:, c] * dir_prior.shape[1]) / uncertainty
-    params_m = torch.tensor(params_m)
+    # params_m = torch.tensor(params_m)
     return params_m
 
 

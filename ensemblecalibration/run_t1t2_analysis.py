@@ -7,9 +7,7 @@ import pandas as pd
 import argparse
 import datetime
 
-from ensemblecalibration.config.config_cal_test import (
-    create_config
-)
+from ensemblecalibration.config.config_cal_test import create_config
 from ensemblecalibration.data.experiments import get_experiment
 from ensemblecalibration.cal_test import npbe_test_ensemble
 
@@ -34,22 +32,6 @@ def _get_config_from_parser(args: dict):
         x_bound=args.x_bound,
     )
     return config
-
-
-# def _get_config(optim: str, exp_name: str):
-
-#     if optim == "mlp":
-#         if exp_name == "dirichlet":
-#             return config_dirichlet_mlp
-#         elif exp_name == "gp":
-#             return config_binary_classification_mlp
-#     elif optim == "cobyla":
-#         if exp_name == "dirichlet":
-#             return config_dirichlet_cobyla
-#         elif exp_name == "gp":
-#             return config_binary_classification_cobyla
-#     else:
-#         raise ValueError("Unknown optimization method.")
 
 
 def _simulation_h0(dict_tests, n_resamples: int, alpha: list, x_dep: bool = True):
@@ -147,7 +129,7 @@ def main_t1_t2(args):
 
     print("Start H1 simulation...")
     # for setting in range(1, args.n_settings + 1):
-    degs_h1 = [0.05, 0.25, 0.9]
+    degs_h1 = [0.01, 0.25, 0.9]
     for deg_h1 in degs_h1:
         res_h1_s1 = _simulation_h1(
             dict_tests=config,
@@ -215,16 +197,4 @@ if __name__ == "__main__":
     parser.add_argument("--results_dir", type=str, default="results")
     args = parser.parse_args()
 
-    # parser = argparse.ArgumentParser(
-    #     description="Experiments for type I and type II error in function of alpha"
-    # )
-    # # data args
-    # parser.add_argument("-R", dest="R", type=int, default=100)
-    # parser.add_argument("-optim", type=str, default="mlp")
-    # parser.add_argument("-exp", type=str, default="dirichlet")
-    # parser.add_argument("-prefix", type=str, default="results_binary_t1t2")
-    # parser.add_argument("-results_dir", type=str, default="results")
-    # parser.add_argument("-n_settings", type=int, default=2)
-    # # parser.add_argument("-x_dep", type=bool, default=True)
-    # args = parser.parse_args()
     main_t1_t2(args)

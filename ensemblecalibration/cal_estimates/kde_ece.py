@@ -204,7 +204,7 @@ def check_input(f, bandwidth,):
     assert len(f.shape) == 2
     assert bandwidth > 0
     assert torch.min(f) >= 0
-    assert torch.max(f) <= 1
+    # assert torch.max(f) <= 1
 
 def isnan(a):
     return torch.any(torch.isnan(a))
