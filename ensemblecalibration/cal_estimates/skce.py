@@ -185,11 +185,11 @@ def tensor_kernel(
     Returns
     -------
     torch.Tensor
-        _description_
+        matirx valued kernnel evaluated at 
     """
     p = p.squeeze()
     q = q.squeeze()
 
     assert len(p) == len(q), "vectors need to be of the same length"
     id_k = torch.eye(len(p))  # identity matrix
-    return torch.exp((-1 / sigma) * (dist_fct(p, q) ** 2))*id_k #BUGFIX!! id matrix should be multiplied by the exponential, not inside
+    return torch.exp((-1 / sigma) * (dist_fct(p, q) ** 2))*id_k 

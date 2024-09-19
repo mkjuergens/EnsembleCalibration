@@ -132,15 +132,32 @@ def get_ratio_canonical(f, y, bandwidth, p):
         return get_ratio_canonical_log(f, y, bandwidth, p)
 
     log_kern = get_kernel(f, bandwidth)
+    if isnan(log_kern):
+        print("log_kern is nan")
+        print(f"nan values in log_kern: {torch.sum(torch.isnan(log_kern))}")
     kern = torch.exp(log_kern)
-
+    kern = torch.clamp(kern, min=1e-20, max=1e35)
+    if isnan(kern):
+        print(f"nan values in kern: {torch.sum(torch.isnan(kern))}")
     y_onehot = nn.functional.one_hot(y, num_classes=f.shape[1]).to(torch.float32)
     kern_y = torch.matmul(kern, y_onehot)
+    # check if kern_y is nan
+    if isnan(kern_y):
+        #check how many nan values are in kern_y
+        print(f"nan values in kern_y: {torch.sum(torch.isnan(kern_y))}")
     den = torch.sum(kern, dim=1)
     # to avoid division by 0
-    den = torch.clamp(den, min=1e-10)
+    #den = torch.clamp(den, min=1e-15, max=1e20)
+    # check if den is nan
+    if isnan(den):
+        #check how many nan values are in den
+        print(f"nan values in den: {torch.sum(torch.isnan(den))}")
+    #kern_y = torch.clamp(kern_y, min=1e-10, max=1e10)
 
     ratio = kern_y / den.unsqueeze(-1)
+    # check if ratio is nan
+    if isnan(ratio):
+        print("ratio is nan")
     ratio = torch.sum(torch.abs(ratio - f) ** p, dim=1)
 
     return torch.mean(ratio)
@@ -190,8 +207,8 @@ def dirichlet_kernel(z, bandwidth=0.1):
     # add small value to avoid log of 0
     z = torch.clamp(z, min=1e-10, max=1.0 - 1e-10)
     alphas = z / bandwidth + 1
-    log_beta = torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
-        torch.sum(alphas, dim=1)
+    log_beta = (torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
+        torch.sum(alphas, dim=1))
     )
     log_num = torch.matmul(torch.log(z), (alphas - 1).T)
     log_dir_pdf = log_num - log_beta
@@ -204,7 +221,7 @@ def check_input(f, bandwidth,):
     assert len(f.shape) == 2
     assert bandwidth > 0
     assert torch.min(f) >= 0
-    # assert torch.max(f) <= 1
+    assert torch.max(f) <= 1
 
 def isnan(a):
     return torch.any(torch.isnan(a))
