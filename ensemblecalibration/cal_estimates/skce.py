@@ -17,6 +17,7 @@ def skce_obj(p_bar: torch.Tensor, y: torch.Tensor, params: dict):
 
     return get_skce_ul(p_bar, y, dist_fct=tv_distance, bw=bw)
 
+
 def skce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
     if x_dep:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
@@ -27,22 +28,69 @@ def skce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
     if isinstance(obj, torch.Tensor):
         obj = obj.numpy()
     return obj
-    
 
-def get_skce_ul(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0,
-                 take_square: bool = True):
+
+def get_skce_ul(
+    p_bar: torch.Tensor,
+    y: torch.Tensor,
+    dist_fct=tv_distance,
+    bw: float = 2.0,
+    take_square: bool = True,
+):
     skce_ul_stats = skce_ul_tensor(p_bar, y, dist_fct=dist_fct, bw=bw)
-    skce_ul = torch.mean(skce_ul_stats) # sum instead of mean ?
+    # replace each entry with its L2 norm
+    skce_ul_stats = torch.norm(skce_ul_stats, p=2, dim=0)
+
+    skce_ul = torch.mean(skce_ul_stats)  # sum instead of mean ?
     if take_square:
-        skce_ul = torch.sqrt(skce_ul ** 2) # take square root of the sum
+        skce_ul = torch.sqrt(skce_ul**2)  # take square root of the sum
     return skce_ul
 
-def get_skce_uq(p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0):
+
+def skce_ul_tensor(p_bar, y, dist_fct=tv_distance, bw=2.0):
+    n = int(p_bar.shape[0] / 2)
+    # One-hot encode labels
+    yoh = torch.nn.functional.one_hot(y, num_classes=p_bar.shape[1]).float()
+    # put it on the same device as p_bar
+    yoh = yoh.to(p_bar.device)
+
+    # Extract even and odd indices for p_i and p_j
+    p_i = p_bar[0::2]
+    p_j = p_bar[1::2]
+    y_i = yoh[0::2]
+    y_j = yoh[1::2]
+
+    # Compute distances between p_i and p_j
+    dist = dist_fct(p_i, p_j)  # Shape: (n,)
+
+    # Compute gamma
+    gamma = torch.exp(-(dist**2) / bw)  # Shape: (n,)
+
+    # Compute differences y_i - p_i and y_j - p_j
+    y_diff_i = y_i - p_i  # Shape: (n, n_classes)
+    y_diff_j = y_j - p_j  # Shape: (n, n_classes)
+
+    # Compute dot products between corresponding rows
+    dot_products = torch.sum(y_diff_i * y_diff_j, dim=1)  # Shape: (n,)
+
+    # Compute h_ij
+    h_ij = gamma * dot_products  # Shape: (n,)
+
+    return h_ij
+
+
+# OLD CODE
+
+
+def get_skce_uq(
+    p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, sigma: float = 2.0
+):
     skce_uq_stats = skce_uq_tensor(p_bar, y, dist_fct=dist_fct, bw=sigma)
     skce_uq = torch.mean(skce_uq_stats)
     return skce_uq
 
-def skce_ul_tensor(
+
+def skce_ul_tensor_old(
     p_bar: torch.Tensor, y: torch.Tensor, dist_fct=tv_distance, bw: float = 2.0
 ):
     """calculates the skce_ul calibration error used as a test statistic in Mortier et  al, 2022.
@@ -185,11 +233,12 @@ def tensor_kernel(
     Returns
     -------
     torch.Tensor
-        matirx valued kernnel evaluated at 
+        matirx valued kernnel evaluated at
     """
     p = p.squeeze()
     q = q.squeeze()
 
     assert len(p) == len(q), "vectors need to be of the same length"
-    id_k = torch.eye(len(p))  # identity matrix
-    return torch.exp((-1 / sigma) * (dist_fct(p, q) ** 2))*id_k 
+    # put it to device
+    id_k = torch.eye(len(p)).to(p.device)
+    return torch.exp((-1 / sigma) * (dist_fct(p, q) ** 2)) * id_k
