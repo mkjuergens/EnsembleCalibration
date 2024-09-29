@@ -16,8 +16,10 @@ def tv_distance(p_1: torch.Tensor, p_2: torch.Tensor):
     float
         variation distance
     """
+    # check dimensions: if two dimensional, take the first dimension
 
-    return 0.5*torch.sum(torch.abs(p_1-p_2))
+
+    return 0.5*torch.sum(torch.abs(p_1-p_2), dim=-1)
 
 def l2_distance(p_1: torch.Tensor, p_2: torch.Tensor):
     """L" distance between two point predictions given as torch.Tensors.
@@ -35,4 +37,4 @@ def l2_distance(p_1: torch.Tensor, p_2: torch.Tensor):
         distance
     """
 
-    return torch.sqrt(torch.sum((p_1 - p_2)**2))
+    return torch.norm(p_1-p_2, dim=-1)
