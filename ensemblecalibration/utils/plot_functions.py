@@ -19,7 +19,7 @@ def plot_error_analysis(
     figsize: tuple = (8, 12),
     title: Optional[str] = None,
     list_col_titles: list = ["S_0", "S_1", "S_2", "S_3"],
-    scatter_line: bool = True,
+    type_1: bool = True,
 ):
     if "alpha" in df:
         alphas = df["alpha"].values
@@ -38,27 +38,43 @@ def plot_error_analysis(
             # set y lim to (0,1)
             ax[i, 0].set_ylim(0, 1)
             for j in range(len(df)):
-                ax[i, j].plot(alphas, df[list_errors[i]].iloc[j])
-                if scatter_line:
-                    ax[i, j].plot(alphas, alphas, "--")
+                # plot thick lines, with crosses where the data points are
+                label = (
+                    r"$\frac{\#(H_1)}{\#(H_1) + \#(H_0)}$"
+                    if type_1
+                    else r"$\frac{\#(H_0)}{\#(H_1) + \#(H_0)}$"
+                )
+                ax[i, j].plot(
+                    alphas,
+                    df[list_errors[i]].iloc[j],
+                    linewidth=3,
+                    marker="x",
+                    markersize=10,
+                    color="black",
+                    label=label,
+                )
+                if type_1:
+                    ax[i, j].plot(alphas, alphas, "--", color="black", alpha=0.5)
                 # ax[i, j].spines[["right", "top"]].set_visible(False)
                 ax[i, j].grid()
 
         for i, col_title in enumerate(list_col_titles):
             ax[0, i].set_title(col_title, fontsize=15)
+        ax[0,0].legend(fontsize=15)
     else:
         ax[0].set_ylabel(f"{list_errors[0]}")
         for j in range(len(df)):
             ax[j].plot(alphas, literal_eval(df[list_errors[0]].iloc[j]))
             if j == 0:
+                # plot lines with crosses (data points)
                 ax[j].plot(alphas, alphas, "--")
             ax[j].spines[["right", "top"]].set_visible(False)
             ax[j].grid()
-    fig.supxlabel(r"$\alpha$", fontsize=15)
-    #fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
+    fig.supxlabel(r"$\alpha$", fontsize=15, y=0.01)
+    # fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
     # plt.tight_layout()
     if title is not None:
-        plt.suptitle(title, fontsize=16, y=1.02)
+        plt.suptitle(title, fontsize=18, y=0.99)
     fig.subplots_adjust(hspace=0.1)
     return fig
 

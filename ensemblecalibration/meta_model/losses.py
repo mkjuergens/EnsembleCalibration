@@ -18,7 +18,7 @@ class CalibrationLossBinary(nn.Module):
     def __init__(self, lambda_cal: float = 1.0):
         super().__init__()
         self.lambda_cal = lambda_cal
-        self.bce_loss = BCELoss() # TODO: add one hot encoded y
+        self.bce_loss = BCELoss()  # TODO: add one hot encoded y
 
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
@@ -89,14 +89,14 @@ class SKCELoss(CalibrationLossBinary):
         hat_skce_ul = self.tensor_miscal(
             p_bar=p_bar, y=y, dist_fct=self.dist_fct, bw=bw
         )
-     #   if self.use_square:
-      #      hat_skce_ul = torch.square(hat_skce_ul)
+        #   if self.use_square:
+        #      hat_skce_ul = torch.square(hat_skce_ul)
         # calculate mean
         loss = torch.mean(hat_skce_ul)
 
         if self.use_square:
-            loss = torch.square(loss) # TODO: check if this is correct
-        
+            loss = torch.square(loss)  # TODO: check if this is correct
+
         if self.lambda_bce > 0:
             bce_loss = self.bce_loss(p_bar[:, 1], y.float())
             loss += self.lambda_bce * bce_loss
@@ -138,10 +138,12 @@ class LpLoss(CalibrationLossBinary):
             np.isnan(p_bar.detach()).sum() == 0
         ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
         # check that all y's lie in {0,1}
-        lp_er = get_ece_kde(p_bar[:, 1].view(-1,1), y, bw, self.p)
+        lp_er = get_ece_kde(
+            p_bar, y, bw, self.p
+        )  # changed: not taking only the second column
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:,1], y.float())
+            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
             lp_er += self.lambda_bce * bce_loss
 
         return lp_er
@@ -149,7 +151,9 @@ class LpLoss(CalibrationLossBinary):
 
 class MMDLoss(CalibrationLossBinary):
 
-    def __init__(self, bw: float, kernel_fct=rbf_kernel, lambda_bce: float = 0.0) -> None:
+    def __init__(
+        self, bw: float, kernel_fct=rbf_kernel, lambda_bce: float = 0.0
+    ) -> None:
         super().__init__()
         self.bw = bw
         self.kernel_fct = kernel_fct
@@ -161,12 +165,10 @@ class MMDLoss(CalibrationLossBinary):
         mmd_er = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:,1], y.float())
+            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
             mmd_er += self.lambda_bce * bce_loss
 
         return mmd_er
-    
-
 
 
 class FocalLoss(nn.Module):
@@ -191,9 +193,12 @@ class FocalLoss(nn.Module):
         )
         return loss
 
+
 # Brier score
 class BrierLoss(nn.Module):
-    def __init__(self, ) -> None:
+    def __init__(
+        self,
+    ) -> None:
         super().__init__()
 
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):

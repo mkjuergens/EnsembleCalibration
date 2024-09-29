@@ -20,6 +20,7 @@ def get_optim_lambda_mlp(
     optim=torch.optim.Adam,
     shuffle: bool = True,
     patience: int = 15,
+    device: str = "cpu",
 ):
     """function for finding the weight vector which results in the lowest calibration error,
     using an MLP model. The model is trained to predict the optimal weight vector for the given
@@ -35,6 +36,21 @@ def get_optim_lambda_mlp(
         number of epochs the model is trained, by default 100
     lr : float, optional
         lewarning rate, by default 0.001
+    batch_size : int, optional
+        batch size, by default 128
+    hidden_dim : int, optional
+        number of hidden units in the hidden layers, by default 8
+    hidden_layers : int, optional
+        number of hidden layers, by default 0
+    optim : torch.optim.Optimizer, optional
+        optimizer used for training, by default torch.optim.Adam
+    shuffle : bool, optional
+        whether to shuffle the training data, by default True
+    patience : int, optional
+        number of epochs without improvement after which the training is stopped, by default 15
+    device : str, optional
+        device on which the calculations are performed, by default "cpu"
+
 
     Returns
     -------
@@ -54,13 +70,15 @@ def get_optim_lambda_mlp(
         model,
         dataset_train=dataset_train,
         loss=loss,
+        device=device,
         n_epochs=n_epochs,
         lr=lr,
         batch_size=batch_size,
         optim=optim,
         shuffle=shuffle,
         patience=patience,
-        print_losses=False
+        print_losses=False,
+
     )
     # use features as input to model instead of probs
     x_inst = (
@@ -69,8 +87,10 @@ def get_optim_lambda_mlp(
         else dataset_train.x_train
     )
     model.eval()
+    # device
+    x_inst = x_inst.to(device)
     optim_weights = model(x_inst)
-    optim_weights = optim_weights.detach()
+    optim_weights = optim_weights.detach().cpu().numpy()
     return optim_weights, loss
 
 
@@ -80,6 +100,7 @@ def train_one_epoch(
     loader_train,
     optimizer,
     lr_scheduler=None,
+    device: str = "cpu",
 ):
     """
     training loop for one epoch for the given model, loss function, data loaders and optimizers.
@@ -97,12 +118,17 @@ def train_one_epoch(
         optimizer used for training
     lr_scheduler : torch.optim.lr_scheduler, optional
         learning rate scheduler, by default None
+    device : str, optional
+        device on which the calculations are performed, by default 'cpu'
     """
 
     loss_epoch_train = 0
     # iterate over train dataloader
     for p_probs, y_labels_train, x_train in loader_train:
-        p_probs, x_train = p_probs.float(), x_train.float()
+        p_probs = p_probs.float().to(device)
+        x_train = x_train.float().to(device)
+        y_labels_train = y_labels_train.to(device)
+        
         optimizer.zero_grad()
         # predict weights as the output of the model on the given instances
         weights_l = model(x_train)
@@ -150,6 +176,7 @@ def train_mlp(
     model,
     dataset_train: torch.utils.data.Dataset,
     loss,
+    device: str = "cpu",
     n_epochs: int = 100,
     lr: float = 0.001,
     batch_size: int = 128,
@@ -159,6 +186,7 @@ def train_mlp(
     early_stopping: bool = True,
     patience: int = 10,
     print_losses: bool = True,
+    print_device: bool = True,
     **kwargs,
 ):
     """trains the MLP model to predict the optimal weight matrix for the given ensemble model
@@ -199,6 +227,7 @@ def train_mlp(
     model, loss_train, loss_val
         _description_
     """
+    model.to(device)
     optimizer = optim(model.parameters(), lr=lr)
     if lr_scheduler is not None:
         lr_scheduler = lr_scheduler(
@@ -208,6 +237,8 @@ def train_mlp(
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
 
     stopper = EarlyStoping(patience=patience)
+    if print_device:
+        print(f"Training on {device}")
     for n in range(n_epochs):
         # train
         model.train()

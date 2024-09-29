@@ -10,6 +10,5 @@ composition_stats
 jupyter
 tqdm
 torch
-# torchvision
-composition_stats
+torchvision
 # pyswarm
