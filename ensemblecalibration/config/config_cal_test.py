@@ -122,7 +122,7 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                device: device,
+                "device": device,
                 **kwargs
             }
 
