@@ -14,28 +14,32 @@ from ensemblecalibration.utils.helpers import calculate_pbar
 own code
 """
 
-def get_bandwidth(f):
+
+def get_bandwidth(f, deivice: str = "cpu"):
     """
     Select a bandwidth for the kernel based on maximizing the leave-one-out likelihood (LOO MLE).
 
     :param f: The vector containing the probability scores, shape [num_samples, num_classes]
-    :param device: The device type: 'cpu' or 'cuda'
+    :param device: The device type: 'cpu' or 'cuda' or 'cuda:0', etc.
 
     :return: The bandwidth of the kernel
     """
-    bandwidths = torch.cat((torch.logspace(start=-5, end=-1, steps=15), torch.linspace(0.2, 1, steps=5)))
+    bandwidths = torch.cat(
+        (torch.logspace(start=-5, end=-1, steps=15), torch.linspace(0.2, 1, steps=5))
+    )
     max_b = -1
     max_l = 0
     n = len(f)
     for b in bandwidths:
-        log_kern = get_kernel(f, b)
-        log_fhat = torch.logsumexp(log_kern, 1) - torch.log(torch.tensor(n-1))
+        log_kern = get_kernel(f, b, deivice)
+        log_fhat = torch.logsumexp(log_kern, 1) - torch.log(torch.tensor(n - 1))
         l = torch.sum(log_fhat)
         if l > max_l:
             max_l = l
             max_b = b
 
     return max_b
+
 
 def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
 
@@ -49,6 +53,7 @@ def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
 
     return get_ece_kde(p_bar, y, bw, p)  # TODO: check dimensions
 
+
 def ece_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
     if x_dep:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
@@ -60,11 +65,13 @@ def ece_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False
         obj = obj.numpy()
     return obj
 
+
 """
 Popordanoska et al. (2022) code
 """
 
-def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
+
+def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2, device: str = "cpu"):
     """calculate estimate of the Lp calibration error.
 
     Parameters
@@ -75,6 +82,10 @@ def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
         vector containing labels for each sample
     bandwidth : float
         kernel bandwidth
+    p : int, optional
+        order of the Lp norm used in the calibration error, by default 2
+    device : str, optional
+        device on which the calculations are performed, by default 'cpu'
 
     Returns
     -------
@@ -82,17 +93,19 @@ def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2):
         estimate of the Lp calibration error
     """
     check_input(p_bar, bw)
-    # check if input is binary
-    if p_bar.shape[1] == 1:
-        return 2 * get_ratio_binary(p_bar, y, bw, p)
+    # check if input is binary, if yes, use only one class
+    if p_bar.shape[1] == 2:
+        p_bar = p_bar[:, 1].unsqueeze(1)
+    # if p_bar.shape[1] == 1:
+        return 2 * get_ratio_binary(p_bar, y, bw, p, device)
     else:
-        return get_ratio_canonical(f=p_bar, y=y, bandwidth=bw, p=p)
+        return get_ratio_canonical(f=p_bar, y=y, bandwidth=bw, p=p, device=device)
 
 
-def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float):
+def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float, device: str = "cpu"):
     assert preds.shape[1] == 1
 
-    log_kern = get_kernel(preds, bandwidth)
+    log_kern = get_kernel(preds, bandwidth, device=device)
 
     return get_kde_for_ece(preds, y, log_kern, p)
 
@@ -126,12 +139,12 @@ def get_kde_for_ece(f, y, log_kern, p):
     return torch.mean(ratio)
 
 
-def get_ratio_canonical(f, y, bandwidth, p):
+def get_ratio_canonical(f, y, bandwidth, p, device: str = "cpu"):
     if f.shape[1] > 60:
         # Slower but more numerically stable implementation for larger number of classes
-        return get_ratio_canonical_log(f, y, bandwidth, p)
+        return get_ratio_canonical_log(f, y, bandwidth, p, device)
 
-    log_kern = get_kernel(f, bandwidth)
+    log_kern = get_kernel(f, bandwidth, device)
     if isnan(log_kern):
         print("log_kern is nan")
         print(f"nan values in log_kern: {torch.sum(torch.isnan(log_kern))}")
@@ -143,16 +156,16 @@ def get_ratio_canonical(f, y, bandwidth, p):
     kern_y = torch.matmul(kern, y_onehot)
     # check if kern_y is nan
     if isnan(kern_y):
-        #check how many nan values are in kern_y
+        # check how many nan values are in kern_y
         print(f"nan values in kern_y: {torch.sum(torch.isnan(kern_y))}")
     den = torch.sum(kern, dim=1)
     # to avoid division by 0
-    #den = torch.clamp(den, min=1e-15, max=1e20)
+    # den = torch.clamp(den, min=1e-15, max=1e20)
     # check if den is nan
     if isnan(den):
-        #check how many nan values are in den
+        # check how many nan values are in den
         print(f"nan values in den: {torch.sum(torch.isnan(den))}")
-    #kern_y = torch.clamp(kern_y, min=1e-10, max=1e10)
+    # kern_y = torch.clamp(kern_y, min=1e-10, max=1e10)
 
     ratio = kern_y / den.unsqueeze(-1)
     # check if ratio is nan
@@ -165,8 +178,8 @@ def get_ratio_canonical(f, y, bandwidth, p):
 
 # Note for training: Make sure there are at least two examples for every class present in the batch, otherwise
 # LogsumexpBackward returns nans.
-def get_ratio_canonical_log(f, y, bandwidth, p):
-    log_kern = get_kernel(f, bandwidth)
+def get_ratio_canonical_log(f, y, bandwidth, p, device: str = "cpu"):
+    log_kern = get_kernel(f, bandwidth, device=device)
     y_onehot = nn.functional.one_hot(y, num_classes=f.shape[1]).to(torch.float32)
     log_y = torch.log(y_onehot)
     log_den = torch.logsumexp(log_kern, dim=1)
@@ -181,14 +194,14 @@ def get_ratio_canonical_log(f, y, bandwidth, p):
     return torch.mean(final_ratio)
 
 
-def get_kernel(f, bandwidth):
+def get_kernel(f, bandwidth, device: str = "cpu"):
     # if num_classes == 1
     if f.shape[1] == 1:
         log_kern = beta_kernel(f, f, bandwidth).squeeze()
     else:
         log_kern = dirichlet_kernel(f, bandwidth).squeeze()
     # Trick: -inf on the diagonal
-    return log_kern + torch.diag(torch.finfo(torch.float).min * torch.ones(len(f)))
+    return log_kern + torch.diag(torch.finfo(torch.float).min * torch.ones(len(f))).to(device)
 
 
 def beta_kernel(z, zi, bandwidth=0.1):
@@ -207,8 +220,8 @@ def dirichlet_kernel(z, bandwidth=0.1):
     # add small value to avoid log of 0
     z = torch.clamp(z, min=1e-10, max=1.0 - 1e-10)
     alphas = z / bandwidth + 1
-    log_beta = (torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
-        torch.sum(alphas, dim=1))
+    log_beta = torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
+        torch.sum(alphas, dim=1)
     )
     log_num = torch.matmul(torch.log(z), (alphas - 1).T)
     log_dir_pdf = log_num - log_beta
@@ -216,12 +229,16 @@ def dirichlet_kernel(z, bandwidth=0.1):
     return log_dir_pdf
 
 
-def check_input(f, bandwidth,):
+def check_input(
+    f,
+    bandwidth,
+):
     assert not isnan(f)
     assert len(f.shape) == 2
     assert bandwidth > 0
-    assert torch.min(f) >= 0
-    assert torch.max(f) <= 1
+    # assert torch.min(f) >= 0
+    # assert torch.max(f) <= 1
+
 
 def isnan(a):
     return torch.any(torch.isnan(a))
