@@ -205,7 +205,7 @@ class BrierLoss(nn.Module):
 
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
         # one-hot encoding of labels
-        y_onehot = torch.eye(p_bar.shape[1])[y, :]
+        y_onehot = torch.eye(p_bar.shape[1])[y, :].to(p_bar.device)
         # calculate brier score
         brier = torch.mean(torch.sum((p_bar - y_onehot) ** 2, dim=1))
 
