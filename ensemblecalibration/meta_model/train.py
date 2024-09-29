@@ -249,6 +249,7 @@ def train_mlp(
                 loader_train,
                 optimizer,
                 lr_scheduler=lr_scheduler,
+                device=device,
             )
         )
         loss_train.append(loss_epoch_train)
