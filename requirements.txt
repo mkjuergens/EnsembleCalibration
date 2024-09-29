@@ -6,7 +6,7 @@ statsmodels
 # mhar
 # pycalib
 python-ternary
-composition_stats
+#composition_stats
 jupyter
 tqdm
 torch
