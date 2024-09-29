@@ -22,6 +22,7 @@ def create_config(
     hidden_dim: int = 64,
     x_dep: bool = True,
     deg: int = 2,
+    device: str = "cpu",
     **kwargs
 ):
     """function to create dictionary with configuration for running the calibration test
@@ -37,6 +38,8 @@ def create_config(
         loss function for obtaining the optimal convex combination, by default LpLoss
     optim: str
         optimization method, by default "mlp". Options: {"mlp", "COBYLA", "SLSQP"}
+    device : str, optional
+        device on which the calculations are performed, by default "cpu"
     n_samples : int, optional
         number of (training) samples, by default 1000
     n_resamples : int, optional
@@ -93,7 +96,8 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.0, # TODO: check this
+                "lambda_bce": 0.0,
+                "device": device,
                 **kwargs
         }
         },
@@ -118,6 +122,7 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
+                device: device,
                 **kwargs
             }
 
@@ -145,6 +150,7 @@ def create_config(
                 "deg": deg,
                 "p": 2,
                 "lambda_bce": 0.0, # TODO: check this
+                "device": device,
                 **kwargs
             }
         },
@@ -170,6 +176,7 @@ def create_config(
                 "x_dep": x_dep,
                 "deg": deg,
                 "lambda_bce": 0.0, # TODO: check this
+                "device": device,
                 **kwargs
             }
         }

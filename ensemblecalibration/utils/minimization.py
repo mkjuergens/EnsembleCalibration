@@ -46,6 +46,7 @@ def calculate_min(
             hidden_dim=params["hidden_dim"],
             hidden_layers=params["hidden_layers"],
             patience=params["patience"],
+            device=params["device"],
         )
     elif params["optim"] == "COBYLA":
         l_weights = minimize_const_weights(p_probs, y_labels, params, method="COBYLA")

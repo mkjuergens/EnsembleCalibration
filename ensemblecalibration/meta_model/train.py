@@ -90,7 +90,7 @@ def get_optim_lambda_mlp(
     # device
     x_inst = x_inst.to(device)
     optim_weights = model(x_inst)
-    optim_weights = optim_weights.detach().cpu().numpy()
+    optim_weights = optim_weights.detach().cpu()
     return optim_weights, loss
 
 
@@ -186,7 +186,7 @@ def train_mlp(
     early_stopping: bool = True,
     patience: int = 10,
     print_losses: bool = True,
-    print_device: bool = True,
+    print_device: bool = False,
     **kwargs,
 ):
     """trains the MLP model to predict the optimal weight matrix for the given ensemble model

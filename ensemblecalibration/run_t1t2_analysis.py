@@ -31,6 +31,7 @@ def _get_config_from_parser(args: dict):
         x_dep=args.x_dep,
         deg=args.deg,
         x_bound=args.x_bound,
+        device=args.device,
     )
     return config
 
@@ -165,7 +166,10 @@ def main_t1_t2(args):
         config = {k: config[k] for k in args.miscal_stats}
     prefix = args.prefix
     results_dir = args.results_dir
+    device = args.device
+    print(f"Device: {device}")
     names_tests = [t for t in config]
+    
 
     # create directory for results
     exp_name = config[list(config.keys())[0]]["experiment"]
@@ -296,6 +300,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--prefix", type=str, default="results_dirichlet_mlp_t1t2_10_10_100")
     parser.add_argument("--results_dir", type=str, default="results")
+    parser.add_argument("--device", type=str, default="cpu", help="device")
     args = parser.parse_args()
 
     main_t1_t2(args)
