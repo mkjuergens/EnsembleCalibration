@@ -83,8 +83,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
-                "bw": 0.001, # TODO: check this
-                "loss": MMDLoss(bw=0.001, lambda_bce=0.0), # changed!!
+                "bw": 0.0001, # TODO: check this
+                "loss": MMDLoss(bw=0.0001, lambda_bce=0.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -133,8 +133,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
-                "bw": 0.01, # TODO: check this
-                "loss": BrierLoss(), # changed
+                "bw": 0.0001, # TODO: check this
+                "loss": LpLoss(bw=0.0001), # changed
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -159,8 +159,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
-                "bw": 0.01, # TODO: check this
-                "loss": SKCELoss(bw=0.05, lambda_bce=0.0), # changed!!
+                "bw": 0.0001, # TODO: check this
+                "loss": SKCELoss(bw=0.0001, lambda_bce=0.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -591,4 +591,5 @@ if __name__ == "__main__":
         x_dep=args.x_dep,
         deg=args.deg,
     )
-    print(config)
+    #print(config)
+    print(config["LP"])
