@@ -86,8 +86,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
-                "bw": 0.0001, # TODO: check this
-                "loss": MMDLoss(bw=0.0001, lambda_bce=0.0), # changed!!
+                "bw": 0.001, # TODO: check this
+                "loss": MMDLoss(bw=0.001, lambda_bce=0.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
