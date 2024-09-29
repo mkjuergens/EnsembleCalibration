@@ -131,15 +131,16 @@ class LpLoss(CalibrationLossBinary):
 
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
 
+        device = weights_l.device
         # calculate convex combination
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
         bw = self.bw
         assert (
-            np.isnan(p_bar.detach()).sum() == 0
+            np.isnan(p_bar.detach().cpu()).sum() == 0
         ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
         # check that all y's lie in {0,1}
         lp_er = get_ece_kde(
-            p_bar, y, bw, self.p
+            p_bar, y, bw, self.p, device=device
         )  # changed: not taking only the second column
 
         if self.lambda_bce > 0:
