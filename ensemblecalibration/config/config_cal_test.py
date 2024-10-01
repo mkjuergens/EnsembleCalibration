@@ -23,6 +23,7 @@ def create_config(
     x_dep: bool = True,
     deg: int = 2,
     device: str = "cpu",
+    bounds_p : list = [[0.5, 0.8], [0.7, .9]],
     **kwargs
 ):
     """function to create dictionary with configuration for running the calibration test
@@ -86,8 +87,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
-                "bw": 0.001, # TODO: check this
-                "loss": MMDLoss(bw=0.001, lambda_bce=0.0), # changed!!
+                "bw": 0.01, # TODO: check this
+                "loss": MMDLoss(bw=0.01, lambda_bce=0.1), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -96,8 +97,9 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.0,
+                "lambda_bce": 0.1,
                 "device": device,
+                "bounds_p": bounds_p,
                 **kwargs
         }
         },
@@ -123,6 +125,7 @@ def create_config(
                 "x_dep": x_dep,
                 "deg": deg,
                 "device": device,
+                "bounds_p": bounds_p,
                 **kwargs
             }
 
@@ -139,7 +142,7 @@ def create_config(
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
                 "bw": 0.0001, # TODO: check this
-                "loss": LpLoss(bw=0.0001), # changed
+                "loss": LpLoss(bw=0.0001, lambda_bce=0.1), # changed
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -149,8 +152,9 @@ def create_config(
                 "x_dep": x_dep,
                 "deg": deg,
                 "p": 2,
-                "lambda_bce": 0.0, # TODO: check this
+                "lambda_bce": 1.0, # TODO: check this
                 "device": device,
+                "bounds_p": bounds_p,
                 **kwargs
             }
         },
@@ -165,8 +169,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
-                "bw": 0.0001, # TODO: check this
-                "loss": SKCELoss(bw=0.0001, lambda_bce=0.0), # changed!!
+                "bw": 0.001, # TODO: check this
+                "loss": SKCELoss(bw=0.00001, lambda_bce=0.01), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -175,8 +179,9 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.0, # TODO: check this
+                "lambda_bce": 0.1, # TODO: check this
                 "device": device,
+                "bounds_p": bounds_p,
                 **kwargs
             }
         }

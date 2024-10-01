@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 import numpy as np
 from torch import nn
-from torch.nn import BCELoss
+from torch.nn import BCEWithLogitsLoss, BCELoss, CrossEntropyLoss, NLLLoss
 from torchvision.ops import focal_loss
 
 from ensemblecalibration.utils.distances import tv_distance, l2_distance
@@ -13,20 +13,29 @@ from ensemblecalibration.cal_estimates.skce import skce_ul_tensor, skce_uq_tenso
 from ensemblecalibration.cal_estimates.mmd_kce import mmd_kce, rbf_kernel
 
 
-class CalibrationLossBinary(nn.Module):
+class CalibrationLoss(nn.Module):
 
-    def __init__(self, lambda_cal: float = 1.0):
+    def __init__(self):
         super().__init__()
-        self.lambda_cal = lambda_cal
         self.bce_loss = BCELoss()  # TODO: add one hot encoded y
+        self.nll_loss = NLLLoss()
 
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
-        p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
-        bce_loss = self.bce_loss(p_bar[:, 1], y.float())
-        return bce_loss
+        pass
+
+    def compute_reg_loss(self, p_bar: torch.Tensor, y: torch.Tensor):
+        if p_bar.shape[1] > 2:
+            # take logs of probabilities
+            epsilon = 1e-10
+            p_bar = torch.log(p_bar + epsilon)
+            loss = self.nll_loss(p_bar, y)
+        else:
+            loss = self.bce_loss(p_bar[:, 1], y.float())
+        return loss
 
 
-class SKCELoss(CalibrationLossBinary):
+
+class SKCELoss(CalibrationLoss):
     def __init__(
         self,
         bw: float = 2.0,
@@ -35,7 +44,7 @@ class SKCELoss(CalibrationLossBinary):
         tensor_miscal: torch.Tensor = skce_ul_tensor,
         lambda_bce: float = 0.0,
     ) -> None:
-        """_summary_
+        """loss of the squared kernel calibration error
 
         Parameters
         ----------
@@ -51,7 +60,7 @@ class SKCELoss(CalibrationLossBinary):
         tensor_miscal : torch.Tensor, optional
             tensor version of miscalibration measure, by default skce_ul_tensor
         lambda_bce : float, optional
-            weight of the BCE loss, by default 0.0
+            weight of the BCE loss, or NLL loss if n_classes > 2, by default 0.0
         """
         super().__init__()
         self.bw = bw
@@ -71,7 +80,8 @@ class SKCELoss(CalibrationLossBinary):
         Parameters
         ----------
         p_preds : torch.Tensor
-            tensor of shape (n_samples, n_predictors, n_classes) containing probabilistic predictions
+            tensor of shape (n_samples, n_predictors, n_classes) containing probabilistic
+            predictions
         weights_l : torch.Tensor
             tensor of shape (n_samples, n_predictors) containing weight coefficients
         y : torch.Tensor
@@ -95,16 +105,17 @@ class SKCELoss(CalibrationLossBinary):
         loss = torch.mean(hat_skce_ul)
 
         if self.use_square:
-            loss = torch.square(loss)  # TODO: check if this is correct
+            loss = (torch.square(loss)) # TODO: check if this is correct
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
-            loss += self.lambda_bce * bce_loss
+            # check if n_classes > 2
+            reg_loss = self.compute_reg_loss(p_bar, y)
+            loss += self.lambda_bce * reg_loss
 
         return loss
 
 
-class LpLoss(CalibrationLossBinary):
+class LpLoss(CalibrationLoss):
     """Lp Calibration error as a loss function, see also Poporadanoska et al. (2022)"""
 
     def __init__(
@@ -132,6 +143,8 @@ class LpLoss(CalibrationLossBinary):
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
 
         device = weights_l.device
+        # cehck max and min values of weights
+        # print(f"max: {torch.max(weights_l)}, min: {torch.min(weights_l)}")
         # calculate convex combination
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
         bw = self.bw
@@ -139,18 +152,18 @@ class LpLoss(CalibrationLossBinary):
             np.isnan(p_bar.detach().cpu()).sum() == 0
         ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
         # check that all y's lie in {0,1}
-        lp_er = get_ece_kde(
+        loss = get_ece_kde(
             p_bar, y, bw, self.p, device=device
         )  # changed: not taking only the second column
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
-            lp_er += self.lambda_bce * bce_loss
+            reg_loss = self.compute_reg_loss(p_bar, y)
+            loss += self.lambda_bce * reg_loss
 
-        return lp_er
+        return loss
 
 
-class MMDLoss(CalibrationLossBinary):
+class MMDLoss(CalibrationLoss):
 
     def __init__(
         self, bw: float, kernel_fct=rbf_kernel, lambda_bce: float = 0.0
@@ -163,13 +176,12 @@ class MMDLoss(CalibrationLossBinary):
     def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
         bw = self.bw
-        mmd_er = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
+        loss = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
 
         if self.lambda_bce > 0:
-            bce_loss = self.bce_loss(p_bar[:, 1], y.float())
-            mmd_er += self.lambda_bce * bce_loss
-
-        return mmd_er
+            reg_loss = self.compute_reg_loss(p_bar, y)
+            loss = loss + self.lambda_bce * reg_loss
+        return loss
 
 
 class FocalLoss(nn.Module):
@@ -216,8 +228,8 @@ class BrierLoss(nn.Module):
 if __name__ == "__main__":
     loss = SKCELoss()
     loss_focal = FocalLoss()
-    p = torch.from_numpy(np.random.dirichlet([1] * 2, size=(100, 2)))
-    lambdas = torch.from_numpy(np.random.dirichlet([1] * 2, size=100))
+    p = torch.from_numpy(np.random.dirichlet([1] * 2, size=(100, 2))).float()
+    lambdas = torch.from_numpy(np.random.dirichlet([1] * 2, size=100)).float()
     y = torch.randint(2, size=(100,))
     out = loss(p, lambdas, y)
     print(out)
@@ -226,6 +238,6 @@ if __name__ == "__main__":
     print(out_2)
     out_focal = loss_focal(p, lambdas, y)
     print(out_focal)
-    loss = LpLoss(p=2, bw=None)
+    loss = LpLoss(p=2, bw=.001)
     out_lp = loss(p, lambdas, y)
     print(out_lp)

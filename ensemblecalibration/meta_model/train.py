@@ -6,12 +6,12 @@ import torch.utils
 from torch.utils.data import DataLoader
 import torch.utils.data
 from ensemblecalibration.meta_model.mlp_model import MLPCalW
-from ensemblecalibration.meta_model.losses import CalibrationLossBinary
+from ensemblecalibration.meta_model.losses import CalibrationLoss
 
 
 def get_optim_lambda_mlp(
     dataset_train: torch.utils.data.Dataset,
-    loss: CalibrationLossBinary,
+    loss: CalibrationLoss,
     n_epochs: int = 100,
     lr: float = 0.001,
     batch_size: int = 128,
@@ -121,7 +121,7 @@ def train_one_epoch(
     device : str, optional
         device on which the calculations are performed, by default 'cpu'
     """
-
+    torch.autograd.set_detect_anomaly(True)
     loss_epoch_train = 0
     # iterate over train dataloader
     for p_probs, y_labels_train, x_train in loader_train:
@@ -131,6 +131,7 @@ def train_one_epoch(
         
         optimizer.zero_grad()
         # predict weights as the output of the model on the given instances
+        # print max and min of x_train
         weights_l = model(x_train)
         # calculate loss
         loss_train = loss(p_probs, weights_l, y_labels_train)
@@ -253,8 +254,10 @@ def train_mlp(
             )
         )
         loss_train.append(loss_epoch_train)
+        # print loss every 20th epoch
         if print_losses:
-            print(f"Epoch {n}: Train Loss: {loss_epoch_train}")
+            if n % 20 == 0:
+                print(f"Epoch {n}: Train Loss: {loss_epoch_train}")
 
         # check using early stopping if training should be stopped
         # check every n epochs

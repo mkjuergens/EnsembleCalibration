@@ -73,12 +73,16 @@ def exp_dirichlet(
         weights_l = sample_weights_h0(x_inst, n_members, x_dep=x_dep, deg=deg_pol)
         p_bar = calculate_pbar(weights_l, p_preds)
 
-        y_labels = torch.stack(
-            [
-                multinomial_label_sampling(p, tensor=True)
-                for p in torch.unbind(p_bar, dim=0)
-            ]
-        )
+        # Create a Categorical distribution and sample labels
+        m = torch.distributions.Categorical(probs=p_bar)
+        y_labels = m.sample()  # Shape: (batch_size,)
+
+        # y_labels = torch.stack(
+        #     [
+        #         multinomial_label_sampling(p, tensor=True)
+        #         for p in torch.unbind(p_bar, dim=0)
+        #     ]
+        # )
 
     else:
         p_bar, y_labels = sample_p_bar_h1(
@@ -100,20 +104,22 @@ def sample_weights_h0(
     x_inst, n_members, x_dep: bool = True, deg: int = 2, variance: int = 5
 ):
     n_samples = x_inst.shape[0]
-    weights_l = torch.zeros((n_samples, n_members))
+    weights_l = torch.zeros((n_samples, n_members), device=x_inst.device)
     if x_dep:
+        # Precompute x_inst as NumPy array once
+        x_np = x_inst.cpu().numpy().squeeze()
         for i in range(n_members):
             ivl = np.random.uniform(0, variance, 2)
-            weights_l[:, i] = torch.tensor(sample_function(x_inst, deg=deg, ivl=ivl))
-        # normalize
+            y = sample_function(x_np, deg=deg, ivl=ivl)
+            weights_l[:, i] = torch.tensor(y, device=x_inst.device)
+        # Normalize
         weights_l = torch.nn.functional.softmax(weights_l, dim=1)
     else:
-        # set all rows to same value, sampled from dirichlet distribution
-        weights_l = (
-            torch.distributions.Dirichlet(torch.ones(n_members))
-            .sample()
-            .repeat(n_samples, 1)
-        )
+        # Sample from Dirichlet distribution once and repeat
+        weights_l = torch.distributions.Dirichlet(
+            torch.ones(n_members, device=x_inst.device)
+        ).sample()
+        weights_l = weights_l.unsqueeze(0).repeat(n_samples, 1)
     return weights_l
 
 
@@ -143,17 +149,18 @@ def sample_ensemble_preds(
     torch.tensor, torch.tensor
         probabilistic predictions, parameters of the underlying Dirichlet distribution
     """
-    p_preds = torch.zeros((x_inst.shape[0], n_ens, n_classes))
-    # sample (same) prior for each instance from uniform Dirichlet distribution
+    n_samples = x_inst.shape[0]
+    # Sample dirichlet prior for each instance
     dir_prior = torch.distributions.Dirichlet(torch.ones(n_classes)).sample(
-        (x_inst.shape[0],)
-    )  # sample new prior for each instance
-    dir_params = sample_dir_params(x_inst, dir_prior=dir_prior, uncertainty=uncertainty)
-
-    # sample predictions for each ensemble member
-    p_preds = (
-        torch.distributions.Dirichlet(dir_params).sample((n_ens,)).permute(1, 0, 2)
+        (n_samples,)
     )
+    # Get Dirichlet parameters
+    dir_params = sample_dir_params(x_inst, dir_prior=dir_prior, uncertainty=uncertainty)
+    # Sample predictions for each ensemble member
+    # dir_params shape: (n_samples, n_classes)
+    # We need to sample (n_samples, n_ens, n_classes)
+    dirichlet_dist = torch.distributions.Dirichlet(dir_params)
+    p_preds = dirichlet_dist.sample((n_ens,)).permute(1, 0, 2)
     return p_preds, dir_params
 
 
@@ -183,11 +190,12 @@ def sample_dir_params(
         uncertainty = uncertainty(x_inst)
     else:
         # if uncertainty is a constant, repeat it for each instance
-        uncertainty = torch.tensor([uncertainty] * x_inst.shape[0])
-    params_m = np.zeros((x_inst.shape[0], dir_prior.shape[1]))
-    params_m = (
-        dir_prior * dir_prior.shape[1] / uncertainty.repeat(dir_prior.shape[1], 1).T
-    )
+        uncertainty = torch.full((x_inst.shape[0],), uncertainty, device=x_inst.device)
+    params_m = dir_prior * dir_prior.shape[1] / uncertainty.unsqueeze(1)
+    # params_m = np.zeros((x_inst.shape[0], dir_prior.shape[1]))
+    # params_m = (
+    #     dir_prior * dir_prior.shape[1] / uncertainty.repeat(dir_prior.shape[1], 1).T
+    # )
     # for c in range(dir_prior.shape[1]):
     #     params_m[:, c] = (dir_prior[:, c] * dir_prior.shape[1]) / uncertainty
     # params_m = torch.tensor(params_m)
@@ -323,3 +331,11 @@ def sample_p_bar_h1_deg(
     p_bar = torch.stack(p_bar)
 
     return p_bar, y_labels
+
+
+if __name__ == "__main__":
+    x_inst = torch.distributions.Uniform(0, 5).sample((100,))
+    weights_l = sample_weights_h0(x_inst, 5, x_dep=True, deg=2)
+    print(weights_l)
+    # print sum of weights
+    print(weights_l.sum(dim=1))

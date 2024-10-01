@@ -6,7 +6,7 @@ with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as f:
     README = f.read()
 
 setup(
-    name="uaml",
+    name="epuv",
     version=0.1,
     license="MIT license",
     description="Calibration Tests for Ensemble Predictors.",
@@ -22,13 +22,10 @@ setup(
         "scipy",
         "setuptools",
         "matplotlib",
-        "mhar",
         "ternary",
         "pandas",
         "seaborn",
-        "pycalib",
         "statsmodels",
-        "pyswarm",
         "tqdm",
         "composition_stats",
         "torch"

@@ -210,7 +210,7 @@ def tensor_h_ij(
     gamma_ij = tensor_kernel(p_i, p_j, dist_fct=dist_fct, sigma=sigma).float()
     y_ii = (y_i - p_i).float()
     y_jj = (y_j - p_j).float()
-    h_ij = torch.matmul(y_ii.T, torch.matmul(gamma_ij, y_jj))
+    h_ij = torch.matmul(y_ii, torch.matmul(gamma_ij, y_jj))
     return h_ij
 
 

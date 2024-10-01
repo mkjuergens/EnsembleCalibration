@@ -71,7 +71,9 @@ Popordanoska et al. (2022) code
 """
 
 
-def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2, device: str = "cpu"):
+def get_ece_kde(
+    p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2, device: str = "cpu"
+):
     """calculate estimate of the Lp calibration error.
 
     Parameters
@@ -94,18 +96,21 @@ def get_ece_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, p: int = 2, dev
     """
     check_input(p_bar, bw)
     # check if input is binary, if yes, use only one class
-    if p_bar.shape[1] == 2:
-        p_bar = p_bar[:, 1].unsqueeze(1)
-    # if p_bar.shape[1] == 1:
+    if p_bar.shape[1] == 1:
+        # p_bar = p_bar[:, 1].unsqueeze(1)
+        # if p_bar.shape[1] == 1:
         return 2 * get_ratio_binary(p_bar, y, bw, p, device)
     else:
         return get_ratio_canonical(f=p_bar, y=y, bandwidth=bw, p=p, device=device)
 
 
-def get_ratio_binary(preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float, device: str = "cpu"):
+def get_ratio_binary(
+    preds: torch.tensor, y: torch.tensor, p: int, bandwidth: float, device: str = "cpu"
+):
     assert preds.shape[1] == 1
 
     log_kern = get_kernel(preds, bandwidth, device=device)
+    assert not isnan(log_kern), "log_kern is nan"
 
     return get_kde_for_ece(preds, y, log_kern, p)
 
@@ -135,6 +140,8 @@ def get_kde_for_ece(f, y, log_kern, p):
 
     if idx.numel() == 1:
         return (ratio.sum() + f_one**p) / N
+    
+    assert not isnan(ratio), "ratio is nan"
 
     return torch.mean(ratio)
 
@@ -201,10 +208,15 @@ def get_kernel(f, bandwidth, device: str = "cpu"):
     else:
         log_kern = dirichlet_kernel(f, bandwidth).squeeze()
     # Trick: -inf on the diagonal
-    return log_kern + torch.diag(torch.finfo(torch.float).min * torch.ones(len(f))).to(device)
+    return log_kern + torch.diag(torch.finfo(torch.float).min * torch.ones(len(f))).to(
+        device
+    )
 
 
 def beta_kernel(z, zi, bandwidth=0.1):
+    # add small value to avoid log of 0
+    z = torch.clamp(z, min=1e-9, max=1.0 - 1e-9)
+    zi = torch.clamp(zi, min=1e-9, max=1.0 - 1e-9)
     p = zi / bandwidth + 1
     q = (1 - zi) / bandwidth + 1
     z = z.unsqueeze(-2)

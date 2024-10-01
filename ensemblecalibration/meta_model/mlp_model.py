@@ -52,6 +52,7 @@ class MLPCalW(nn.Module):
             layers.append(nn.Linear(self.hidden_dim, out_channels))
 
         self.layers = nn.Sequential(*layers)
+        # remove softmax from here, as it is applied in the loss function? No
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x_in: torch.Tensor):

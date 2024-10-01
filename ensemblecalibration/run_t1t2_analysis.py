@@ -285,9 +285,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--n_classes", type=int, default=10, help="number of classes")
     parser.add_argument("--n_members", type=int, default=10, help="number of members")
-    parser.add_argument("--n_epochs", type=int, default=300, help="number of epochs")
-    parser.add_argument("--lr", type=float, default=5e-4, help="learning rate")
-    parser.add_argument("--batch_size", type=int, default=512, help="batch size")
+    parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs")
+    parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
+    parser.add_argument("--batch_size", type=int, default=256, help="batch size")
     parser.add_argument("--patience", type=int, default=100, help="patience")
     parser.add_argument(
         "--hidden_layers", type=int, default=3, help="number of hidden layers"
