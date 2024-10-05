@@ -10,7 +10,6 @@ def get_experiment(
     config: dict,
     h0: bool = True,
     x_dep: bool = True,
-    deg_pol: int = 2,
     setting: int = None,
     deg_h1: float = None,
     batch_size: Optional[int] = None,

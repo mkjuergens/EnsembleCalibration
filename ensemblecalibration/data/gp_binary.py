@@ -7,7 +7,7 @@ from ensemblecalibration.utils.helpers import (
     calculate_pbar,
     multinomial_label_sampling,
     sample_function,
-    ab_scale
+    ab_scale,
 )
 
 
@@ -16,6 +16,39 @@ def exp_gp(
     x_bound: list = [0.0, 5.0],
     kernel=rbf_kernel,
     bounds_p: list = [[0.5, 0.7], [0.6, 0.8]],
+    h0: bool = True,
+    x_dep: bool = True,
+    deg: int = 2,
+    setting: int = 1,
+    **kwargs,
+):
+    """Experiment for generating probabilistic predictions of binary classifiers."""
+
+    x_inst = np.random.uniform(*x_bound, n_samples)
+    p_preds = sample_binary_preds_gp(x_inst, kernel, bounds_p, **kwargs)
+
+    p_bar, weights_l = (
+        sample_pbar_h0(x_inst, p_preds, x_dep, deg)
+        if h0
+        else (sample_pbar_h1(x_inst, p_preds, kernel, setting, **kwargs), None)
+    )
+
+    y_labels = multinomial_label_sampling(p_bar, tensor=True).view(-1)
+
+    x_inst = torch.from_numpy(x_inst).float().view(-1, 1)
+
+    return (
+        (x_inst, p_preds, p_bar, y_labels, weights_l)
+        if h0
+        else (x_inst, p_preds, p_bar, y_labels)
+    )
+
+
+def exp_gp_old(
+    n_samples: int,
+    x_bound: list = [0.0, 5.0],
+    kernel=rbf_kernel,
+    bounds_p: list = [[0.4, 0.5], [0.6, 0.8]],
     h0: bool = True,
     x_dep: bool = True,
     deg: int = 2,
@@ -84,161 +117,132 @@ def exp_gp(
     )
 
 
-def sample_pbar_h0(
-    x: np.ndarray, p_preds: torch.Tensor, x_dep: bool = False, deg: int = 2
-):
+def sample_pbar_h0(x, p_preds, x_dep=False, deg=2):
+    """Sample convex combination within the convex hull."""
 
-    weights_l = np.zeros((len(x), p_preds.shape[1]))
-    # convert p_preds to tensor if it is not
-    # sample convex combination within convex hull
-    if x_dep:
-        # sample lambda as a polynomial function of x
-        l_weights = sample_function(x, deg=deg)
-        weights_l[:, 0] = l_weights
-        weights_l[:, 1] = 1 - l_weights
-    else:
-        # sample a single lambda from the unit interval
-        l_weights = np.random.rand(1)
-        # set all entries to the same value
-        weights_l[:, 0] = l_weights
-        weights_l[:, 1] = 1 - l_weights
-
+    n_samples, n_preds = len(x), p_preds.shape[1]
+    l_weights = (
+        sample_function(x, deg=deg) if x_dep else np.random.rand(1).repeat(n_samples)
+    )
+    weights_l = np.column_stack((l_weights, 1 - l_weights))
     weights_l = torch.from_numpy(weights_l).float()
+
     p_bar = calculate_pbar(weights_l, p_preds, reshape=False)
     return p_bar, weights_l
 
 
-def sample_pbar_h1(
-    x: np.ndarray,
-    p_preds: np.ndarray,
-    kernel,
-    setting: int = 1,
-    eps: float = 1e-4,
-    **kwargs,
-):
+def sample_pbar_h1(x, p_preds, kernel, setting=1, eps=1e-4, **kwargs):
+    """Sample outside the convex hull."""
 
-    # initialize p_bar as a tensor
-    p_bar = torch.zeros(len(x), p_preds.shape[2])
-    # convert p_preds to tensor if it is not
-    if not isinstance(p_preds, torch.Tensor):
-        p_preds = torch.from_numpy(p_preds).float()
-    # look at max and minimum of p_preds
-    p_preds_max = torch.max(p_preds[:, :, 0]).item()
-    p_preds_min = torch.min(p_preds[:, :, 0]).item()
-    # look which one is closeer to the borders of (0,1)
-    dist_1 = np.abs(p_preds_max - 1)
-    dist_0 = np.abs(p_preds_min - 0)
+    p_preds = (
+        torch.from_numpy(p_preds).float()
+        if not isinstance(p_preds, torch.Tensor)
+        else p_preds
+    )
+    p_preds_min, p_preds_max = (
+        torch.min(p_preds[:, :, 0]).item(),
+        torch.max(p_preds[:, :, 0]).item(),
+    )
+
+    dist_0, dist_1 = abs(p_preds_min - 0), abs(p_preds_max - 1)
 
     if setting == 1:
-        # add small random noise to upper OR lower bound (based on which is further to
-        # the boundary), set pbar to this values
-        p_bar[:, 0] = (
-            p_preds[:, 0, 0] - np.ones(len(x))*.03
-            if dist_0 > dist_1
-            else p_preds[:, 1, 0] + np.ones(len(x))*.03
+        p_bar_values = (
+            p_preds[:, 0, 0] - 0.03 if dist_0 > dist_1 else p_preds[:, 1, 0] + 0.03
         )
-        # make sure it lies in interval [0,1]
-        p_bar[:, 0] = torch.clamp(p_bar[:, 0], 0, 1)
-
     elif setting == 2:
-        # sample pbar from smaller interval with values clost to the boundaries
         ivl_pbar = (
             [0 + dist_0 / 2, p_preds_min - eps]
             if dist_0 < dist_1
             else [p_preds_max + eps, 1 - dist_1 / 2]
         )
-        p_bar[:, 0] = gp_sample_prediction(
-            x, kernel=kernel, bounds_p=ivl_pbar, **kwargs
-        )
+        p_bar_values = gp_sample_prediction(x, kernel, bounds_p=ivl_pbar, **kwargs)
     else:
-        # sample pbar from bigger interval which does not contain (p_preds_min, p_preds_max)
         ivl_pbar = [0, p_preds_min] if dist_0 > dist_1 else [p_preds_max, 1]
-        p_bar[:, 0] = gp_sample_prediction(
-            x, kernel=kernel, bounds_p=ivl_pbar, **kwargs
-        )
+        p_bar_values = gp_sample_prediction(x, kernel, bounds_p=ivl_pbar, **kwargs)
 
-    p_bar[:, 1] = 1 - p_bar[:, 0]
+    p_bar_values = torch.clamp(p_bar_values, 0, 1)
+    p_bar = torch.column_stack((p_bar_values, 1 - p_bar_values))
 
     return p_bar
 
 
-def sample_binary_preds_gp(
-    x: np.ndarray, kernel, list_bounds_p: list = [[0, 1], [0, 1]], **kwargs
-):
-    """returns a matrix of shape (n_samples, n_preds, 2) containing probabilistic predictions
-    of a number of binary classifiers. The probabilty for the first class is sampled from a
-    Gaussian process with kernel specified by the user. The second class probability is
-    1 - p1.
+# def sample_pbar_h1(
+#     x: np.ndarray,
+#     p_preds: np.ndarray,
+#     kernel,
+#     setting: int = 1,
+#     eps: float = 1e-4,
+#     **kwargs,
+# ):
 
-    Parameters
-    ----------
-    x : np.ndarray
-        array of shape (n_samples,) containing the inputs.
-    kernel : sklearn.metrics.pairwise
-        Kernel function which is used to sample from the GP.
-    list_bounds_p : list, optional
-        upper and lower bound for heprobability of the first class per predictor
-        , by default [[0, 1], [0,1]]
+#     # initialize p_bar as a tensor
+#     p_bar = torch.zeros(len(x), p_preds.shape[2])
+#     # convert p_preds to tensor if it is not
+#     if not isinstance(p_preds, torch.Tensor):
+#         p_preds = torch.from_numpy(p_preds).float()
+#     # look at max and minimum of p_preds
+#     p_preds_max = torch.max(p_preds[:, :, 0]).item()
+#     p_preds_min = torch.min(p_preds[:, :, 0]).item()
+#     # look which one is closeer to the borders of (0,1)
+#     dist_1 = np.abs(p_preds_max - 1)
+#     dist_0 = np.abs(p_preds_min - 0)
 
-    Returns
-    -------
-    np.ndarray
-        matrix of shape (n_samples, n_preds, 2) containing probabilistic predictions
-    """
+#     if setting == 1:
+#         # add small random noise to upper OR lower bound (based on which is further to
+#         # the boundary), set pbar to this values
+#         p_bar[:, 0] = (
+#             p_preds[:, 0, 0] - np.ones(len(x))*.03
+#             if dist_0 > dist_1
+#             else p_preds[:, 1, 0] + np.ones(len(x))*.03
+#         )
+#         # make sure it lies in interval [0,1]
+#         p_bar[:, 0] = torch.clamp(p_bar[:, 0], 0, 1)
 
-    # intialize matrix of shape (n_samples, n_preds, 2)
-    p_preds = torch.zeros((len(x), len(list_bounds_p), 2), dtype=torch.float32)
+#     elif setting == 2:
+#         # sample pbar from smaller interval with values clost to the boundaries
+#         ivl_pbar = (
+#             [0 + dist_0 / 2, p_preds_min - eps]
+#             if dist_0 < dist_1
+#             else [p_preds_max + eps, 1 - dist_1 / 2]
+#         )
+#         p_bar[:, 0] = gp_sample_prediction(
+#             x, kernel=kernel, bounds_p=ivl_pbar, **kwargs
+#         )
+#     else:
+#         # sample pbar from bigger interval which does not contain (p_preds_min, p_preds_max)
+#         ivl_pbar = [0, p_preds_min] if dist_0 > dist_1 else [p_preds_max, 1]
+#         p_bar[:, 0] = gp_sample_prediction(
+#             x, kernel=kernel, bounds_p=ivl_pbar, **kwargs
+#         )
+
+#     p_bar[:, 1] = 1 - p_bar[:, 0]
+
+#     return p_bar
+
+
+def sample_binary_preds_gp(x, kernel, list_bounds_p=[[0, 1], [0, 1]], **kwargs):
+    """Generate probabilistic predictions for binary classifiers."""
+
+    n_samples = len(x)
+    p_preds = torch.zeros((n_samples, len(list_bounds_p), 2), dtype=torch.float32)
+
     for i, bounds_p in enumerate(list_bounds_p):
         preds = gp_sample_prediction(x, kernel, bounds_p, tensor=True, **kwargs)
-        p_preds[:, i, 0] = preds
-        p_preds[:, i, 1] = 1 - preds
+        p_preds[:, i, 0], p_preds[:, i, 1] = preds, 1 - preds
 
     return p_preds
 
 
-def gp_sample_prediction(
-    x: np.ndarray, kernel, bounds_p: list = [0, 1], tensor: bool = True, **kwargs
-):
-    """
+def gp_sample_prediction(x, kernel, bounds_p=[0, 1], tensor=True, **kwargs):
+    """Sample prediction from a Gaussian process."""
 
-    Arguments:
-      x : ndarray (n_samples,)
-        Inputs.
-      kernel : sklearn.metrics.pairwise
-        Kernel function which defines the hypothesis class of ensemble members
-      bounds_p : list (default=[0,1])
-        Lower and upper bound for probabilities of predictor.
-      x_dependent : boolean (default=False)
-        Whether convex combination depends on inputs or not.
-      **kwargs : dict
-        Additional arguments for kernel.
-
-    Output:
-      p1 : ndarray (n_samples,)
-        Probs first ensemble member.
-      p2 : ndarray (n_samples,)
-        Probs second ensemble member.
-      l : ndarray (n_samples,)
-        Weight for convex combination.
-    """
-    # calculate sample covariance matrix given kernel
     cov = kernel(x.reshape(-1, 1), x.reshape(-1, 1), **kwargs)
-    # specify mean function
     mean = np.zeros_like(x)
-    # sample from GP(mean,cov)
-    p_pred = random.multivariate_normal(mean, cov, 1).flatten()
-    # removed sampling of weights for now
-    #  if x_dependent:
-    #     l = random.multivariate_normal(mean, cov, 1).flatten()
-    # else:
-    #    l = np.repeat(np.random.rand(1), len(x))
-    # min-max scale
+    p_pred = np.random.multivariate_normal(mean, cov, 1).flatten()
     p_pred_sc = ab_scale(p_pred, bounds_p[0], bounds_p[1])
 
-    if tensor:
-        return torch.from_numpy(p_pred_sc).float()
-    else:
-        return p_pred_sc
+    return torch.from_numpy(p_pred_sc).float() if tensor else p_pred_sc
 
 
 # Function to enforce the range constraints

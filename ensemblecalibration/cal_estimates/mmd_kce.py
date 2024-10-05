@@ -99,7 +99,7 @@ def mmd_kce(
         + mean_no_diag(loss_mats[2])
     )
     if take_square:
-        kernel_out = torch.sqrt(kernel_out ** 2)
+        kernel_out = torch.sqrt(kernel_out ** 2 + 1e-8)
 
     return kernel_out
 

@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pandas as pd
 from scipy.stats import multinomial
+from sklearn.model_selection import train_test_split
 
 
 def matrix_kernel(p: np.ndarray, q: np.ndarray, dist_fct, sigma: float = 2.0):
@@ -34,31 +35,88 @@ def matrix_kernel(p: np.ndarray, q: np.ndarray, dist_fct, sigma: float = 2.0):
     return np.exp((-1 / sigma) * (dist_fct(p, q) ** 2) * id_k)
 
 
-def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
-    """draws a sample y from the categorical distribution
-    defined by a probaibility vector.
+def multinomial_label_sampling(probs, tensor: bool = False):
+    """
+    Draws samples y from the categorical distribution defined by a probability matrix.
 
     Parameters
     ----------
-    probs : np.ndarray
-        probability vector that sums up to one
+    probs : np.ndarray or torch.Tensor
+        Probability matrix of shape (n_samples, n_classes) where rows sum to one.
+    tensor : bool, optional
+        Whether to return the output as a torch tensor, by default False
 
     Returns
     -------
-    np.ndarray or torch.tensor
-
+    np.ndarray or torch.Tensor
+        Array or tensor of sampled class labels for each instance.
     """
-    try:
-        draws = multinomial(1, probs).rvs(size=1)[0, :]
-        y = np.argmax(draws)
 
-    except ValueError as e:
-        y = np.argmax(probs)
+    if isinstance(probs, np.ndarray):
+        probs = torch.from_numpy(probs).float()
 
-    if tensor:
-        y = torch.tensor(y).long()
+    # Ensure probs is a 2D tensor
+    if probs.ndim == 1:
+        probs = probs.unsqueeze(0)
+
+    # Use PyTorch's multinomial to sample from each row of the probability matrix
+    y = torch.multinomial(probs, num_samples=1).squeeze(1)  # Sampling 1 value per row
+
+    if not tensor:
+        y = y.numpy()
 
     return y
+
+
+def test_train_val_split(
+    p_preds: np.ndarray,
+    y_labels: np.ndarray,
+    x_inst: np.ndarray,
+    test_size: float = 0.5,
+    val_size: float = 0.2,
+):
+
+    x_test, X_temp, y_test, y_temp, preds_test, predictions_temp = train_test_split(
+        x_inst, y_labels, p_preds, test_size=test_size, random_state=42
+    )
+
+    # Step 2: Split Temp into Validation (20%) and Test (20%)
+    x_train, x_val, y_train, y_val, preds_train, preds_val = train_test_split(
+        X_temp, y_temp, predictions_temp, test_size=val_size, random_state=42
+    )
+
+    return (
+        (x_test, y_test, preds_test),
+        (x_train, y_train, preds_train),
+        (x_val, y_val, preds_val),
+    )
+
+
+# def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
+#     """draws a sample y from the categorical distribution
+#     defined by a probaibility vector.
+
+#     Parameters
+#     ----------
+#     probs : np.ndarray
+#         probability vector that sums up to one
+
+#     Returns
+#     -------
+#     np.ndarray or torch.tensor
+
+#     """
+#     try:
+#         draws = multinomial(1, probs).rvs(size=1)[0, :]
+#         y = np.argmax(draws)
+
+#     except ValueError as e:
+#         y = np.argmax(probs)
+
+#     if tensor:
+#         y = torch.tensor(y).long()
+
+#     return y
 
 
 def calculate_pbar(
@@ -134,12 +192,14 @@ def sample_function(x: np.ndarray, deg: int = 1, ivl: tuple = (0, 1)):
     return y
 
 
-def ab_scale(x: np.ndarray, a: float, b: float):
-    """scales array x to [a,b]
+def ab_scale(x, a: float, b: float):
+    """
+    Scales array x to the range [a, b].
+
     Parameters
     ----------
-    x : np.ndarray
-        Array to be scaled.
+    x : np.ndarray or torch.Tensor
+        Array or tensor to be scaled.
     a : float
         Lower bound.
     b : float
@@ -147,10 +207,20 @@ def ab_scale(x: np.ndarray, a: float, b: float):
 
     Returns
     -------
-    np.ndarray
-        Scaled array.
+    np.ndarray or torch.Tensor
+        Scaled array or tensor.
     """
-    return ((b - a) * ((x - np.min(x)) / (np.max(x) - np.min(x)))) + a
+    is_tensor = isinstance(x, torch.Tensor)
+    if not is_tensor:
+        # If input is a numpy array
+        x_min, x_max = np.min(x), np.max(x)
+        scaled = ((b - a) * ((x - x_min) / (x_max - x_min))) + a
+    else:
+        # If input is a torch tensor
+        x_min, x_max = torch.min(x), torch.max(x)
+        scaled = ((b - a) * ((x - x_min) / (x_max - x_min))) + a
+
+    return scaled
 
 
 def clean_and_convert(s):
@@ -197,7 +267,7 @@ def is_data_encapsulated(data):
             else:
                 # Data is not encapsulated (list of lists)
                 return False
-    return False 
+    return False
 
 
 def save_results(results_list, save_dir, file_name: str, col_names: list):
@@ -228,9 +298,9 @@ def save_results(results_list, save_dir, file_name: str, col_names: list):
     results_df = pd.DataFrame(results_list)
     results_df.columns = col_names
     # save results
-    results_df.to_csv(save_dir_file
-                        , index=False)
-    
+    results_df.to_csv(save_dir_file, index=False)
+
+
 # Function to make the config serializable
 def make_serializable(obj):
     if isinstance(obj, dict):
@@ -243,8 +313,8 @@ def make_serializable(obj):
         return obj
     elif callable(obj):
         # For functions and classes
-        return getattr(obj, '__name__', repr(obj))
-    elif hasattr(obj, '__class__'):
+        return getattr(obj, "__name__", repr(obj))
+    elif hasattr(obj, "__class__"):
         # For class instances, return the class name
         return obj.__class__.__name__
     else:

@@ -1,3 +1,5 @@
+import os
+
 from typing import Optional
 import numpy as np
 import pandas as pd
@@ -13,6 +15,95 @@ from ensemblecalibration.utils.projections import project_points2D
 from ensemblecalibration.utils.helpers import process_df
 
 
+def read_and_plot_error_analysis(
+    file_path,
+    save_name: str,
+    output_path: str = "../../figures/",
+    list_col_titles: list = [
+        r"$\lambda=const$",
+        r"$\lambda=f(x)$"
+    ],
+    title: str = None,
+    figsize: tuple = (8, 10),
+    type_1: bool = True,
+    alpha: np.ndarray = None
+):
+    # make output path if it does not exist
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    df_results = pd.read_csv(file_path)
+
+    # plot error analysis
+    fig = plot_error_analysis(
+        df_results,
+        list_errors=df_results.columns,
+        list_col_titles=list_col_titles,
+        title=title,
+        figsize=figsize,
+        type_1=type_1,
+        alpha=alpha
+    )
+    fig.savefig(output_path + save_name + ".png", dpi=300)
+    # fig_t2.savefig(output_path + title_2 + ".png", bbox_inches="tight")
+
+    return fig
+
+
+def read_and_plot_error_analysis_full(
+    file_path,
+    output_path: str = "../../figures/",
+    list_col_titles: list = [
+        r"$\lambda=const$",
+        r"$\lambda=f(x)$",
+        r"$S_1$",
+        r"$S_2$",
+        r"$S_3$",
+    ],
+    title_1: str = None,
+    title_2: str = None,
+    save_name_1: str = "error_analysis_t1",
+    save_name_2: str = "error_analysis_t2",
+    figsize_1: tuple = (8, 10),
+    figsize_2: tuple = (10, 10),
+    n_type_1: int = 2,
+    alpha_1: np.ndarray = None,
+    alpha_2: np.ndarray = None,
+):
+    # make output path if it does not exist
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    df_results = pd.read_csv(file_path)
+    # split into data used for type 1 and type 2 error analysis
+    df_results_t1 = df_results.iloc[:n_type_1, :]
+    df_results_t2 = df_results.iloc[n_type_1:, :]
+
+    # plot error analysis
+    fig_t1 = plot_error_analysis(
+        df_results_t1,
+        list_errors=df_results_t1.columns,
+        list_col_titles=list_col_titles[:n_type_1],
+        title=title_1,
+        figsize=figsize_1,
+        alpha=alpha_1
+    )
+    fig_t2 = plot_error_analysis(
+        df_results_t2,
+        list_errors=df_results_t2.columns,
+        list_col_titles=list_col_titles[n_type_1:],
+        title=title_2,
+        figsize=figsize_2,
+        type_1=False,
+        alpha=alpha_2
+    )
+
+    # save figures
+    fig_t1.savefig(output_path + save_name_1 + ".png", bbox_inches="tight")
+    fig_t2.savefig(output_path + save_name_2 + ".png", bbox_inches="tight")
+
+    return fig_t1, fig_t2
+
+
+
 def plot_error_analysis(
     df: pd.DataFrame,
     list_errors: list,
@@ -20,9 +111,12 @@ def plot_error_analysis(
     title: Optional[str] = None,
     list_col_titles: list = ["S_0", "S_1", "S_2", "S_3"],
     type_1: bool = True,
+    alpha: Optional[np.ndarray] = None,
 ):
     if "alpha" in df:
         alphas = df["alpha"].values
+    elif alpha is not None:
+        alphas = alpha
     else:
         alphas = np.array(
             [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
@@ -57,9 +151,10 @@ def plot_error_analysis(
                     ax[i, j].plot(alphas, alphas, "--", color="black", alpha=0.5)
                 # ax[i, j].spines[["right", "top"]].set_visible(False)
                 ax[i, j].grid()
+                ax[i, j].spines[["right", "top"]].set_visible(False)
 
         for i, col_title in enumerate(list_col_titles):
-            ax[0, i].set_title(col_title, fontsize=15)
+            ax[0, i].set_title(col_title, fontsize=18)
         ax[0,0].legend(fontsize=15)
     else:
         ax[0].set_ylabel(f"{list_errors[0]}")
@@ -70,12 +165,16 @@ def plot_error_analysis(
                 ax[j].plot(alphas, alphas, "--")
             ax[j].spines[["right", "top"]].set_visible(False)
             ax[j].grid()
-    fig.supxlabel(r"$\alpha$", fontsize=15, y=0.01)
+    fig.supxlabel(r"$\alpha$", fontsize=20, y=0.03)
     # fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
     # plt.tight_layout()
     if title is not None:
-        plt.suptitle(title, fontsize=18, y=0.99)
+        plt.suptitle(title, fontsize=18, y=0.97)
     fig.subplots_adjust(hspace=0.1)
+    # set x and y ticks and labels to be big
+    for i in range(len(list_errors)):
+        for j in range(len(df)):
+            ax[i, j].tick_params(axis="both", labelsize=15)
     return fig
 
 

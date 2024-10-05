@@ -3,9 +3,14 @@ from typing import Union
 import random
 import numpy as np
 import torch
+from sklearn.model_selection import train_test_split
 
 from ensemblecalibration.utils.helpers import multinomial_label_sampling, calculate_pbar
 from ensemblecalibration.utils.minimization import calculate_min
+
+
+
+
 
 
 def npbe_test_ensemble(
@@ -42,16 +47,61 @@ def npbe_test_ensemble(
     """
 
     # calculate optimal weights
-    minstat, l_weights = calculate_min(x_inst, p_preds, y_labels, params)
+    _, _, p_bar_test, y_labels_test = calculate_min(x_inst, p_preds, y_labels, params)
     # calculate p_bar # TODO: calculate pbar ehre or in loop!!!??
     # n_dims = 2 if params["x_dep"] else 1
-    n_dims = 2 if params["optim"] == "mlp" else 1
-    p_bar = calculate_pbar(l_weights, p_preds, n_dims=n_dims)
+    # n_dims = 2 if params["optim"] == "mlp" else 1
+    # p_bar = calculate_pbar(l_weights, p_preds, n_dims=n_dims)
     # run bootstrap test
-    decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar, y_labels, params)
+    decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar_test, y_labels_test, params)
     print("Decision: ", decision)
 
     return decision, p_val, stat
+
+# def npbe_test_ensemble(
+#     alpha: list,
+#     x_inst: np.ndarray,
+#     p_preds: np.ndarray,
+#     y_labels: np.ndarray,
+#     params: dict,
+# ):
+   
+   
+#     """new version of the bootstrapping test using uniform sampling of the polytope for testing
+#     whether there exists a calibrated version in the convex hull
+
+#     Parameters
+#     ----------
+#     alpha : list
+#         significance level(s) of the test
+#     x_inst : np.ndarray of shape (n_samples, n_predictors, n_classes)
+#         tensor containing predictions for each instance and classifier
+#     p_preds : np.ndarray of shape (n_samples, n_predictors, n_classes)
+#         tensor containing probabilistic predictions for each instance and classifier
+#     y_labels : np.ndarray of shape (n_samples,)
+#         array containing labels
+#     params : dict
+#         dictionary of test parameters
+#     Returns
+#     -------
+#     decision, (p_vals, stats)
+#         decision: integer defining whether tso reject (1) or accept (0) the null hypothesis
+#         ( p_vals: array of p values for each predictor )
+#         ( stats: array of test statistics for each predictor )
+
+#     """
+
+#     # calculate optimal weights
+#     minstat, l_weights = calculate_min(x_inst, p_preds, y_labels, params)
+#     # calculate p_bar # TODO: calculate pbar ehre or in loop!!!??
+#     # n_dims = 2 if params["x_dep"] else 1
+#     n_dims = 2 if params["optim"] == "mlp" else 1
+#     p_bar = calculate_pbar(l_weights, p_preds, n_dims=n_dims)
+#     # run bootstrap test
+#     decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar, y_labels, params)
+#     print("Decision: ", decision)
+
+#     return decision, p_val, stat
 
 
 def npbe_test_vaicenavicius(
@@ -84,7 +134,7 @@ def npbe_test_vaicenavicius(
         p_probs_b = random.sample(p_probs.tolist(), p_probs.shape[0])
         p_probs_b = np.stack(p_probs_b)
         # sample labels according to categorical distribution
-        y_b = np.apply_along_axis(multinomial_label_sampling, 1, p_probs_b)
+        y_b = multinomial_label_sampling(p_probs) #np.apply_along_axis(multinomial_label_sampling, 1, p_probs_b)
         # calculate test statistic (miscalibration estimate) under null hypothesis
         stats_h0[b] = params["obj"](p_probs_b, y_b, params)
 

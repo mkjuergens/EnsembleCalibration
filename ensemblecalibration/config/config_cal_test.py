@@ -88,7 +88,7 @@ def create_config(
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
                 "bw": 0.01, # TODO: check this
-                "loss": MMDLoss(bw=0.01, lambda_bce=0.1), # changed!!
+                "loss": MMDLoss(bw=0.01, lambda_bce=0.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -97,7 +97,7 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.1,
+                "lambda_bce": 0.0,
                 "device": device,
                 "bounds_p": bounds_p,
                 **kwargs
@@ -141,8 +141,8 @@ def create_config(
                 "n_members": n_members,
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
-                "bw": 0.0001, # TODO: check this
-                "loss": LpLoss(bw=0.0001, lambda_bce=0.1), # changed
+                "bw": 0.00001, # TODO: check this
+                "loss": LpLoss(bw=0.00001, lambda_bce=0.0), # changed
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -152,7 +152,7 @@ def create_config(
                 "x_dep": x_dep,
                 "deg": deg,
                 "p": 2,
-                "lambda_bce": 1.0, # TODO: check this
+                "lambda_bce": 0.0, # TODO: check this
                 "device": device,
                 "bounds_p": bounds_p,
                 **kwargs
@@ -170,7 +170,7 @@ def create_config(
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
                 "bw": 0.001, # TODO: check this
-                "loss": SKCELoss(bw=0.00001, lambda_bce=0.01), # changed!!
+                "loss": SKCELoss(bw=0.0001, lambda_bce=0.00), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -179,7 +179,7 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.1, # TODO: check this
+                "lambda_bce": 0.0, # TODO: check this
                 "device": device,
                 "bounds_p": bounds_p,
                 **kwargs

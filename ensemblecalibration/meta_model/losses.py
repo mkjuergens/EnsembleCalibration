@@ -140,7 +140,8 @@ class LpLoss(CalibrationLoss):
         self.bw = bw
         self.lambda_bce = lambda_bce
 
-    def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
+    def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor,
+                debug: bool = False):
 
         device = weights_l.device
         # cehck max and min values of weights
@@ -152,15 +153,20 @@ class LpLoss(CalibrationLoss):
             np.isnan(p_bar.detach().cpu()).sum() == 0
         ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
         # check that all y's lie in {0,1}
-        loss = get_ece_kde(
+        loss_ece = get_ece_kde(
             p_bar, y, bw, self.p, device=device
         )  # changed: not taking only the second column
 
         if self.lambda_bce > 0:
             reg_loss = self.compute_reg_loss(p_bar, y)
-            loss += self.lambda_bce * reg_loss
-
-        return loss
+            loss = loss_ece + self.lambda_bce * reg_loss
+            if debug:
+                return loss, loss_ece, reg_loss
+            else:
+                return loss
+            
+        else:
+            return loss_ece
 
 
 class MMDLoss(CalibrationLoss):
@@ -173,15 +179,21 @@ class MMDLoss(CalibrationLoss):
         self.kernel_fct = kernel_fct
         self.lambda_bce = lambda_bce
 
-    def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor):
+    def forward(self, p_preds: torch.Tensor, weights_l: torch.Tensor, y: torch.Tensor,
+                debug: bool = False):
         p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
         bw = self.bw
-        loss = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
+        loss_mmd = mmd_kce(p_bar, y, kernel_fct=self.kernel_fct, bw=bw)
 
         if self.lambda_bce > 0:
             reg_loss = self.compute_reg_loss(p_bar, y)
-            loss = loss + self.lambda_bce * reg_loss
-        return loss
+            loss = loss_mmd + self.lambda_bce * reg_loss
+            if debug:
+                return loss, loss_mmd, reg_loss
+            else:
+                return loss
+        else:
+            return loss_mmd
 
 
 class FocalLoss(nn.Module):

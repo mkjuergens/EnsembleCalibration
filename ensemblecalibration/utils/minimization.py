@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from ensemblecalibration.meta_model import get_optim_lambda_mlp
 from ensemblecalibration.data.dataset import MLPDataset
-from ensemblecalibration.utils.helpers import calculate_pbar
+from ensemblecalibration.utils.helpers import calculate_pbar, test_train_val_split
 
 
 def calculate_min(
@@ -24,8 +24,11 @@ def calculate_min(
 
     Returns
     -------
-    float, np.ndarray
-        minimal statistic and optimal weights
+    minstat, l_weights, p_bar, y_labels
+        minstat: minimal statistic
+        l_weights: optimal weights
+        p_bar: convex combination of predictors on test set
+        y_labels: labels of test set
 
     Raises
     ------
@@ -34,11 +37,17 @@ def calculate_min(
     """
     #n_dims = 2 if params["x_dep"] else 1
     n_dims = 2 if params["optim"] == "mlp" else 1
-    #print(f"n_dims: {n_dims}")
+    data_test, data_train, data_val = test_train_val_split(p_probs, y_labels, x_inst)
     if params["optim"] == "mlp":
-        dataset = MLPDataset(x_train=x_inst, P=p_probs, y=y_labels)
-        l_weights, loss = get_optim_lambda_mlp(
-            dataset,
+        # split data into train, validation and test (train and val are used to train the MLP)
+        dataset_train = MLPDataset(x_train=data_train[0], P=data_train[2], y=data_train[1])
+        dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
+        dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+        # the model outputs the optimal weights on the test set
+        l_weights, loss_train, loss_val = get_optim_lambda_mlp(
+            dataset_train=dataset_train,
+            dataset_val=dataset_val,
+            dataset_test=dataset_test,
             loss=params["loss"],
             n_epochs=params["n_epochs"],
             lr=params["lr"],
@@ -49,16 +58,16 @@ def calculate_min(
             device=params["device"],
         )
     elif params["optim"] == "COBYLA":
-        l_weights = minimize_const_weights(p_probs, y_labels, params, method="COBYLA")
+        l_weights = minimize_const_weights(data_test[2], data_test[1], params, method="COBYLA")
     elif params["optim"] == "SLSQP":
-        l_weights = minimize_const_weights(p_probs, y_labels, params, method="SLSQP")
+        l_weights = minimize_const_weights(data_test[2], data_test[1], params, method="SLSQP")
     else:
         raise NotImplementedError("Only 'mlp', 'COBYLA' and 'SLSQP' are implemented.")
-    p_bar = calculate_pbar(l_weights, p_probs, reshape=False, n_dims=n_dims)
+    p_bar = calculate_pbar(l_weights, data_test[2], reshape=False, n_dims=n_dims)
     # calculate test statistic
-    minstat = params["obj"](p_bar, y_labels, params)
+    minstat = params["obj"](p_bar, data_test[1], params)
 
-    return minstat, l_weights
+    return minstat, l_weights, p_bar, data_test[1]
 
 def minimize_const_weights(
     p_probs: np.ndarray, y: np.ndarray, params: dict, enhanced_output: bool = False,
