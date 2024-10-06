@@ -23,6 +23,7 @@ def create_config(
     x_dep: bool = True,
     deg: int = 2,
     device: str = "cpu",
+    reg: bool = False,
     bounds_p : list = [[0.5, 0.8], [0.7, .9]],
     **kwargs
 ):
@@ -60,6 +61,10 @@ def create_config(
         number of hiddne layers in the meta model, by default 1
     hidden_dim : int, optional
         hidden dimension in the meta model, by default 32
+    x_dep : bool, optional
+        whether the optimal weights depend on the instance, by default True
+    reg: bool, optional
+        whether to regularize the loss function with the cross-entropy loss, by default False
     **kwargs : dict
         additional keyword arguments for the loss function
 
@@ -74,6 +79,14 @@ def create_config(
     #     loss = loss(bw=bw, lambda_bce=lambda_bce)
     # else:
     #     loss = loss(bw=bw)
+    if reg:
+        reg_mmd = 0.1
+        reg_lp = 1.0
+        reg_skce = 0.0001
+    else:
+        reg_mmd = 0.0
+        reg_lp = 0.0
+        reg_skce = 0.0
 
     config = {
         "MMD": {
@@ -88,7 +101,7 @@ def create_config(
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
                 "bw": 0.01, # TODO: check this
-                "loss": MMDLoss(bw=0.01, lambda_bce=0.0), # changed!!
+                "loss": MMDLoss(bw=0.01, lambda_bce=reg_mmd), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -97,7 +110,7 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.0,
+                "lambda_bce": reg_mmd,
                 "device": device,
                 "bounds_p": bounds_p,
                 **kwargs
@@ -142,7 +155,7 @@ def create_config(
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
                 "bw": 0.00001, # TODO: check this
-                "loss": LpLoss(bw=0.00001, lambda_bce=0.0), # changed
+                "loss": LpLoss(bw=0.00001, lambda_bce=reg_lp), # changed
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -152,7 +165,7 @@ def create_config(
                 "x_dep": x_dep,
                 "deg": deg,
                 "p": 2,
-                "lambda_bce": 0.0, # TODO: check this
+                "lambda_bce": reg_lp, # TODO: check this
                 "device": device,
                 "bounds_p": bounds_p,
                 **kwargs
@@ -170,7 +183,7 @@ def create_config(
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
                 "bw": 0.001, # TODO: check this
-                "loss": SKCELoss(bw=0.0001, lambda_bce=0.00), # changed!!
+                "loss": SKCELoss(bw=0.0001, lambda_bce=reg_skce), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -179,7 +192,7 @@ def create_config(
                 "hidden_dim": hidden_dim,
                 "x_dep": x_dep,
                 "deg": deg,
-                "lambda_bce": 0.0, # TODO: check this
+                "lambda_bce": reg_skce, # TODO: check this
                 "device": device,
                 "bounds_p": bounds_p,
                 **kwargs

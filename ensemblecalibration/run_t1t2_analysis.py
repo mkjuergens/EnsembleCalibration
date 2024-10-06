@@ -11,6 +11,7 @@ from ensemblecalibration.config.config_cal_test import create_config
 from ensemblecalibration.data.experiments import get_experiment
 from ensemblecalibration.cal_test import npbe_test_ensemble
 from ensemblecalibration.utils.helpers import save_results, make_serializable
+from ensemblecalibration.utils.plot_functions import plot_error_analysis
 
 
 def _get_config_from_parser(args: dict):
@@ -36,7 +37,7 @@ def _get_config_from_parser(args: dict):
     return config
 
 
-def _simulation_h0(dict_tests, n_resamples: int, alpha: list, x_dep: bool = True):
+def _simulation_h0(dict_tests, n_resamples: int, alpha: list, x_dep: bool = True, verbose: bool = False):
     results = {}
     for test in dict_tests:
         results[test] = np.zeros(len(alpha))
@@ -50,6 +51,7 @@ def _simulation_h0(dict_tests, n_resamples: int, alpha: list, x_dep: bool = True
                     p_preds=data[1],
                     y_labels=data[3],
                     params=dict_tests[test]["params"],
+                    verbose=verbose,
                 )[0],
                 dtype=np.float64,
             )
@@ -70,6 +72,7 @@ def _simulation_h1(
     alpha: list,
     setting: int | None,
     deg_h1: float | None = None,
+    verbose: bool = False,
 ):
 
     results = {}
@@ -90,6 +93,7 @@ def _simulation_h1(
                     p_preds=data[1],
                     y_labels=data[3],
                     params=dict_tests[test]["params"],
+                    verbose=verbose,
                 )[0]
             )
     for test in dict_tests:
@@ -154,6 +158,8 @@ def save_results(results_list, save_dir, file_name: str, col_names: list):
     # save results
     results_df.to_csv(save_dir_file, index=False)
 
+    return results_df
+
 
 def main_t1_t2(args):
 
@@ -168,6 +174,8 @@ def main_t1_t2(args):
     results_dir = args.results_dir
     device = args.device
     print(f"Device: {device}")
+    verbose = args.verbose
+    args.test_types = args.types
     names_tests = [t for t in config]
     
 
@@ -175,85 +183,109 @@ def main_t1_t2(args):
     exp_name = config[list(config.keys())[0]]["experiment"]
     experiment = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     save_dir = f"{results_dir}/{exp_name}/" + f"{experiment}"
+    # check if "t1" is in the list of test types
+    if "t1" in args.test_types:
+        """
+        H0 simulation, first without x-dependency and then with x-dependency
+        """
+        results_h0 = []
+        alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
 
-    """
-    H0 simulation, first without x-dependency and then with x-dependency
-    """
-    results_h0 = []
-    alpha = [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
-
-    print("Start H0 simulation...")
-    # first no x-dependecy
-    print("no x-dependency..")
-    res = _simulation_h0(
-        dict_tests=config, n_resamples=n_resamples, x_dep=False, alpha=alpha
-    )
-    # save in csv file
-    save_results(
-        res,
-        save_dir,
-        "_h0_no_x_dep_" + prefix + "_{}.csv".format(n_resamples),
-        names_tests,
-    )
-
-    # append to list with all results
-    results_h0.append(res)
-    # then with x-dependency
-    print("x-dependency..")
-    res = _simulation_h0(
-        dict_tests=config, n_resamples=n_resamples, x_dep=True, alpha=alpha
-    )
-
-    # save results separately in experiment folder
-    save_results(
-        res,
-        save_dir,
-        file_name="_h0_x_dep_" + prefix + "_{}.csv".format(n_resamples),
-        col_names=names_tests,
-    )
-
-    results_h0.append(res)
-    save_results(
-        results_h0,
-        save_dir,
-        file_name="h0_" + prefix + "_{}.csv".format(n_resamples),
-        col_names=names_tests,
-    )
-
-    """
-    H1 simulation
-    """
-
-    print("Start H1 simulation...")
-    # for setting in range(1, args.n_settings + 1):
-    degs_h1 = [0.05, 0.3, 0.95]
-    # set alpha differently for h1
-    alpha_h1 = [0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
-    results_h1 = []
-    for deg_h1 in degs_h1:
-        res = _simulation_h1(
-            dict_tests=config,
-            n_resamples=n_resamples,
-            alpha=alpha_h1,
-            setting=None,
-            deg_h1=deg_h1,
+        print("Start H0 simulation...")
+        # first no x-dependecy
+        print("no x-dependency..")
+        res = _simulation_h0(
+            dict_tests=config, n_resamples=n_resamples, x_dep=False, alpha=alpha, verbose=verbose
         )
-        # save results separately in experiment folder
-        save_results(
+        # save in csv file
+        _ = save_results(
             res,
             save_dir,
-            file_name=f"_h1_{deg_h1}_" + prefix + "_{}.csv".format(n_resamples),
+            "_h0_no_x_dep_" + prefix + "_{}.csv".format(n_resamples),
+            names_tests,
+        )
+
+        # append to list with all results
+        results_h0.append(res)
+        # then with x-dependency
+        print("x-dependency..")
+        res = _simulation_h0(
+            dict_tests=config, n_resamples=n_resamples, x_dep=True, alpha=alpha, verbose=verbose
+        )
+
+        # save results separately in experiment folder
+        _ = save_results(
+            res,
+            save_dir,
+            file_name="_h0_x_dep_" + prefix + "_{}.csv".format(n_resamples),
             col_names=names_tests,
         )
-        results_h1.append(res)
-    # save results for h1
-    save_results(
-        results_h1,
-        save_dir,
-        file_name="h1_" + prefix + "_{}.csv".format(n_resamples),
-        col_names=names_tests,
-    )
 
+        results_h0.append(res)
+        results_df = save_results(
+            results_h0,
+            save_dir,
+            file_name="h0_" + prefix + "_{}.csv".format(n_resamples),
+            col_names=names_tests,
+        )
+
+        # plot results
+        fig = plot_error_analysis(
+            results_df,
+            list_errors = results_df.columns,
+            figsize=(8,11),
+            list_col_titles=[r"$H_{0,1}$", r"$H_{0,2}$"],
+            type_1=True,
+            alpha=np.array(alpha),
+        )
+        fig.savefig(save_dir + "/error_analysis_t1.png", bbox_inches="tight", dpi=300)
+
+    if "t2" in args.test_types:
+        """
+        H1 simulation
+        """
+
+        print("Start H1 simulation...")
+        # for setting in range(1, args.n_settings + 1):
+        degs_h1 = [0.05, 0.3, 0.95]
+        # set alpha differently for h1
+        alpha_h1 = [0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+        results_h1 = []
+        for deg_h1 in degs_h1:
+            res = _simulation_h1(
+                dict_tests=config,
+                n_resamples=n_resamples,
+                alpha=alpha_h1,
+                setting=None,
+                deg_h1=deg_h1,
+                verbose=verbose,
+            )
+            # save results separately in experiment folder
+            _ = save_results(
+                res,
+                save_dir,
+                file_name=f"_h1_{deg_h1}_" + prefix + "_{}.csv".format(n_resamples),
+                col_names=names_tests,
+            )
+            results_h1.append(res)
+        # save results for h1
+        df_results = save_results(
+            results_h1,
+            save_dir,
+            file_name="h1_" + prefix + "_{}.csv".format(n_resamples),
+            col_names=names_tests,
+        )
+
+        # plot results
+        fig = plot_error_analysis(
+            df_results,
+            list_errors=df_results.columns,
+            figsize=(8, 11),
+            list_col_titles=[r"$H_{1,1}$", r"$H_{1,2}$", r"$H_{1,3}$"],
+            type_1=False,
+            alpha=np.array(alpha_h1),
+        )
+        fig.savefig(save_dir + "/error_analysis_t2.png", bbox_inches="tight", dpi=300)
     # save config
     save_dir_config = os.path.join(save_dir, "config.pkl")
     # save as csv also
@@ -292,6 +324,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--hidden_layers", type=int, default=3, help="number of hidden layers"
     )
+    parser.add_argument("--reg", type=bool, default=False, help="adds extra termn in the loss")
     parser.add_argument("--hidden_dim", type=int, default=32, help="hidden dimension")
     parser.add_argument("--x_dep", type=bool, default=True, help="x_dep")
     parser.add_argument("--deg", type=int, default=2, help="degree")
@@ -301,6 +334,8 @@ if __name__ == "__main__":
     parser.add_argument("--prefix", type=str, default="results_dirichlet_mlp_t1t2_10_10_100")
     parser.add_argument("--results_dir", type=str, default="results")
     parser.add_argument("--device", type=str, default="cpu", help="device")
+    parser.add_argument("--verbose", type=bool, default=False, help="verbose")
+    parser.add_argument("--types", "--names-list", nargs="+", default=["t1", "t2"])
     args = parser.parse_args()
 
     main_t1_t2(args)
