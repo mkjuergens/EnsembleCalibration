@@ -76,8 +76,3 @@ def load_results(dataset_name, ensemble_size):
     labels = np.load(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", allow_pickle=True)
     return predictions, instances, labels
 
-
-
-if __name__ == "__main__":
-    # test the function
-    trainloader, testloader, classes = load_dataset("CIFAR10")
