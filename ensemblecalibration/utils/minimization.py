@@ -6,7 +6,8 @@ from ensemblecalibration.utils.helpers import calculate_pbar, test_train_val_spl
 
 
 def calculate_min(
-    x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, params: dict
+    x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, params: dict,
+    verbose: bool = False
 ):
     """calculate the optimal convex combination of predictors using a given miscalibration estimate
     and minimization technique.
@@ -21,6 +22,8 @@ def calculate_min(
         array of labels
     params : dict
         dictionary of parameters
+    verbose : bool, optional
+        whether to print the results and loss, by default False
 
     Returns
     -------
@@ -56,6 +59,7 @@ def calculate_min(
             hidden_layers=params["hidden_layers"],
             patience=params["patience"],
             device=params["device"],
+            verbose=verbose
         )
     elif params["optim"] == "COBYLA":
         l_weights = minimize_const_weights(data_test[2], data_test[1], params, method="COBYLA")

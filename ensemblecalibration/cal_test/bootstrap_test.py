@@ -19,6 +19,7 @@ def npbe_test_ensemble(
     p_preds: np.ndarray,
     y_labels: np.ndarray,
     params: dict,
+    verbose: bool = True,
 ):
    
    
@@ -47,11 +48,9 @@ def npbe_test_ensemble(
     """
 
     # calculate optimal weights
-    _, _, p_bar_test, y_labels_test = calculate_min(x_inst, p_preds, y_labels, params)
-    # calculate p_bar # TODO: calculate pbar ehre or in loop!!!??
-    # n_dims = 2 if params["x_dep"] else 1
-    # n_dims = 2 if params["optim"] == "mlp" else 1
-    # p_bar = calculate_pbar(l_weights, p_preds, n_dims=n_dims)
+    _, _, p_bar_test, y_labels_test = calculate_min(x_inst, p_preds, y_labels, params,
+                                                     verbose=verbose)
+    
     # run bootstrap test
     decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar_test, y_labels_test, params)
     print("Decision: ", decision)

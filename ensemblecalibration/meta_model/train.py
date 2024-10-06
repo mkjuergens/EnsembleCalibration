@@ -104,6 +104,7 @@ def get_optim_lambda_mlp(
     # device
     x_inst = x_inst.to(device)
     optim_weights = model(x_inst)
+
     optim_weights = optim_weights.detach().cpu()
     return optim_weights, loss_train, loss_val
 
@@ -299,6 +300,8 @@ def train_mlp(
         if verbose:
             if n % 20 == 0:
                 print(f"Epoch {n}: Train Loss: {loss_epoch_train}")
+                if dataset_val is not None:
+                    print(f"Epoch {n}: Validation Loss: {loss_epoch_val}")
 
         # check using early stopping if training should be stopped
         # check every n epochs
