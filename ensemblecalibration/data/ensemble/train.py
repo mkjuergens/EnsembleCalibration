@@ -1,27 +1,3 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-from tqdm import tqdm
-from torchvision import datasets, transforms
-import wandb
-
-from ensemblecalibration.data.ensemble.datasets import load_dataset, save_results
-from ensemblecalibration.data.ensemble.model import get_resnet_model
-
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-from tqdm import tqdm
-import wandb
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-
-from ensemblecalibration.data.ensemble.datasets import load_dataset, save_results
-from ensemblecalibration.data.ensemble.model import get_resnet_model
-
-
 import os
 import torch
 import torch.nn as nn
@@ -38,7 +14,7 @@ from ensemblecalibration.data.ensemble.model import get_resnet_model
 def train_model(model, trainloader, valloader, epochs=50, patience=5, device="cuda", dataset_name="", ensemble_size=1, model_idx=1):
     # Initialize Weights & Biases run
     wandb.init(
-        project="ensemble-calibration",
+        project="ensemble-calibration-CIFAR",
         reinit=True,
         config={
             "dataset": dataset_name,
@@ -123,7 +99,7 @@ def train_model(model, trainloader, valloader, epochs=50, patience=5, device="cu
     return best_model_path
 
 
-# Test the ensemble models and collect predictions
+# Test the ensemble models and collect probabilistic predictions
 def test_ensemble(models_paths, testloader, num_classes, device="cuda"):
     ensemble_models = [get_resnet_model(num_classes) for _ in models_paths]
 
@@ -143,19 +119,19 @@ def test_ensemble(models_paths, testloader, num_classes, device="cuda"):
             instances_list.append(inputs.cpu().numpy())
             labels_list.append(labels.cpu().numpy())
 
-            # For each model, collect the predictions for the current batch
-            ensemble_preds = []
+            # For each model, collect the probabilistic predictions for the current batch
+            ensemble_probs = []
             for model in ensemble_models:
                 outputs = model(inputs)
-                _, predicted = torch.max(outputs, 1)
-                ensemble_preds.append(predicted.cpu().numpy())
+                probs = torch.softmax(outputs, dim=1)  # Convert logits to probabilities
+                ensemble_probs.append(probs.cpu().numpy())
 
-            # Convert ensemble_preds to have shape (num_models, batch_size)
-            ensemble_preds = np.stack(ensemble_preds, axis=0)
-            predictions.append(ensemble_preds)
+            # Convert ensemble_probs to have shape (num_models, batch_size, num_classes)
+            ensemble_probs = np.stack(ensemble_probs, axis=0)
+            predictions.append(ensemble_probs)
 
     # Convert lists to numpy arrays
-    predictions = np.concatenate(predictions, axis=1)  # Shape: (num_models, total_samples)
+    predictions = np.concatenate(predictions, axis=1)  # Shape: (num_models, total_samples, num_classes)
     labels = np.concatenate(labels_list)  # Shape: (total_samples,)
     instances = np.concatenate(instances_list)  # Shape: (total_samples, channels, height, width)
 
@@ -165,7 +141,11 @@ def test_ensemble(models_paths, testloader, num_classes, device="cuda"):
 if __name__ == "__main__":
     # Number of models in the ensembles
     ensemble_sizes = [5, 10]
-    datasets_to_use = ["CIFAR10", "CIFAR100", "MNIST"]
+    datasets_to_use = ["CIFAR10", "CIFAR100"]
+
+    # Specify the directory to save predictions
+    save_directory = "results"
+    os.makedirs(save_directory, exist_ok=True)
 
     # Training and testing the ensembles for each dataset
     for dataset_name in datasets_to_use:
@@ -193,7 +173,9 @@ if __name__ == "__main__":
             # Test ensemble using the best saved models
             predictions, instances, labels = test_ensemble(best_model_paths, testloader, num_classes)
 
-            # Save predictions, instances, and labels
-            save_results(dataset_name, ensemble_size, predictions, instances, labels)
+            # Save predictions, instances, and labels in the specified directory
+            np.save(os.path.join(save_directory, f"{dataset_name}_ensemble_{ensemble_size}_prob_predictions.npy"), predictions)
+            np.save(os.path.join(save_directory, f"{dataset_name}_ensemble_{ensemble_size}_instances.npy"), instances)
+            np.save(os.path.join(save_directory, f"{dataset_name}_ensemble_{ensemble_size}_labels.npy"), labels)
 
-            print(f"Saved predictions, instances, and labels for ensemble of size {ensemble_size} on {dataset_name}\n")
+            print(f"Saved probabilistic predictions, instances, and labels for ensemble of size {ensemble_size} on {dataset_name} in '{save_directory}'\n")

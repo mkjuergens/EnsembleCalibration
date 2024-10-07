@@ -137,6 +137,7 @@ class MLPCalWConv(nn.Module):
         out = out.view(out.size(0), -1)
         # Apply MLP layers
         out = self.mlp_layers(out)
+        out = out.view(-1, out.shape[1])
         # Apply softmax to get weights between 0 and 1 and summing up to 1
         out = self.softmax(out)
         return out

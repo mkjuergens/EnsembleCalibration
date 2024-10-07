@@ -9,6 +9,7 @@ from ensemblecalibration.data.ensemble.datasets import load_results
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.utils.helpers import test_train_val_split
 from ensemblecalibration.config.config_cal_test import create_config
+from ensemblecalibration.meta_model.losses import LpLoss, SKCELoss, BrierLoss, MMDLoss
 
 
 def main():
@@ -39,12 +40,12 @@ def main():
         help="Number of hidden layers in the ConvNet",
     )
     parser.add_argument(
-        "--epochs", type=int, default=50, help="Number of epochs to train for"
+        "--epochs", type=int, default=100, help="Number of epochs to train for"
     )
     parser.add_argument(
         "--patience",
         type=int,
-        default=5,
+        default=40,
         help="Number of epochs to wait before early stopping",
     )
     parser.add_argument(
@@ -56,7 +57,7 @@ def main():
         default=0.1,
         help="Fraction of training data to use for validation",
     )
-    parser.add_argument("--device", type=str, default="cuda", help="Device to train on")
+    parser.add_argument("--device", type=str, default="cuda:0", help="Device to train on")
     # parser.add_argument("--optim", type=str, default="mlp", help="Optimization method")
     parser.add_argument(
         "--verbose", type=bool, default=True, help="Print results and loss"
@@ -69,14 +70,20 @@ def main():
         ensemble_size=args.ensemble_size,
         directory=args.results_dir,
     )
-
+    p_preds = torch.from_numpy(p_preds).permute(1,0,2)
+    x_inst = torch.from_numpy(x_inst)
+    y_labels = torch.from_numpy(y_labels)
+    # print(p_preds.shape)
+    # print(x_inst.shape)
+    # print(y_labels.shape)
     assert p_preds.shape[0] == x_inst.shape[0] == y_labels.shape[0], "Data mismatch"
+
 
     #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
     # Initialize model
     model = MLPCalWConv(
         in_channels=x_inst.shape[1],
-        out_channels=p_preds.shape[2],
+        out_channels=p_preds.shape[1],
         hidden_dim=args.hidden_dim,
         hidden_layers=args.hidden_layers,
         use_relu=True,
@@ -92,20 +99,24 @@ def main():
     dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
 
 
-    # Train model
+    # # Train model
     optim_l, loss_train, loss_val = get_optim_lambda_mlp(dataset_train=dataset_train,
                          dataset_val=dataset_val,
                          dataset_test=dataset_test,
                          model=model,
-                         loss="nll",
+                         loss=MMDLoss(bw=0.01),
                          n_epochs=args.epochs,
-                         lr=0.01,
+                         lr=0.0001,
                          batch_size=args.batch_size,
                          patience=args.patience,
                          device=args.device,
                          verbose=args.verbose)
-    # Test model
-    npbe_test_vaicenavicius(
-        alpha=[0.05],
-        p_probs=dataset_test
-    )
+    print(f"optim weights: {optim_l}")
+    # # Test model
+    # npbe_test_vaicenavicius(
+    #     alpha=[0.05],
+    #     p_probs=dataset_test
+    # )
+
+if __name__ == "__main__":
+    main()

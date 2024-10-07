@@ -104,7 +104,7 @@ def load_results(dataset_name, ensemble_size, directory=None):
         directory = os.getcwd()
 
     # Create file paths based on the specified directory
-    predictions_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_predictions.npy")
+    predictions_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_prob_predictions.npy")
     instances_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_instances.npy")
     labels_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_labels.npy")
 
