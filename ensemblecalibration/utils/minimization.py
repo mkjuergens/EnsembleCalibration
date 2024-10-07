@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from ensemblecalibration.meta_model import get_optim_lambda_mlp
+from ensemblecalibration.meta_model import get_optim_lambda_mlp, MLPCalW
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.utils.helpers import calculate_pbar, test_train_val_split
 
@@ -46,17 +46,24 @@ def calculate_min(
         dataset_train = MLPDataset(x_train=data_train[0], P=data_train[2], y=data_train[1])
         dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
         dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+        # intialise model
+        model = MLPCalW(
+            in_channels=data_train[0].shape[1],
+            out_channels=data_train[2].shape[1],
+            hidden_dim=params["hidden_dim"],
+            hidden_layers=params["hidden_layers"],
+            use_relu=True,
+        )
         # the model outputs the optimal weights on the test set
         l_weights, loss_train, loss_val = get_optim_lambda_mlp(
             dataset_train=dataset_train,
             dataset_val=dataset_val,
             dataset_test=dataset_test,
+            model=model,
             loss=params["loss"],
             n_epochs=params["n_epochs"],
             lr=params["lr"],
             batch_size=params["batch_size"],
-            hidden_dim=params["hidden_dim"],
-            hidden_layers=params["hidden_layers"],
             patience=params["patience"],
             device=params["device"],
             verbose=verbose

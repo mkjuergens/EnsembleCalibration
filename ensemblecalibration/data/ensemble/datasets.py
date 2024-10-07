@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np  
 import torchvision
@@ -69,10 +70,47 @@ def save_results(dataset_name, ensemble_size, predictions, instances, labels):
     np.save(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", labels)
     print(f"Saved predictions, instances, and labels for ensemble of size {ensemble_size} on {dataset_name}\n")
 
-# Function to load the saved predictions, instances, and labels
-def load_results(dataset_name, ensemble_size):
-    predictions = np.load(f"{dataset_name}_ensemble_{ensemble_size}_predictions.npy", allow_pickle=True)
-    instances = np.load(f"{dataset_name}_ensemble_{ensemble_size}_instances.npy", allow_pickle=True)
-    labels = np.load(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", allow_pickle=True)
-    return predictions, instances, labels
+# # Function to load the saved predictions, instances, and labels
+# def load_results(dataset_name, ensemble_size):
+#     predictions = np.load(f"{dataset_name}_ensemble_{ensemble_size}_predictions.npy", allow_pickle=True)
+#     instances = np.load(f"{dataset_name}_ensemble_{ensemble_size}_instances.npy", allow_pickle=True)
+#     labels = np.load(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", allow_pickle=True)
+#     return predictions, instances, labels
 
+def load_results(dataset_name, ensemble_size, directory=None):
+    """
+    Load the saved predictions, instances, and labels from the specified directory.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset (e.g., 'CIFAR10').
+    ensemble_size : int
+        The number of models in the ensemble.
+    directory : str, optional
+        The directory from which to load the results. Default is the current working directory.
+
+    Returns
+    -------
+    predictions : np.ndarray
+        The predictions made by the ensemble.
+    instances : np.ndarray
+        The input instances used for the predictions.
+    labels : np.ndarray
+        The true labels of the instances.
+    """
+    # Use the current directory if no directory is provided
+    if directory is None:
+        directory = os.getcwd()
+
+    # Create file paths based on the specified directory
+    predictions_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_predictions.npy")
+    instances_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_instances.npy")
+    labels_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_labels.npy")
+
+    # Load the results
+    predictions = np.load(predictions_path, allow_pickle=True)
+    instances = np.load(instances_path, allow_pickle=True)
+    labels = np.load(labels_path, allow_pickle=True)
+
+    return predictions, instances, labels

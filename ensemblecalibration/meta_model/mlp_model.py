@@ -6,11 +6,10 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 
-
 class MLPCalW(nn.Module):
     """
     class of the MLP model used to learn the optimal convex combination for the respective
-    credal set. 
+    credal set.
     """
 
     def __init__(
@@ -64,6 +63,85 @@ class MLPCalW(nn.Module):
         return out
 
 
+class MLPCalWConv(nn.Module):
+    """
+    Hybrid CNN-MLP model to process images (e.g., CIFAR-10 or CIFAR-100)
+    and learn optimal weights for a convex combination of predictors.
+    """
+
+    def __init__(
+        self,
+        in_channels: int = 3,
+        out_channels: int = 10,
+        hidden_dim: int = 128,
+        hidden_layers: int = 1,
+        use_relu: bool = True,
+    ):
+        """
+        Multi-layer perceptron combined with convolutional layers to learn optimal weights
+        for a convex combination of predictors.
+
+        Parameters
+        ----------
+        in_channels : int
+            Number of input channels (e.g., 3 for RGB images).
+        out_channels : int
+            Number of output classes (e.g., 10 for CIFAR-10).
+        hidden_dim : int
+            Hidden dimension for the MLP inner layer.
+        hidden_layers : int, optional
+            Number of hidden layers in the MLP, by default 1.
+        use_relu : bool, optional
+            Whether to use ReLU activation function, by default True.
+        """
+        super().__init__()
+
+        # Convolutional feature extractor
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        # Calculate the size of the flattened feature map
+        self.feature_map_size = 128 * 4 * 4  # Assuming input size of 32x32 (CIFAR)
+
+        # Fully connected MLP layers
+        layers = []
+        if hidden_layers == 0:
+            layers.append(nn.Linear(self.feature_map_size, out_channels))
+        else:
+            layers.append(nn.Linear(self.feature_map_size, hidden_dim))
+            for _ in range(hidden_layers):
+                layers.append(nn.Linear(hidden_dim, hidden_dim))
+                # Apply ReLU activation
+                if use_relu:
+                    layers.append(nn.LeakyReLU())
+            layers.append(nn.Linear(hidden_dim, out_channels))
+
+        self.mlp_layers = nn.Sequential(*layers)
+
+        # Softmax layer to ensure weights are in (0, 1) and sum to 1
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x_in: torch.Tensor):
+        # Apply convolutional layers
+        out = self.conv_layers(x_in)
+        # Flatten the output of the conv layers
+        out = out.view(out.size(0), -1)
+        # Apply MLP layers
+        out = self.mlp_layers(out)
+        # Apply softmax to get weights between 0 and 1 and summing up to 1
+        out = self.softmax(out)
+        return out
+
+
 # same model as above, but with pytorch-lightning
 class MLPCalWLightning(pl.LightningModule):
     def __init__(
@@ -76,7 +154,6 @@ class MLPCalWLightning(pl.LightningModule):
         hidden_layers: int = 1,
         use_relu: bool = True,
         use_scheduler: bool = False,
-
     ):
         """meta learning model for learning the optimal weights of a convex combination of
         predictors in order to receive a calibrated model.
@@ -92,7 +169,7 @@ class MLPCalWLightning(pl.LightningModule):
         out_channels : int
             number of predictors in the ensemble
         hidden_dim : int
-            
+
         hidden_layers : int, optional
             _description_, by default 1
         use_relu : bool, optional
@@ -114,7 +191,6 @@ class MLPCalWLightning(pl.LightningModule):
         # log hyperparameters
         self.save_hyperparameters()
 
-
     def forward(self, x):
         return self.model(x)
 
@@ -125,9 +201,9 @@ class MLPCalWLightning(pl.LightningModule):
         # calculate loss
         loss = self.loss_fct(p_probs, pred_lambda, y)
         # log
-        self.log('train_loss', loss, on_epoch=True)
+        self.log("train_loss", loss, on_epoch=True)
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
 
         p_probs, y, x = batch
@@ -135,12 +211,12 @@ class MLPCalWLightning(pl.LightningModule):
         # calculate loss
         loss = self.loss_fct(p_probs, pred_lambda, y)
         # log
-        self.log('val_loss', loss, on_epoch=True)
+        self.log("val_loss", loss, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         if self.use_scheduler:
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-            return {"optimizer": optimizer,
-                    "lr_scheduler": scheduler}
- 
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=50, gamma=0.1
+            )
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}

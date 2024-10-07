@@ -14,12 +14,13 @@ def get_optim_lambda_mlp(
     dataset_train: torch.utils.data.Dataset,
     dataset_val: torch.utils.data.Dataset,
     dataset_test: torch.utils.data.Dataset,
+    model: torch.nn.Module,
     loss: CalibrationLoss,
     n_epochs: int = 100,
     lr: float = 0.001,
     batch_size: int = 128,
-    hidden_dim: int = 8,
-    hidden_layers: int = 0,
+    # hidden_dim: int = 8,
+    # hidden_layers: int = 0,
     optim=torch.optim.Adam,
     patience: int = 15,
     device: str = "cpu",
@@ -37,6 +38,8 @@ def get_optim_lambda_mlp(
         dataset which contains instances, as well as probabilistic predictions of ensemble members
     dataset_test : torch.utils.data.Dataset
         dataset which contains instances, as well as probabilistic predictions of ensemble members
+    model : torch.nn.Module
+        model used for training
     loss : _type_
         loss of the form loss(p_probs, weights, y_labels) indicating the calibration error of the
     n_epochs : int, optional
@@ -69,13 +72,13 @@ def get_optim_lambda_mlp(
         training loss
     loss_val
         validation loss
-    """
-    model = MLPCalW(
-        in_channels=dataset_train.n_features,
-        out_channels=dataset_train.n_ens,
-        hidden_dim=hidden_dim,
-        hidden_layers=hidden_layers,
-    )
+    # """
+    # model = MLPCalW(
+    #     in_channels=dataset_train.n_features,
+    #     out_channels=dataset_train.n_ens,
+    #     hidden_dim=hidden_dim,
+    #     hidden_layers=hidden_layers,
+    # )
     # assert that daataset has x_train attribute
     assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
 
