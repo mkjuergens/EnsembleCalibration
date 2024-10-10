@@ -2,7 +2,7 @@ from typing import Optional
 import torch
 
 from ensemblecalibration.data.gp_binary import exp_gp
-from ensemblecalibration.data.multiclass_dirichlet import exp_dirichlet
+from ensemblecalibration.data.multiclass_dirichlet_new import syn_exp_multiclass
 from ensemblecalibration.data.dataset import MLPDataset
 
 
@@ -55,15 +55,14 @@ def get_experiment(
 
     elif config["experiment"] == "dirichlet":
         # sample data
-        data = exp_dirichlet(
+        data = syn_exp_multiclass(
             n_samples=config["params"]["n_samples"],
             n_classes=config["params"]["n_classes"],
-            n_members=config["params"]["n_members"],
+            n_predictors=config["params"]["n_members"],
             x_bound=config["params"]["x_bound"],
             x_dep=x_dep,
             h0=h0,
-            setting=setting,
-            deg_pol=config["params"]["deg"],
+            deg_pol_weights=config["params"]["deg"],
             deg_h1=deg_h1,
         )
     else:

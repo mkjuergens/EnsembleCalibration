@@ -1,49 +1,31 @@
 import pytest
-import torch
 import numpy as np
 
 from ensemblecalibration.data.gp_binary import exp_gp
-from ensemblecalibration.data.multiclass_dirichlet import (
-    exp_dirichlet,
-    sample_dirichlet_h1,
-    sample_dir_params,
-)
+from ensemblecalibration.data.multiclass_dirichlet_new import syn_exp_multiclass
 
 def test_sample_dirichlet():
     n_samples = 1000
     n_ens = 5
     n_classes = 3
     bounds = [0.0, 5.0]
-    # sample data
-    x_inst, p_preds, p_bar, y_labels, weights_l = (
-        exp_dirichlet(
-            n_samples=n_samples,
-            n_classes=n_classes,
-            n_members=n_ens,
-            x_bound=bounds,
-            h0=True,
-            x_dep=True,
-        )
+    # sample data for null hypothesis
+    x_inst, p_preds, p_bar, y_labels, weights_l = syn_exp_multiclass(
+        n_samples=n_samples, n_classes=n_classes, n_predictors=n_ens, h0=True
     )
+        
     assert p_preds.shape == (n_samples, n_ens, n_classes)
     assert weights_l.shape == (n_samples, n_ens)
 
-def test_sample_dirichlet_h1():
-    n_samples = 1000
-    n_ens = 5
-    n_classes = 3
-    bounds = [0.0, 5.0]
-    # sample data
-    # sample x_inst from uniform distribution
-    x_inst = torch.tensor(
-        np.random.uniform(bounds[0], bounds[1], n_samples), dtype=torch.float32
-    )
-    p_preds, p_bar, y_labels = (
-        sample_dirichlet_h1(x_inst=x_inst, n_ens=n_ens, n_classes=n_classes)
+    # sample data for alternative hypothesis
+    x_inst, p_preds, p_bar, y_labels = syn_exp_multiclass(
+        n_samples=n_samples, n_classes=n_classes, n_predictors=n_ens, h0=False
     )
     assert p_preds.shape == (n_samples, n_ens, n_classes)
     assert p_bar.shape == (n_samples, n_classes)
     assert y_labels.shape == (n_samples,)
+    assert np.allclose(p_bar.sum(axis=1), 1.0)
+
 
 if __name__ == "__main__":
     pytest.main()

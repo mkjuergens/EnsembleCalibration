@@ -175,7 +175,10 @@ def main_t1_t2(args):
     device = args.device
     print(f"Device: {device}")
     verbose = args.verbose
-    args.test_types = args.types
+    if args.types_test:
+        test_types = args.types_test
+    else:
+        test_types = ["t1", "t2"]
     names_tests = [t for t in config]
     
 
@@ -184,7 +187,7 @@ def main_t1_t2(args):
     experiment = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     save_dir = f"{results_dir}/{exp_name}/" + f"{experiment}"
     # check if "t1" is in the list of test types
-    if "t1" in args.test_types:
+    if "t1" in test_types:
         """
         H0 simulation, first without x-dependency and then with x-dependency
         """
@@ -240,7 +243,7 @@ def main_t1_t2(args):
         )
         fig.savefig(save_dir + "/error_analysis_t1.png", bbox_inches="tight", dpi=300)
 
-    if "t2" in args.test_types:
+    if "t2" in test_types:
         """
         H1 simulation
         """
@@ -335,7 +338,7 @@ if __name__ == "__main__":
     parser.add_argument("--results_dir", type=str, default="results")
     parser.add_argument("--device", type=str, default="cpu", help="device")
     parser.add_argument("--verbose", type=bool, default=False, help="verbose")
-    parser.add_argument("--types", "--names-list", nargs="+", default=["t1", "t2"])
+    parser.add_argument("--types_test", "--types-list", nargs="+", default=[])
     args = parser.parse_args()
 
     main_t1_t2(args)

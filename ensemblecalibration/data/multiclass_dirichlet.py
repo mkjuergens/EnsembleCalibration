@@ -5,8 +5,7 @@ import torch
 
 from ensemblecalibration.utils.helpers import (
     calculate_pbar,
-    multinomial_label_sampling,
-    sample_function,
+    sample_lambda
 )
 from ensemblecalibration.utils.polytope import get_boundary
 
@@ -23,7 +22,7 @@ def exp_dirichlet(
     deg_pol: int = 2,
     deg_h1: float = None,
 ):
-    """generates sytnhetic data for the multiclass case, where the predictions are sampled from
+    """generates synhetic data for the multiclass case, where the predictions are sampled from
     a Dirichlet distribution. The weights of the convex combination are sampled from a Dirichlet
 
     Parameters
@@ -60,31 +59,25 @@ def exp_dirichlet(
     NotImplementedError
         in case h1 is chosen
     """
-    # sample instances uniformly
-    x_inst = torch.tensor(
-        np.random.uniform(x_bound[0], x_bound[1], n_samples), dtype=torch.float32
-    )
-    # sort
+    # Sample instances uniformly
+    x_inst = torch.FloatTensor(n_samples, 1).uniform_(*x_bound)
+
+    # Sample ensemble predictions
     p_preds, dir_params = sample_ensemble_preds(
         x_inst, n_ens=n_members, n_classes=n_classes, uncertainty=uc
     )
+
     if h0:
-        # sample weights
-        weights_l = sample_weights_h0(x_inst, n_members, x_dep=x_dep, deg=deg_pol)
+        # Sample weights for null hypothesis
+        weights_l = sample_lambda(x_inst, n_members, x_dep=x_dep, deg=deg_pol)
         p_bar = calculate_pbar(weights_l, p_preds)
 
         # Create a Categorical distribution and sample labels
-        m = torch.distributions.Categorical(probs=p_bar)
-        y_labels = m.sample()  # Shape: (batch_size,)
+        y_labels = torch.distributions.Categorical(probs=p_bar).sample()
 
-        # y_labels = torch.stack(
-        #     [
-        #         multinomial_label_sampling(p, tensor=True)
-        #         for p in torch.unbind(p_bar, dim=0)
-        #     ]
-        # )
-
+        return x_inst, p_preds, p_bar, y_labels, weights_l
     else:
+        # Alternative hypothesis
         p_bar, y_labels = sample_p_bar_h1(
             x_inst=x_inst,
             p_preds=p_preds,
@@ -92,75 +85,21 @@ def exp_dirichlet(
             setting=setting,
             deg_h1=deg_h1,
         )
-    x_inst = x_inst.view(-1, 1)
-    return (
-        (x_inst, p_preds, p_bar, y_labels, weights_l)
-        if h0
-        else (x_inst, p_preds, p_bar, y_labels)
-    )
-
-
-def sample_weights_h0(
-    x_inst, n_members, x_dep: bool = True, deg: int = 2, variance: int = 5
-):
-    n_samples = x_inst.shape[0]
-    weights_l = torch.zeros((n_samples, n_members), device=x_inst.device)
-    if x_dep:
-        # Precompute x_inst as NumPy array once
-        x_np = x_inst.cpu().numpy().squeeze()
-        for i in range(n_members):
-            ivl = np.random.uniform(0, variance, 2)
-            y = sample_function(x_np, deg=deg, ivl=ivl)
-            weights_l[:, i] = torch.tensor(y, device=x_inst.device)
-        # Normalize
-        weights_l = torch.nn.functional.softmax(weights_l, dim=1)
-    else:
-        # Sample from Dirichlet distribution once and repeat
-        weights_l = torch.distributions.Dirichlet(
-            torch.ones(n_members, device=x_inst.device)
-        ).sample()
-        weights_l = weights_l.unsqueeze(0).repeat(n_samples, 1)
-    return weights_l
+        return x_inst, p_preds, p_bar, y_labels
 
 
 def sample_ensemble_preds(
-    x_inst: torch.tensor,
-    n_ens: int,
-    n_classes: int,
-    uncertainty: Union[float, callable],
+    x_inst: torch.Tensor, n_ens: int, n_classes: int, uncertainty: Union[float, callable]
 ):
-    """samples probabilistic, instance dependent probabilistic predictions from a Dirichlet distribution
-    for each ensemble member
-
-    Parameters
-    ----------
-    x_inst : torch.tensor
-        tensor of instance values
-    n_ens : int
-        number of ensemble members
-    n_classes : int
-        number of classes
-    uncertainty : Union[float, callable]
-        uncertainty level (the higher, the less certain), defined as either
-          a constant or a function on the instance space
-
-    Returns
-    -------
-    torch.tensor, torch.tensor
-        probabilistic predictions, parameters of the underlying Dirichlet distribution
-    """
-    n_samples = x_inst.shape[0]
     # Sample dirichlet prior for each instance
-    dir_prior = torch.distributions.Dirichlet(torch.ones(n_classes)).sample(
-        (n_samples,)
-    )
+    dir_prior = torch.distributions.Dirichlet(torch.ones(n_classes)).sample((x_inst.shape[0],))
+
     # Get Dirichlet parameters
     dir_params = sample_dir_params(x_inst, dir_prior=dir_prior, uncertainty=uncertainty)
+
     # Sample predictions for each ensemble member
-    # dir_params shape: (n_samples, n_classes)
-    # We need to sample (n_samples, n_ens, n_classes)
-    dirichlet_dist = torch.distributions.Dirichlet(dir_params)
-    p_preds = dirichlet_dist.sample((n_ens,)).permute(1, 0, 2)
+    p_preds = torch.distributions.Dirichlet(dir_params).sample((n_ens,)).permute(1, 0, 2)
+
     return p_preds, dir_params
 
 
@@ -192,13 +131,6 @@ def sample_dir_params(
         # if uncertainty is a constant, repeat it for each instance
         uncertainty = torch.full((x_inst.shape[0],), uncertainty, device=x_inst.device)
     params_m = dir_prior * dir_prior.shape[1] / uncertainty.unsqueeze(1)
-    # params_m = np.zeros((x_inst.shape[0], dir_prior.shape[1]))
-    # params_m = (
-    #     dir_prior * dir_prior.shape[1] / uncertainty.repeat(dir_prior.shape[1], 1).T
-    # )
-    # for c in range(dir_prior.shape[1]):
-    #     params_m[:, c] = (dir_prior[:, c] * dir_prior.shape[1]) / uncertainty
-    # params_m = torch.tensor(params_m)
     return params_m
 
 
@@ -335,7 +267,7 @@ def sample_p_bar_h1_deg(
 
 if __name__ == "__main__":
     x_inst = torch.distributions.Uniform(0, 5).sample((100,))
-    weights_l = sample_weights_h0(x_inst, 5, x_dep=True, deg=2)
+    weights_l = sample_lambda(x_inst, 5, x_dep=True, deg=2)
     print(weights_l)
     # print sum of weights
     print(weights_l.sum(dim=1))

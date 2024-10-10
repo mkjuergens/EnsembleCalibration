@@ -201,6 +201,172 @@ def create_config(
     }
     return config
 
+
+def create_config_test(
+    cal_test=npbe_test_vaicenavicius,
+    n_resamples: int = 100,
+    n_classes: int = 3,
+    n_members: int = 5,
+    n_epochs: int = 500,
+    lr: float = 1e-4,
+    batch_size: int = 16,
+    patience: int = 100,
+    hidden_layers: int = 3,
+    hidden_dim: int = 64,
+    device: str = "cpu",
+    reg: bool = False,
+    **kwargs
+):
+    """function to create dictionary with configuration for running the calibration test
+    for the setting of binary classification.
+
+    Parameters
+    ----------
+    exp_name : str, optional
+        name of the experiment, by default "gp"
+    cal_test : function, optional
+        the calibration test used, by default npbe_test_vaicenavicius
+    loss : CalibrationLossBinary, optional
+        loss function for obtaining the optimal convex combination, by default LpLoss
+    optim: str
+        optimization method, by default "mlp". Options: {"mlp", "COBYLA", "SLSQP"}
+    device : str, optional
+        device on which the calculations are performed, by default "cpu"
+    n_samples : int, optional
+        number of (training) samples, by default 1000
+    n_resamples : int, optional
+        number of resampling iterations in the bootstrapping step, by default 100
+    n_classes : int, optional
+        number of classes, by default 3
+    obj : function, optional
+        objective, (i.e. miscalibration estimate). Related to the loss function,
+             by default get_ece_kde
+    n_epochs : int, optional
+        number of epochs to train the meta learner, by default 100
+    lr : float, optional
+        learning rate, by default 0.01
+    patience : int, optional
+        patience until to perform Early Stopping, by default 15
+    hidden_layers : int, optional
+        number of hiddne layers in the meta model, by default 1
+    hidden_dim : int, optional
+        hidden dimension in the meta model, by default 32
+    x_dep : bool, optional
+        whether the optimal weights depend on the instance, by default True
+    reg: bool, optional
+        whether to regularize the loss function with the cross-entropy loss, by default False
+    **kwargs : dict
+        additional keyword arguments for the loss function
+
+    Returns
+    -------
+    dict
+        dictionary with configuration for running the calibration test
+    """
+
+    # initiate loss with bw and lambda_bce if it takes these as arguments, else just bw
+    # if "lambda_bce" in loss.__init__.__code__.co_varnames:
+    #     loss = loss(bw=bw, lambda_bce=lambda_bce)
+    # else:
+    #     loss = loss(bw=bw)
+    if reg:
+        reg_mmd = 0.1
+        reg_lp = 1.0
+        reg_skce = 0.0001
+    else:
+        reg_mmd = 0.0
+        reg_lp = 0.0
+        reg_skce = 0.0
+
+    config = {
+        "MMD": {
+            "test": cal_test,
+            "params": {
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "obj": mmd_kce_obj,
+                "obj_lambda": mmd_kce_obj_lambda,
+                "bw": 0.01, # TODO: check this
+                "loss": MMDLoss(bw=0.01, lambda_bce=reg_mmd), # changed!!
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "lambda_bce": reg_mmd,
+                "device": device,
+                **kwargs
+        }
+        },
+        "Brier": {
+            "test": cal_test,
+            "params": {
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "bw": 0.1, # TODO: check this
+                "obj": brier_obj,
+                "obj_lambda": brier_obj_lambda,
+                "loss": BrierLoss(), # changed!!
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "device": device,
+                **kwargs
+            }
+
+        },
+        "LP": {
+            "test": cal_test,
+            "params": {
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "obj": ece_kde_obj,
+                "obj_lambda": ece_kde_obj_lambda,
+                "bw": 0.00001, # TODO: check this
+                "loss": LpLoss(bw=0.00001, lambda_bce=reg_lp), # changed
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "p": 2,
+                "lambda_bce": reg_lp, # TODO: check this
+                "device": device,
+                **kwargs
+            }
+        },
+        "SKCE": {
+            "test": cal_test,
+            "params": {
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "obj": skce_obj,
+                "obj_lambda": skce_obj_lambda,
+                "bw": 0.001, # TODO: check this
+                "loss": SKCELoss(bw=0.0001, lambda_bce=reg_skce), # changed!!
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "lambda_bce": reg_skce, # TODO: check this
+                "device": device,
+                **kwargs
+            }
+        }
+    }
+    return config
+
 """
 config for multiclass experiment with mlp optimization
 """

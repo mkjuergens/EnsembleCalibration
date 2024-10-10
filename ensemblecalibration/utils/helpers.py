@@ -92,31 +92,31 @@ def test_train_val_split(
     )
 
 
-# def multinomial_label_sampling(probs: np.ndarray, tensor: bool = False):
-#     """draws a sample y from the categorical distribution
-#     defined by a probaibility vector.
+def sample_lambda(
+    x_inst: torch.tensor, n_members: int, x_dep: bool = True, deg: int = 2, variance: int = 5
+):
+    """function to sample the weights for the convex combination of probabilistic predictions.
+    """
+    n_samples = x_inst.shape[0]
 
-#     Parameters
-#     ----------
-#     probs : np.ndarray
-#         probability vector that sums up to one
+    if x_dep:
+        # Precompute x_inst as a tensor
+        x_np = x_inst.cpu().numpy().squeeze()
+        y = np.array(
+            [
+                sample_function(x_np, deg=deg, ivl=np.random.uniform(0, variance, 2))
+                for _ in range(n_members)
+            ]
+        )
+        weights_l = torch.tensor(y.T, device=x_inst.device)
+        weights_l = torch.nn.functional.softmax(weights_l, dim=1)
+    else:
+        # Sample from Dirichlet distribution and repeat for all samples
+        weights_l = torch.distributions.Dirichlet(
+            torch.ones(n_members, device=x_inst.device)
+        ).sample((n_samples,))
 
-#     Returns
-#     -------
-#     np.ndarray or torch.tensor
-
-#     """
-#     try:
-#         draws = multinomial(1, probs).rvs(size=1)[0, :]
-#         y = np.argmax(draws)
-
-#     except ValueError as e:
-#         y = np.argmax(probs)
-
-#     if tensor:
-#         y = torch.tensor(y).long()
-
-#     return y
+    return weights_l
 
 
 def calculate_pbar(
