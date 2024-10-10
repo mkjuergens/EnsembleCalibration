@@ -5,10 +5,10 @@ import argparse
 from ensemblecalibration.meta_model.mlp_model import MLPCalWConv
 from ensemblecalibration.cal_test import npbe_test_vaicenavicius
 from ensemblecalibration.meta_model.train import get_optim_lambda_mlp
-from ensemblecalibration.data.ensemble.datasets import load_results
+from ensemblecalibration.data.ensemble.dataset_utils import load_results
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.utils.helpers import test_train_val_split
-from ensemblecalibration.config.config_cal_test import create_config
+from ensemblecalibration.config.config_cal_test import create_config_test
 from ensemblecalibration.meta_model.losses import LpLoss, SKCELoss, BrierLoss, MMDLoss
 
 
@@ -63,7 +63,11 @@ def main():
         "--verbose", type=bool, default=True, help="Print results and loss"
     )
     args = parser.parse_args()
-
+    config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
+                                n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
+                                patience=args.patience,
+                                hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
+                                device=args.device,)
     # Load predictions on test set, instance features and labels
     p_preds, x_inst, y_labels = load_results(
         dataset_name=args.dataset,
