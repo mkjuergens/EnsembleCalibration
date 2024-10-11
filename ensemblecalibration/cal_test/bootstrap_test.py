@@ -9,10 +9,6 @@ from ensemblecalibration.utils.helpers import multinomial_label_sampling, calcul
 from ensemblecalibration.utils.minimization import calculate_min
 
 
-
-
-
-
 def npbe_test_ensemble(
     alpha: list,
     x_inst: np.ndarray,
@@ -56,51 +52,6 @@ def npbe_test_ensemble(
     print("Decision: ", decision)
 
     return decision, p_val, stat
-
-# def npbe_test_ensemble(
-#     alpha: list,
-#     x_inst: np.ndarray,
-#     p_preds: np.ndarray,
-#     y_labels: np.ndarray,
-#     params: dict,
-# ):
-   
-   
-#     """new version of the bootstrapping test using uniform sampling of the polytope for testing
-#     whether there exists a calibrated version in the convex hull
-
-#     Parameters
-#     ----------
-#     alpha : list
-#         significance level(s) of the test
-#     x_inst : np.ndarray of shape (n_samples, n_predictors, n_classes)
-#         tensor containing predictions for each instance and classifier
-#     p_preds : np.ndarray of shape (n_samples, n_predictors, n_classes)
-#         tensor containing probabilistic predictions for each instance and classifier
-#     y_labels : np.ndarray of shape (n_samples,)
-#         array containing labels
-#     params : dict
-#         dictionary of test parameters
-#     Returns
-#     -------
-#     decision, (p_vals, stats)
-#         decision: integer defining whether tso reject (1) or accept (0) the null hypothesis
-#         ( p_vals: array of p values for each predictor )
-#         ( stats: array of test statistics for each predictor )
-
-#     """
-
-#     # calculate optimal weights
-#     minstat, l_weights = calculate_min(x_inst, p_preds, y_labels, params)
-#     # calculate p_bar # TODO: calculate pbar ehre or in loop!!!??
-#     # n_dims = 2 if params["x_dep"] else 1
-#     n_dims = 2 if params["optim"] == "mlp" else 1
-#     p_bar = calculate_pbar(l_weights, p_preds, n_dims=n_dims)
-#     # run bootstrap test
-#     decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar, y_labels, params)
-#     print("Decision: ", decision)
-
-#     return decision, p_val, stat
 
 
 def npbe_test_vaicenavicius(

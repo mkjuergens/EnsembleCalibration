@@ -12,7 +12,61 @@ from ensemblecalibration.config.config_cal_test import create_config_test
 from ensemblecalibration.meta_model.losses import LpLoss, SKCELoss, BrierLoss, MMDLoss
 
 
-def main():
+def main(args):
+    config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
+                                n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
+                                patience=args.patience,
+                                hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
+                                device=args.device,)
+    # Load predictions on test set, instance features and labels
+    p_preds, x_inst, y_labels = load_results(
+        dataset_name=args.dataset,
+        ensemble_size=args.ensemble_size,
+        directory=args.results_dir,
+    )
+    p_preds = torch.from_numpy(p_preds).permute(1,0,2)
+    x_inst = torch.from_numpy(x_inst)
+    y_labels = torch.from_numpy(y_labels)
+    assert p_preds.shape[0] == x_inst.shape[0] == y_labels.shape[0], "Data mismatch"
+
+
+    #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
+    # Initialize model
+    model = MLPCalWConv(
+        in_channels=x_inst.shape[1],
+        out_channels=p_preds.shape[1],
+        hidden_dim=args.hidden_dim,
+        hidden_layers=args.hidden_layers,
+        use_relu=True,
+    ).to(args.device)
+
+    # split data into train, validation and test (train and val are used to train the MLP)
+    data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
+
+    dataset_train = MLPDataset(
+        x_train=data_train[0], P=data_train[2], y=data_train[1]
+    )
+    dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
+    dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+
+
+    # # Train model
+    optim_l, loss_train, loss_val = get_optim_lambda_mlp(dataset_train=dataset_train,
+                         dataset_val=dataset_val,
+                         dataset_test=dataset_test,
+                         model=model,
+                         loss=MMDLoss(bw=0.01),
+                         n_epochs=args.epochs,
+                         lr=0.0001,
+                         batch_size=args.batch_size,
+                         patience=args.patience,
+                         device=args.device,
+                         verbose=args.verbose)
+    print(f"optim weights: {optim_l}")
+    
+    
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train MLP calibration model")
     parser.add_argument(
         "--results_dir",
@@ -63,64 +117,5 @@ def main():
         "--verbose", type=bool, default=True, help="Print results and loss"
     )
     args = parser.parse_args()
-    config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
-                                n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
-                                patience=args.patience,
-                                hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
-                                device=args.device,)
-    # Load predictions on test set, instance features and labels
-    p_preds, x_inst, y_labels = load_results(
-        dataset_name=args.dataset,
-        ensemble_size=args.ensemble_size,
-        directory=args.results_dir,
-    )
-    p_preds = torch.from_numpy(p_preds).permute(1,0,2)
-    x_inst = torch.from_numpy(x_inst)
-    y_labels = torch.from_numpy(y_labels)
-    # print(p_preds.shape)
-    # print(x_inst.shape)
-    # print(y_labels.shape)
-    assert p_preds.shape[0] == x_inst.shape[0] == y_labels.shape[0], "Data mismatch"
 
-
-    #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
-    # Initialize model
-    model = MLPCalWConv(
-        in_channels=x_inst.shape[1],
-        out_channels=p_preds.shape[1],
-        hidden_dim=args.hidden_dim,
-        hidden_layers=args.hidden_layers,
-        use_relu=True,
-    ).to(args.device)
-
-    # split data into train, validation and test (train and val are used to train the MLP)
-    data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
-
-    dataset_train = MLPDataset(
-        x_train=data_train[0], P=data_train[2], y=data_train[1]
-    )
-    dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
-    dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
-
-
-    # # Train model
-    optim_l, loss_train, loss_val = get_optim_lambda_mlp(dataset_train=dataset_train,
-                         dataset_val=dataset_val,
-                         dataset_test=dataset_test,
-                         model=model,
-                         loss=MMDLoss(bw=0.01),
-                         n_epochs=args.epochs,
-                         lr=0.0001,
-                         batch_size=args.batch_size,
-                         patience=args.patience,
-                         device=args.device,
-                         verbose=args.verbose)
-    print(f"optim weights: {optim_l}")
-    # # Test model
-    # npbe_test_vaicenavicius(
-    #     alpha=[0.05],
-    #     p_probs=dataset_test
-    # )
-
-if __name__ == "__main__":
-    main()
+    main(args)
