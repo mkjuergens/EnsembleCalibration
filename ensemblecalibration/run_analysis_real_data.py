@@ -21,9 +21,12 @@ def main(args):
     # Load predictions on test set, instance features and labels
     p_preds, x_inst, y_labels = load_results(
         dataset_name=args.dataset,
-        ensemble_size=args.ensemble_size,
-        directory=args.results_dir,
+        model_type=args.model_type,        # Pass the model type (resnet, vgg)
+        ensemble_type=args.ensemble_type,  # Pass the ensemble type (deep_ensemble, mc_dropout)
+        ensemble_size=args.ensemble_size if args.ensemble_type == "deep_ensemble" else None,  # Ensemble size only for deep ensemble
+        directory=args.results_dir
     )
+    print(p_preds.shape)
     p_preds = torch.from_numpy(p_preds).permute(1,0,2)
     x_inst = torch.from_numpy(x_inst)
     y_labels = torch.from_numpy(y_labels)
@@ -51,13 +54,14 @@ def main(args):
 
 
     # # Train model
-    optim_l, loss_train, loss_val = get_optim_lambda_mlp(dataset_train=dataset_train,
+    optim_l, loss_train, loss_val = get_optim_lambda_mlp(
+                         dataset_train=dataset_train,
                          dataset_val=dataset_val,
                          dataset_test=dataset_test,
                          model=model,
                          loss=MMDLoss(bw=0.01),
                          n_epochs=args.epochs,
-                         lr=0.0001,
+                         lr=args.lr,
                          batch_size=args.batch_size,
                          patience=args.patience,
                          device=args.device,
@@ -67,55 +71,108 @@ def main(args):
     
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train MLP calibration model")
-    parser.add_argument(
-        "--results_dir",
-        type=str,
-        default="./data/ensemble/results",
-        help="Directory to load results from",
-    )
-    parser.add_argument(
-        "--dataset", type=str, default="CIFAR10", help="Dataset to train on"
-    )
-    parser.add_argument(
-        "--ensemble_size", type=int, default=5, help="Number of models in the ensemble"
-    )
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser(description="Train MLP calibration model")
+        
+        parser.add_argument(
+            "--results_dir",
+            type=str,
+            default="./data/ensemble/ensemble_results",
+            help="Directory to load results from"
+        )
+        
+        parser.add_argument(
+            "--dataset", 
+            type=str, 
+            default="CIFAR10", 
+            help="Dataset to train on"
+        )
+        
+        parser.add_argument(
+            "--ensemble_size", 
+            type=int, 
+            default=5, 
+            help="Number of models in the ensemble (only applicable for deep ensembles)"
+        )
+        
+        parser.add_argument(
+            "--model_type", 
+            type=str, 
+            default="resnet", 
+            choices=["resnet", "vgg"], 
+            help="Model type: resnet or vgg"
+        )
+        
+        parser.add_argument(
+            "--ensemble_type", 
+            type=str, 
+            default="deep_ensemble", 
+            choices=["deep_ensemble", "mc_dropout"], 
+            help="Ensemble type: deep ensemble or MCDropout"
+        )
+        
+        parser.add_argument(
+            "--hidden_dim", 
+            type=int, 
+            default=100, 
+            help="Hidden dimension of the ConvNet"
+        )
+        
+        parser.add_argument(
+            "--hidden_layers",
+            type=int,
+            default=1,
+            help="Number of hidden layers in the ConvNet"
+        )
+        
+        parser.add_argument(
+            "--epochs", 
+            type=int, 
+            default=100, 
+            help="Number of epochs to train for"
+        )
+        
+        parser.add_argument(
+            "--patience", 
+            type=int, 
+            default=40, 
+            help="Number of epochs to wait before early stopping"
+        )
+        
+        parser.add_argument(
+            "--batch_size", 
+            type=int, 
+            default=128, 
+            help="Batch size for training"
+        )
+        
+        parser.add_argument(
+            "--val_split",
+            type=float,
+            default=0.1,
+            help="Fraction of training data to use for validation"
+        )
 
-    parser.add_argument(
-        "--model_idx", type=int, default=1, help="Index of the model to train"
-    )
-    parser.add_argument(
-        "--hidden_dim", type=int, default=100, help="Hidden dimension of the ConvNet"
-    )
-    parser.add_argument(
-        "--hidden_layers",
-        type=int,
-        default=1,
-        help="Number of hidden layers in the ConvNet",
-    )
-    parser.add_argument(
-        "--epochs", type=int, default=100, help="Number of epochs to train for"
-    )
-    parser.add_argument(
-        "--patience",
-        type=int,
-        default=40,
-        help="Number of epochs to wait before early stopping",
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=128, help="Batch size for training"
-    )
-    parser.add_argument(
-        "--val_split",
-        type=float,
-        default=0.1,
-        help="Fraction of training data to use for validation",
-    )
-    parser.add_argument("--device", type=str, default="cuda:0", help="Device to train on")
-    # parser.add_argument("--optim", type=str, default="mlp", help="Optimization method")
-    parser.add_argument(
-        "--verbose", type=bool, default=True, help="Print results and loss"
-    )
-    args = parser.parse_args()
-
-    main(args)
+        parser.add_argument(
+            "--lr",
+            type=float,
+            default=0.0001,
+            help="leanring rate for training the convmlp"
+        )
+        
+        parser.add_argument(
+            "--device", 
+            type=str, 
+            default="cuda:0", 
+            help="Device to train on"
+        )
+        
+        parser.add_argument(
+            "--verbose", 
+            type=bool, 
+            default=True, 
+            help="Print results and loss"
+        )
+        
+        args = parser.parse_args()
+        main(args)

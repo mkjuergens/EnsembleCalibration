@@ -77,7 +77,10 @@ def save_results(dataset_name, ensemble_size, predictions, instances, labels):
 #     labels = np.load(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", allow_pickle=True)
 #     return predictions, instances, labels
 
-def load_results(dataset_name, ensemble_size, directory=None):
+import os
+import numpy as np
+
+def load_results(dataset_name, model_type, ensemble_type, ensemble_size=None, directory=None):
     """
     Load the saved predictions, instances, and labels from the specified directory.
 
@@ -85,15 +88,19 @@ def load_results(dataset_name, ensemble_size, directory=None):
     ----------
     dataset_name : str
         The name of the dataset (e.g., 'CIFAR10').
-    ensemble_size : int
-        The number of models in the ensemble.
+    model_type : str
+        The type of model architecture used (e.g., 'resnet' or 'vgg').
+    ensemble_type : str
+        The ensemble type ('deep_ensemble' or 'mc_dropout').
+    ensemble_size : int, optional
+        The number of models in the ensemble (only applicable for 'deep_ensemble').
     directory : str, optional
         The directory from which to load the results. Default is the current working directory.
 
     Returns
     -------
     predictions : np.ndarray
-        The predictions made by the ensemble.
+        The predictions made by the ensemble or MCDropout model.
     instances : np.ndarray
         The input instances used for the predictions.
     labels : np.ndarray
@@ -103,10 +110,19 @@ def load_results(dataset_name, ensemble_size, directory=None):
     if directory is None:
         directory = os.getcwd()
 
-    # Create file paths based on the specified directory
-    predictions_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_prob_predictions.npy")
-    instances_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_instances.npy")
-    labels_path = os.path.join(directory, f"{dataset_name}_ensemble_{ensemble_size}_labels.npy")
+    # Handle file names based on ensemble type
+    if ensemble_type == "deep_ensemble":
+        # For deep ensembles, use the ensemble_size in the file names
+        predictions_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_predictions.npy")
+        instances_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_instances.npy")
+        labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_labels.npy")
+    elif ensemble_type == "mc_dropout":
+        # For MCDropout, no need for ensemble_size in the file names
+        predictions_path = os.path.join(directory, f"{dataset_name}_{model_type}_mc_dropout_predictions.npy")
+        instances_path = os.path.join(directory, f"{dataset_name}_{model_type}_mc_dropout_instances.npy")
+        labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_mc_dropout_labels.npy")
+    else:
+        raise ValueError(f"Unsupported ensemble type: {ensemble_type}")
 
     # Load the results
     predictions = np.load(predictions_path, allow_pickle=True)

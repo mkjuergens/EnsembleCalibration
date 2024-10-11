@@ -19,9 +19,11 @@ def train_model(
     patience=5,
     device="cuda",
     dataset_name="",
-    project_name: str = "ensemble-calibration",
+    project_name: str = "ensemble-training",
     ensemble_size=10,
     model_idx=1,
+    model_type="resnet",
+    ensemble_type="deep_ensemble"
 ):
     """trains a given model on the training set and validates it on the validation set. The best
     model is saved based on the validation loss.
@@ -62,10 +64,14 @@ def train_model(
             "model_index": model_idx,
             "learning_rate": 0.0005,
             "epochs": epochs,
+            "model_type": model_type,
+            "ensemble_type": ensemble_type,
         },
         tags=[
             f"dataset:{dataset_name}",
             f"ensemble_size:{ensemble_size}",
+            f"model_type:{model_type}",
+            f"ensemble_type:{ensemble_type}",
             f"model:{model_idx}",
         ],
     )
@@ -81,16 +87,14 @@ def train_model(
     best_loss = float("inf")
     patience_counter = 0
 
-    # Create the directory to save models if it does not exist
     model_dir = "models"
     os.makedirs(model_dir, exist_ok=True)
 
-    # Define the path to save the best model
+    # Define the path to save the best model, including model type and ensemble type
     best_model_path = os.path.join(
         model_dir,
-        f"best_model_{dataset_name}_ensemble_{ensemble_size}_model_{model_idx}.pth",
+        f"best_model_{dataset_name}_{model_type}_{ensemble_type}_ensemble_{ensemble_size}_model_{model_idx}.pth",
     )
-
     for epoch in range(epochs):
         running_loss = 0.0
         model.train()
@@ -203,6 +207,11 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
     - num_samples: Number of samples for MCDropout (default is 50).
     - device: Device to run the model on ("cuda" or "cpu").
     - model_type: The type of model architecture ('resnet' or 'vgg').
+    
+    Returns:
+    - predictions: A numpy array of shape (n_instances, n_ensembles, n_classes).
+    - instances: A numpy array of the input instances.
+    - labels: A numpy array of the true labels.
     """
     if ensemble_type == "deep_ensemble":
         # Deep Ensemble: Load each model in the ensemble
@@ -212,7 +221,8 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
         for i, model_path in enumerate(model_or_paths):
             ensemble_models[i].load_state_dict(torch.load(model_path))
 
-        predictions = []
+        # Store predictions as (n_instances, n_ensembles, n_classes)
+        all_ensemble_predictions = []
         labels_list = []
         instances_list = []
 
@@ -225,28 +235,37 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
                 instances_list.append(inputs.cpu().numpy())
                 labels_list.append(labels.cpu().numpy())
 
-                # For each model, collect predictions and calculate accuracy
-                ensemble_probs = []
+                # Initialize an empty list to store predictions from all models for this batch
+                batch_ensemble_predictions = []
+
+                # Collect predictions for each model in the ensemble
                 for model in ensemble_models:
                     outputs = model(inputs)
-                    probs = torch.softmax(outputs, dim=1)
-                    ensemble_probs.append(probs.cpu().numpy())
+                    probs = torch.softmax(outputs, dim=1)  # Shape: [batch_size, num_classes]
+                    batch_ensemble_predictions.append(probs.cpu().numpy())  # Store the predictions for this model
 
-                # Take the mean of predictions across the ensemble
-                ensemble_probs = np.mean(ensemble_probs, axis=0)  # Shape: [batch_size, num_classes]
-                predictions.append(ensemble_probs)
+                # Stack predictions across models, resulting in shape (n_ensembles, batch_size, num_classes)
+                batch_ensemble_predictions = np.stack(batch_ensemble_predictions, axis=0)  # Shape: (n_ensembles, batch_size, n_classes)
 
-                # Get predicted classes and calculate accuracy
-                predicted = np.argmax(ensemble_probs, axis=1)
+                # Transpose to shape (batch_size, n_ensembles, n_classes) so each instance has predictions from each ensemble member
+                batch_ensemble_predictions = batch_ensemble_predictions.transpose(1, 0, 2)  # Shape: (batch_size, n_ensembles, n_classes)
+
+                # Append the batch predictions to the overall predictions list
+                all_ensemble_predictions.append(batch_ensemble_predictions)
+
+                # Calculate accuracy based on the mean ensemble prediction
+                mean_ensemble_probs = np.mean(batch_ensemble_predictions, axis=1)  # Shape: [batch_size, n_classes]
+                predicted = np.argmax(mean_ensemble_probs, axis=1)
                 total += labels.size(0)
                 correct += (predicted == labels.cpu().numpy()).sum()
 
         test_accuracy = 100 * correct / total
         print(f"Test Accuracy: {test_accuracy}%")
 
-        predictions = np.concatenate(predictions, axis=0)  # Shape: (total_samples, num_classes)
-        labels = np.concatenate(labels_list)  # Shape: (total_samples,)
-        instances = np.concatenate(instances_list)  # Shape: (total_samples, channels, height, width)
+        # Concatenate predictions, labels, and instances for the entire dataset
+        predictions = np.concatenate(all_ensemble_predictions, axis=0)  # Shape: (n_instances, n_ensembles, n_classes)
+        labels = np.concatenate(labels_list)  # Shape: (n_instances,)
+        instances = np.concatenate(instances_list)  # Shape: (n_instances, channels, height, width)
 
         return predictions, instances, labels
 
@@ -346,6 +365,7 @@ if __name__ == "__main__":
                         predictions, instances, labels = test_model(
                             best_model_paths, testloader, num_classes, ensemble_type, model_type=model_type
                         )
+                        assert predictions.shape == (10000, ensemble_size, num_classes), "predictions in wrong shape"
 
                         # Save predictions, instances, and labels
                         np.save(
