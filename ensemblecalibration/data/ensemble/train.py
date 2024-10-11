@@ -191,32 +191,83 @@ def mc_dropout_inference(model, inputs, num_samples=50):
     return mean_probs, all_probs
 
 
-# Test the ensemble or MCDropout
-def test_model(
-    model,
-    testloader,
-    num_classes,
-    ensemble_type="deep_ensemble",
-    num_samples=50,
-    device="cuda",
-):
-    model.to(device)
-    model.eval()  # Set model to evaluation mode for standard deep ensemble
+def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ensemble", num_samples=50, device="cuda", model_type="resnet"):
+    """
+    Test either an ensemble of models (deep ensemble) or a single model with MCDropout.
+    
+    Parameters:
+    - model_or_paths: list of model paths (for deep ensemble) or a single model instance (for MCDropout).
+    - testloader: DataLoader for the test set.
+    - num_classes: Number of classes in the dataset.
+    - ensemble_type: Either "deep_ensemble" or "mc_dropout".
+    - num_samples: Number of samples for MCDropout (default is 50).
+    - device: Device to run the model on ("cuda" or "cpu").
+    - model_type: The type of model architecture ('resnet' or 'vgg').
+    """
+    if ensemble_type == "deep_ensemble":
+        # Deep Ensemble: Load each model in the ensemble
+        ensemble_models = [get_model(num_classes, model_type=model_type, ensemble_type="deep_ensemble").to(device) for _ in model_or_paths]
+        
+        # Load the saved best model weights for each model in the ensemble
+        for i, model_path in enumerate(model_or_paths):
+            ensemble_models[i].load_state_dict(torch.load(model_path))
 
-    predictions = []
-    labels_list = []
-    instances_list = []
+        predictions = []
+        labels_list = []
+        instances_list = []
 
-    correct = 0
-    total = 0
+        correct = 0
+        total = 0
 
-    with torch.no_grad():
-        for inputs, labels in tqdm(testloader, desc=f"Testing {ensemble_type}"):
-            inputs = inputs.to(device)
-            instances_list.append(inputs.cpu().numpy())
-            labels_list.append(labels.cpu().numpy())
+        with torch.no_grad():
+            for inputs, labels in tqdm(testloader, desc=f"Testing {ensemble_type}"):
+                inputs = inputs.to(device)
+                instances_list.append(inputs.cpu().numpy())
+                labels_list.append(labels.cpu().numpy())
 
-            if ensemble_type == "mc_dropout":
+                # For each model, collect predictions and calculate accuracy
+                ensemble_probs = []
+                for model in ensemble_models:
+                    outputs = model(inputs)
+                    probs = torch.softmax(outputs, dim=1)
+                    ensemble_probs.append(probs.cpu().numpy())
+
+                # Take the mean of predictions across the ensemble
+                ensemble_probs = np.mean(ensemble_probs, axis=0)  # Shape: [batch_size, num_classes]
+                predictions.append(ensemble_probs)
+
+                # Get predicted classes and calculate accuracy
+                predicted = np.argmax(ensemble_probs, axis=1)
+                total += labels.size(0)
+                correct += (predicted == labels.cpu().numpy()).sum()
+
+        test_accuracy = 100 * correct / total
+        print(f"Test Accuracy: {test_accuracy}%")
+
+        predictions = np.concatenate(predictions, axis=0)  # Shape: (total_samples, num_classes)
+        labels = np.concatenate(labels_list)  # Shape: (total_samples,)
+        instances = np.concatenate(instances_list)  # Shape: (total_samples, channels, height, width)
+
+        return predictions, instances, labels
+
+    elif ensemble_type == "mc_dropout":
+        model = model_or_paths  # model_or_paths is actually a single model in this case
+        model.to(device)
+        model.eval()  # Set model to evaluation mode for MCDropout
+
+        predictions = []
+        labels_list = []
+        instances_list = []
+
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for inputs, labels in tqdm(testloader, desc=f"Testing {ensemble_type}"):
+                inputs = inputs.to(device)
+                instances_list.append(inputs.cpu().numpy())
+                labels_list.append(labels.cpu().numpy())
+
                 # Perform MCDropout inference
                 mean_probs, _ = mc_dropout_inference(model, inputs, num_samples)
                 predictions.append(mean_probs)
@@ -225,29 +276,15 @@ def test_model(
                 predicted = np.argmax(mean_probs, axis=1)
                 total += labels.size(0)
                 correct += (predicted == labels.cpu().numpy()).sum()
-            elif ensemble_type == "deep_ensemble":
-                # Standard single forward pass for deep ensemble
-                outputs = model(inputs)
-                probs = torch.softmax(outputs, dim=1)
-                predictions.append(probs.cpu().numpy())
 
-                # Get predicted classes and calculate accuracy
-                _, predicted = torch.max(probs, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+        test_accuracy = 100 * correct / total
+        print(f"Test Accuracy: {test_accuracy}%")
 
-    test_accuracy = 100 * correct / total
-    print(f"Test Accuracy: {test_accuracy}%")
+        predictions = np.concatenate(predictions, axis=0)  # Shape: (total_samples, num_classes)
+        labels = np.concatenate(labels_list)  # Shape: (total_samples,)
+        instances = np.concatenate(instances_list)  # Shape: (total_samples, channels, height, width)
 
-    predictions = np.concatenate(
-        predictions, axis=0
-    )  # Shape: (total_samples, num_classes)
-    labels = np.concatenate(labels_list)  # Shape: (total_samples,)
-    instances = np.concatenate(
-        instances_list
-    )  # Shape: (total_samples, channels, height, width)
-
-    return predictions, instances, labels
+        return predictions, instances, labels
 
 
 if __name__ == "__main__":
@@ -255,8 +292,8 @@ if __name__ == "__main__":
     ensemble_sizes = [5, 10]  # Number of models in ensembles
     datasets_to_use = ["CIFAR10", "CIFAR100"]  # Datasets
     ens_types = [
-        "deep_ensemble",
         "mc_dropout",
+        "deep_ensemble"
     ]  # Ensemble type: deep ensemble or MCDropout
     model_types = ["resnet", "vgg"]  # Model architectures
 
@@ -307,7 +344,7 @@ if __name__ == "__main__":
 
                         # Test ensemble using the best saved models
                         predictions, instances, labels = test_model(
-                            best_model_paths, testloader, num_classes, ensemble_type
+                            best_model_paths, testloader, num_classes, ensemble_type, model_type=model_type
                         )
 
                         # Save predictions, instances, and labels
@@ -360,6 +397,7 @@ if __name__ == "__main__":
                         num_classes,
                         ensemble_type="mc_dropout",
                         num_samples=50,
+                        model_type=model_type
                     )
 
                     # Save predictions, instances, and labels
