@@ -192,7 +192,7 @@ def get_ratio_canonical_log(f, y, bandwidth, p, device: str = "cpu"):
     log_den = torch.logsumexp(log_kern, dim=1)
     final_ratio = 0
     for k in range(f.shape[1]):
-        log_kern_y = log_kern + (torch.ones([f.shape[0], 1]) * log_y[:, k].unsqueeze(0))
+        log_kern_y = log_kern + (torch.ones([f.shape[0], 1]).to(device) * log_y[:, k].unsqueeze(0))
         log_inner_ratio = torch.logsumexp(log_kern_y, dim=1) - log_den
         inner_ratio = torch.exp(log_inner_ratio)
         inner_diff = torch.abs(inner_ratio - f[:, k]) ** p

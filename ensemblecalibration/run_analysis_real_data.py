@@ -10,6 +10,7 @@ from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.utils.helpers import test_train_val_split
 from ensemblecalibration.config.config_cal_test import create_config_test
 from ensemblecalibration.meta_model.losses import LpLoss, SKCELoss, BrierLoss, MMDLoss
+from ensemblecalibration.utils.helpers import calculate_pbar
 
 
 def main(args):
@@ -27,10 +28,11 @@ def main(args):
         directory=args.results_dir
     )
     print(p_preds.shape)
-    p_preds = torch.from_numpy(p_preds).permute(1,0,2)
     x_inst = torch.from_numpy(x_inst)
     y_labels = torch.from_numpy(y_labels)
-    assert p_preds.shape[0] == x_inst.shape[0] == y_labels.shape[0], "Data mismatch"
+    print(x_inst.shape[0])
+    print(y_labels.shape[0])
+    assert p_preds.shape[0] == x_inst.shape[0], "Data mismatch"
 
 
     #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
@@ -59,7 +61,7 @@ def main(args):
                          dataset_val=dataset_val,
                          dataset_test=dataset_test,
                          model=model,
-                         loss=MMDLoss(bw=0.01),
+                         loss=LpLoss(bw=0.0001),
                          n_epochs=args.epochs,
                          lr=args.lr,
                          batch_size=args.batch_size,
@@ -67,8 +69,32 @@ def main(args):
                          device=args.device,
                          verbose=args.verbose)
     print(f"optim weights: {optim_l}")
+    # run test
+    alpha=0.05
+    p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_test[2])
+    y_labels_test = data_test[1]
+    print(y_labels_test.shape)
+    print(p_bar.shape)
+    decision, p_val, stat = npbe_test_vaicenavicius(alpha=alpha,
+                                                    p_probs=p_bar,
+                                                   y_labels=y_labels_test,
+                                                    params=config["LP"]["params"]
+                                                      )
+
     
-    
+    print(f"decision: {decision}")
+    print(f"p_val: {p_val}")
+    print(f"Stat: {stat}")
+    # compare to mean prediction
+    mean_preds = data_test[2].mean(axis=1)
+    decision, p_val, stat = npbe_test_vaicenavicius(alpha=alpha,
+                                                    p_probs=mean_preds,
+                                                   y_labels=y_labels_test,
+                                                    params=config["LP"]["params"]
+                                                      )
+    print(f"decision: {decision}")
+    print(f"p_val: {p_val}")
+    print(f"Stat: {stat}")
 
 if __name__ == "__main__":
     if __name__ == "__main__":
@@ -135,14 +161,14 @@ if __name__ == "__main__":
         parser.add_argument(
             "--patience", 
             type=int, 
-            default=40, 
+            default=100, 
             help="Number of epochs to wait before early stopping"
         )
         
         parser.add_argument(
             "--batch_size", 
             type=int, 
-            default=128, 
+            default=512, 
             help="Batch size for training"
         )
         

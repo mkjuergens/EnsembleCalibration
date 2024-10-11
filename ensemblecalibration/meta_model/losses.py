@@ -151,7 +151,7 @@ class LpLoss(CalibrationLoss):
         bw = self.bw
         assert (
             np.isnan(p_bar.detach().cpu()).sum() == 0
-        ), f"p_bar contains {np.isnan(p_bar.detach()).sum()} NaNs"
+        ), f"p_bar contains {np.isnan(p_bar.cpu().detach()).sum()} NaNs"
         # check that all y's lie in {0,1}
         loss_ece = get_ece_kde(
             p_bar, y, bw, self.p, device=device
