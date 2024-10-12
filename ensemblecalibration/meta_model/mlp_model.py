@@ -4,7 +4,7 @@ from torch import nn
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-
+from torchvision.models import ResNet18_Weights, VGG19_Weights
 
 class MLPCalW(nn.Module):
     """
@@ -138,6 +138,90 @@ class MLPCalWConv(nn.Module):
         # Apply MLP layers
         out = self.mlp_layers(out)
         out = out.view(-1, out.shape[1])
+        # Apply softmax to get weights between 0 and 1 and summing up to 1
+        out = self.softmax(out)
+        return out
+    
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torchvision import models
+
+class MLPCalWithPretrainedModel(nn.Module):
+    """
+    Hybrid model that uses either a pretrained ResNet18 or VGG19 for feature extraction,
+    followed by a linear layer and a Softmax output for classification.
+    """
+
+    def __init__(
+        self,
+        out_channels: int = 10,
+        hidden_dim: int = 128,
+        hidden_layers: int = 1,
+        use_relu: bool = True,
+        pretrained_model: str = 'resnet',  # Can be 'resnet18' or 'vgg19'
+    ):
+        """
+        Initializes the model with either a pretrained ResNet18 or VGG19 as the feature extractor,
+        followed by MLP layers for the final classification.
+
+        Parameters
+        ----------
+        out_channels : int
+            Number of output classes (e.g., 10 for CIFAR-10).
+        hidden_dim : int
+            Hidden dimension for the MLP inner layer.
+        hidden_layers : int, optional
+            Number of hidden layers in the MLP, by default 1.
+        use_relu : bool, optional
+            Whether to use ReLU activation function, by default True.
+        pretrained_model : str, optional
+            Pretrained model to use as the feature extractor, either 'resnet18' or 'vgg19'.
+        """
+        super().__init__()
+
+        # Load the pretrained ResNet18 or VGG19 model
+        if pretrained_model == 'resnet':
+            self.feature_extractor = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+            # Remove the fully connected layer at the end of ResNet18
+            self.feature_extractor = nn.Sequential(*list(self.feature_extractor.children())[:-1])
+            self.feature_map_size = 512  # ResNet18 outputs a 512-dimensional feature vector
+        elif pretrained_model == 'vgg':
+            self.feature_extractor = models.vgg19(weights=VGG19_Weights.IMAGENET1K_V1)
+            # Remove the classifier layers at the end of VGG19
+            self.feature_extractor = nn.Sequential(*list(self.feature_extractor.children())[:-1])
+            self.feature_map_size = 512 * 7 * 7  # VGG19 outputs a 512 x 7 x 7 feature map
+        else:
+            raise ValueError("pretrained_model must be either 'resnet18' or 'vgg19'")
+
+        # Freeze the pretrained model's weights
+        for param in self.feature_extractor.parameters():
+            param.requires_grad = False
+
+        # Fully connected MLP layers
+        layers = []
+        if hidden_layers == 0:
+            layers.append(nn.Linear(self.feature_map_size, out_channels))
+        else:
+            layers.append(nn.Linear(self.feature_map_size, hidden_dim))
+            for _ in range(hidden_layers):
+                layers.append(nn.Linear(hidden_dim, hidden_dim))
+                if use_relu:
+                    layers.append(nn.ReLU(inplace=True))
+            layers.append(nn.Linear(hidden_dim, out_channels))
+
+        self.mlp_layers = nn.Sequential(*layers)
+
+        # Softmax layer to ensure weights are in (0, 1) and sum to 1
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x_in: torch.Tensor):
+        # Extract features using the pretrained model
+        out = self.feature_extractor(x_in)
+        # For VGG, flatten the output of the conv layers
+        out = out.view(out.size(0), -1)
+        # Apply MLP layers
+        out = self.mlp_layers(out)
         # Apply softmax to get weights between 0 and 1 and summing up to 1
         out = self.softmax(out)
         return out

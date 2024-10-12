@@ -2,7 +2,7 @@ import torch
 import os
 import argparse
 
-from ensemblecalibration.meta_model.mlp_model import MLPCalWConv
+from ensemblecalibration.meta_model.mlp_model import MLPCalWConv, MLPCalWithPretrainedModel
 from ensemblecalibration.cal_test import npbe_test_vaicenavicius
 from ensemblecalibration.meta_model.train import get_optim_lambda_mlp
 from ensemblecalibration.data.ensemble.dataset_utils import load_results
@@ -14,6 +14,10 @@ from ensemblecalibration.utils.helpers import calculate_pbar
 
 
 def main(args):
+    LIST_ERRORS = ["LP", "Brier", "MMD", "SKCE"]
+    LIST_MODELS = ["vgg", "resnet"]
+    LIST_N_ENS = [5, 10]
+
     config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
                                 n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
                                 patience=args.patience,
@@ -27,23 +31,19 @@ def main(args):
         ensemble_size=args.ensemble_size if args.ensemble_type == "deep_ensemble" else None,  # Ensemble size only for deep ensemble
         directory=args.results_dir
     )
-    print(p_preds.shape)
     x_inst = torch.from_numpy(x_inst)
     y_labels = torch.from_numpy(y_labels)
-    print(x_inst.shape[0])
-    print(y_labels.shape[0])
     assert p_preds.shape[0] == x_inst.shape[0], "Data mismatch"
 
 
     #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
-    # Initialize model
-    model = MLPCalWConv(
-        in_channels=x_inst.shape[1],
+    # # Initialize model
+    model = MLPCalWithPretrainedModel(
         out_channels=p_preds.shape[1],
-        hidden_dim=args.hidden_dim,
-        hidden_layers=args.hidden_layers,
-        use_relu=True,
-    ).to(args.device)
+        hidden_dim=128,
+        hidden_layers=1,
+        pretrained_model=args.model_type
+    )
 
     # split data into train, validation and test (train and val are used to train the MLP)
     data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
@@ -61,7 +61,7 @@ def main(args):
                          dataset_val=dataset_val,
                          dataset_test=dataset_test,
                          model=model,
-                         loss=LpLoss(bw=0.0001),
+                         loss=MMDLoss(bw=0.01),
                          n_epochs=args.epochs,
                          lr=args.lr,
                          batch_size=args.batch_size,
@@ -78,7 +78,7 @@ def main(args):
     decision, p_val, stat = npbe_test_vaicenavicius(alpha=alpha,
                                                     p_probs=p_bar,
                                                    y_labels=y_labels_test,
-                                                    params=config["LP"]["params"]
+                                                    params=config["MMD"]["params"]
                                                       )
 
     
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--epochs", 
             type=int, 
-            default=100, 
+            default=200, 
             help="Number of epochs to train for"
         )
         
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--batch_size", 
             type=int, 
-            default=512, 
+            default=1024, 
             help="Batch size for training"
         )
         
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--lr",
             type=float,
-            default=0.0001,
+            default=0.001,
             help="leanring rate for training the convmlp"
         )
         
