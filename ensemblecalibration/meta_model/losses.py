@@ -150,6 +150,9 @@ class LpLoss(CalibrationLoss):
         assert (
             np.isnan(p_preds.detach().cpu()).sum() == 0
         ), f"p_preds contains {np.isnan(p_preds.cpu().detach()).sum()} NaNs"
+        assert (
+            np.isnan(weights_l.detach().cpu()).sum() == 0
+        ), f"p_preds contains {np.isnan(weights_l.cpu().detach()).sum()} NaNs"
         
         # cehck max and min values of weights
         # print(f"max: {torch.max(weights_l)}, min: {torch.min(weights_l)}")

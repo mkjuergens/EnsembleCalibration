@@ -21,10 +21,9 @@ def main(args):
     # save results in a dictionary
     results_list = []
     for n_ens in LIST_N_ENS:
-        for model in LIST_MODELS:
+        for model_type in LIST_MODELS:
             for error in LIST_ERRORS:
-                print(f"Running calibration analysis for 
-                       {error} and {model} with {n_ens} ensemble members")
+                print(f"Running calibration analysis for {error} and {model_type} with {n_ens} ensemble members")
                 config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
                                             n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
                                             patience=args.patience,
@@ -33,7 +32,7 @@ def main(args):
                 # Load predictions on test set, instance features and labels
                 p_preds, x_inst, y_labels = load_results(
                     dataset_name=args.dataset,
-                    model_type=model,        # Pass the model type (resnet, vgg)
+                    model_type=model_type,        # Pass the model type (resnet, vgg)
                     ensemble_type="deep_ensemble",  # Pass the ensemble type (deep_ensemble, mc_dropout)
                     ensemble_size=n_ens,  # Ensemble size only for deep ensemble
                     directory=args.results_dir
@@ -49,7 +48,7 @@ def main(args):
                     out_channels=p_preds.shape[1],
                     hidden_dim=128,
                     hidden_layers=1,
-                    pretrained_model=model
+                    pretrained_model=model_type
                 )
 
                 # split data into train, validation and test (train and val are used to train the MLP)
@@ -68,7 +67,7 @@ def main(args):
                                     dataset_val=dataset_val,
                                     dataset_test=dataset_test,
                                     model=model,
-                                    loss=config[error]["loss"],
+                                    loss=config[error]["params"]["loss"],
                                     n_epochs=args.epochs,
                                     lr=args.lr,
                                     batch_size=args.batch_size,

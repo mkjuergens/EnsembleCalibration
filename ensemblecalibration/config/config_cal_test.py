@@ -330,7 +330,7 @@ def create_config_test(
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
                 "bw": 0.00001, # TODO: check this
-                "loss": LpLoss(bw=0.00001, lambda_bce=reg_lp), # changed
+                "loss": LpLoss(bw=0.0001, lambda_bce=reg_lp), # changed
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
