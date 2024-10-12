@@ -1,15 +1,15 @@
 import torch
 import os
 import argparse
+import pandas as pd
 
-from ensemblecalibration.meta_model.mlp_model import MLPCalWConv, MLPCalWithPretrainedModel
+from ensemblecalibration.meta_model.mlp_model import MLPCalWithPretrainedModel
 from ensemblecalibration.cal_test import npbe_test_vaicenavicius
 from ensemblecalibration.meta_model.train import get_optim_lambda_mlp
 from ensemblecalibration.data.ensemble.dataset_utils import load_results
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.utils.helpers import test_train_val_split
 from ensemblecalibration.config.config_cal_test import create_config_test
-from ensemblecalibration.meta_model.losses import LpLoss, SKCELoss, BrierLoss, MMDLoss
 from ensemblecalibration.utils.helpers import calculate_pbar
 
 
@@ -18,87 +18,120 @@ def main(args):
     LIST_MODELS = ["vgg", "resnet"]
     LIST_N_ENS = [5, 10]
 
-    config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
-                                n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
-                                patience=args.patience,
-                                hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
-                                device=args.device,)
-    # Load predictions on test set, instance features and labels
-    p_preds, x_inst, y_labels = load_results(
-        dataset_name=args.dataset,
-        model_type=args.model_type,        # Pass the model type (resnet, vgg)
-        ensemble_type=args.ensemble_type,  # Pass the ensemble type (deep_ensemble, mc_dropout)
-        ensemble_size=args.ensemble_size if args.ensemble_type == "deep_ensemble" else None,  # Ensemble size only for deep ensemble
-        directory=args.results_dir
-    )
-    x_inst = torch.from_numpy(x_inst)
-    y_labels = torch.from_numpy(y_labels)
-    assert p_preds.shape[0] == x_inst.shape[0], "Data mismatch"
+    # save results in a dictionary
+    results_list = []
+    for n_ens in LIST_N_ENS:
+        for model in LIST_MODELS:
+            for error in LIST_ERRORS:
+                print(f"Running calibration analysis for 
+                       {error} and {model} with {n_ens} ensemble members")
+                config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
+                                            n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
+                                            patience=args.patience,
+                                            hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
+                                            device=args.device,)
+                # Load predictions on test set, instance features and labels
+                p_preds, x_inst, y_labels = load_results(
+                    dataset_name=args.dataset,
+                    model_type=model,        # Pass the model type (resnet, vgg)
+                    ensemble_type="deep_ensemble",  # Pass the ensemble type (deep_ensemble, mc_dropout)
+                    ensemble_size=n_ens,  # Ensemble size only for deep ensemble
+                    directory=args.results_dir
+                )
+                x_inst = torch.from_numpy(x_inst)
+                y_labels = torch.from_numpy(y_labels)
+                assert p_preds.shape[0] == x_inst.shape[0], "Data mismatch"
 
 
-    #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
-    # # Initialize model
-    model = MLPCalWithPretrainedModel(
-        out_channels=p_preds.shape[1],
-        hidden_dim=128,
-        hidden_layers=1,
-        pretrained_model=args.model_type
-    )
+                #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
+                # # Initialize model
+                model = MLPCalWithPretrainedModel(
+                    out_channels=p_preds.shape[1],
+                    hidden_dim=128,
+                    hidden_layers=1,
+                    pretrained_model=model
+                )
 
-    # split data into train, validation and test (train and val are used to train the MLP)
-    data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
+                # split data into train, validation and test (train and val are used to train the MLP)
+                data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
 
-    dataset_train = MLPDataset(
-        x_train=data_train[0], P=data_train[2], y=data_train[1]
-    )
-    dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
-    dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+                dataset_train = MLPDataset(
+                    x_train=data_train[0], P=data_train[2], y=data_train[1]
+                )
+                dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
+                dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
 
 
-    # # Train model
-    optim_l, loss_train, loss_val = get_optim_lambda_mlp(
-                         dataset_train=dataset_train,
-                         dataset_val=dataset_val,
-                         dataset_test=dataset_test,
-                         model=model,
-                         loss=MMDLoss(bw=0.01),
-                         n_epochs=args.epochs,
-                         lr=args.lr,
-                         batch_size=args.batch_size,
-                         patience=args.patience,
-                         device=args.device,
-                         verbose=args.verbose)
-    print(f"optim weights: {optim_l}")
-    # run test
-    alpha=0.05
-    p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_test[2])
-    y_labels_test = data_test[1]
-    print(y_labels_test.shape)
-    print(p_bar.shape)
-    decision, p_val, stat = npbe_test_vaicenavicius(alpha=alpha,
-                                                    p_probs=p_bar,
-                                                   y_labels=y_labels_test,
-                                                    params=config["MMD"]["params"]
-                                                      )
+                # # Train model
+                optim_l, loss_train, loss_val = get_optim_lambda_mlp(
+                                    dataset_train=dataset_train,
+                                    dataset_val=dataset_val,
+                                    dataset_test=dataset_test,
+                                    model=model,
+                                    loss=config[error]["loss"],
+                                    n_epochs=args.epochs,
+                                    lr=args.lr,
+                                    batch_size=args.batch_size,
+                                    patience=args.patience,
+                                    device=args.device,
+                                    verbose=args.verbose)
+                
+                # run test, first with lambda that was found by optimization
+                alpha = args.alpha
+                p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_test[2])
+                y_labels_test = data_test[1]
 
-    
-    print(f"decision: {decision}")
-    print(f"p_val: {p_val}")
-    print(f"Stat: {stat}")
-    # compare to mean prediction
-    mean_preds = data_test[2].mean(axis=1)
-    decision, p_val, stat = npbe_test_vaicenavicius(alpha=alpha,
-                                                    p_probs=mean_preds,
-                                                   y_labels=y_labels_test,
-                                                    params=config["LP"]["params"]
-                                                      )
-    print(f"decision: {decision}")
-    print(f"p_val: {p_val}")
-    print(f"Stat: {stat}")
+                decision_lambda, p_val_lambda, stat_lambda = npbe_test_vaicenavicius(alpha=alpha,
+                                                                p_probs=p_bar,
+                                                                y_labels=y_labels_test,
+                                                                params=config[error]["params"]
+                                                                )
+                print(f"decision: {decision_lambda}")
+                print(f"p_val: {p_val_lambda}")
+                print(f"Stat: {stat_lambda}")
+                # compare to mean prediction
+                mean_preds = data_test[2].mean(axis=1)
+                decision_mean, p_val_mean, stat_mean = npbe_test_vaicenavicius(alpha=alpha,
+                                                                p_probs=mean_preds,
+                                                                y_labels=y_labels_test,
+                                                                params=config[error]["params"]
+                                                                )
+                
+                print(f"decision with mean prediciton: {decision_mean}")
+                print(f"p_val: {p_val_mean}")
+                print(f"Stat: {stat_mean}")
+
+                # save results for both the optimized lambda and mean predcition
+                results_list.append({
+                    "ensemble_size": n_ens,
+                    "model": model,
+                    "error_metric": error,
+                    "decision_lambda": decision_lambda,
+                    "p_val_lambda": p_val_lambda,
+                    "stat_lambda": stat_lambda,
+                    "decision_mean": decision_mean,
+                    "p_val_mean": p_val_mean,
+                    "stat_mean": stat_mean,
+                })
+    df_results = pd.DataFrame(results_list)
+
+    # Save results
+    csv_path = os.path.join(args.results_dir, "calibration_analysis_results.csv")
+    df_results.to_csv(csv_path, index=False)
+
+    print(f"Results saved to {csv_path}")
+
 
 if __name__ == "__main__":
     if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Train MLP calibration model")
+
+        parser.add_argument(
+            "--alpha",
+            type=float,
+            default=0.05,
+            help="Significance level for the test"
+        )
         
         parser.add_argument(
             "--results_dir",
@@ -140,7 +173,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--hidden_dim", 
             type=int, 
-            default=100, 
+            default=128, 
             help="Hidden dimension of the ConvNet"
         )
         
