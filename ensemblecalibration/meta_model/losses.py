@@ -144,6 +144,8 @@ class LpLoss(CalibrationLoss):
                 debug: bool = False):
 
         device = weights_l.device
+        # clip p_preds for numerical stability
+        p_preds = torch.clamp(p_preds, 1e-12, 1 - 1e-12)
         # cehck max and min values of weights
         # print(f"max: {torch.max(weights_l)}, min: {torch.min(weights_l)}")
         # calculate convex combination
