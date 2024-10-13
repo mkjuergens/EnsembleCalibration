@@ -103,7 +103,7 @@ def main(args):
                 # save results for both the optimized lambda and mean predcition
                 results_list.append({
                     "ensemble_size": n_ens,
-                    "model": model,
+                    "model": model_type,
                     "error_metric": error,
                     "decision_lambda": decision_lambda,
                     "p_val_lambda": p_val_lambda,
