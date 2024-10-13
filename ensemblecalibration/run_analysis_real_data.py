@@ -2,6 +2,7 @@ import torch
 import os
 import argparse
 import pandas as pd
+import numpy as np
 
 from ensemblecalibration.meta_model.mlp_model import MLPCalWithPretrainedModel
 from ensemblecalibration.cal_test import npbe_test_vaicenavicius
@@ -17,104 +18,117 @@ def main(args):
     LIST_ERRORS = ["LP", "Brier", "MMD", "SKCE"]
     LIST_MODELS = ["vgg", "resnet"]
     LIST_N_ENS = [5, 10]
+    LIST_DATASETS = ["CIFAR10", "CIFAR100"]  # Add a list for datasets
 
-    # save results in a dictionary
+    # Save results in a dictionary
     results_list = []
-    for n_ens in LIST_N_ENS:
-        for model_type in LIST_MODELS:
-            for error in LIST_ERRORS:
-                print(f"Running calibration analysis for {error} and {model_type} with {n_ens} ensemble members")
-                config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
-                                            n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
-                                            patience=args.patience,
-                                            hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
-                                            device=args.device,)
-                # Load predictions on test set, instance features and labels
-                p_preds, x_inst, y_labels = load_results(
-                    dataset_name=args.dataset,
-                    model_type=model_type,        # Pass the model type (resnet, vgg)
-                    ensemble_type="deep_ensemble",  # Pass the ensemble type (deep_ensemble, mc_dropout)
-                    ensemble_size=n_ens,  # Ensemble size only for deep ensemble
-                    directory=args.results_dir
-                )
-                x_inst = torch.from_numpy(x_inst)
-                y_labels = torch.from_numpy(y_labels)
-                assert p_preds.shape[0] == x_inst.shape[0], "Data mismatch"
+    
+    for dataset_name in LIST_DATASETS:  # Loop over datasets
+        print(f"Running analysis for {dataset_name}")
+        for n_ens in LIST_N_ENS:
+            for model_type in LIST_MODELS:
+                for error in LIST_ERRORS:
+                    print(f"Running calibration analysis for {error}, {model_type}, {dataset_name} with {n_ens} ensemble members")
+                    config = create_config_test(cal_test=npbe_test_vaicenavicius, n_resamples=100,
+                                                n_epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
+                                                patience=args.patience,
+                                                hidden_layers=args.hidden_layers, hidden_dim=args.hidden_dim,
+                                                device=args.device)
+                    
+                    # Load predictions on test set, instance features, and labels for the current dataset
+                    p_preds, x_inst, y_labels = load_results(
+                        dataset_name=dataset_name,   # Pass the dataset name dynamically
+                        model_type=model_type,       # Pass the model type (resnet, vgg)
+                        ensemble_type="deep_ensemble",  # Pass the ensemble type (deep_ensemble, mc_dropout)
+                        ensemble_size=n_ens,  # Ensemble size only for deep ensemble
+                        directory=args.results_dir
+                    )
+                    
+                    x_inst = torch.from_numpy(x_inst)
+                    y_labels = torch.from_numpy(y_labels)
+                    assert p_preds.shape[0] == x_inst.shape[0], "Data mismatch"
 
+                    # Initialize model
+                    model = MLPCalWithPretrainedModel(
+                        out_channels=p_preds.shape[1],
+                        hidden_dim=128,
+                        hidden_layers=1,
+                        pretrained_model=model_type
+                    )
 
-                #config = create_config(cal_test=npbe_test_vaicenavicius, optim)
-                # # Initialize model
-                model = MLPCalWithPretrainedModel(
-                    out_channels=p_preds.shape[1],
-                    hidden_dim=128,
-                    hidden_layers=1,
-                    pretrained_model=model_type
-                )
+                    # Split data into train, validation, and test (train and val are used to train the MLP)
+                    data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
 
-                # split data into train, validation and test (train and val are used to train the MLP)
-                data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
+                    dataset_train = MLPDataset(
+                        x_train=data_train[0], P=data_train[2], y=data_train[1]
+                    )
+                    dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
+                    dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
 
-                dataset_train = MLPDataset(
-                    x_train=data_train[0], P=data_train[2], y=data_train[1]
-                )
-                dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
-                dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+                    # Train model
+                    optim_l, loss_train, loss_val = get_optim_lambda_mlp(
+                                        dataset_train=dataset_train,
+                                        dataset_val=dataset_val,
+                                        dataset_test=dataset_test,
+                                        model=model,
+                                        loss=config[error]["params"]["loss"],
+                                        n_epochs=args.epochs,
+                                        lr=args.lr,
+                                        batch_size=args.batch_size,
+                                        patience=args.patience,
+                                        device=args.device,
+                                        verbose=args.verbose)
+                    
+                    # Run test, first with lambda that was found by optimization
+                    alpha = args.alpha
+                    p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_test[2])
+                    y_labels_test = data_test[1]
+                    pred_labels_lambda = np.argmax(p_bar, axis=1)
+                    accuracy_lambda = np.mean(pred_labels_lambda == y_labels_test.numpy()) 
 
+                    decision_lambda, p_val_lambda, stat_lambda = npbe_test_vaicenavicius(alpha=alpha,
+                                                                    p_probs=p_bar,
+                                                                    y_labels=y_labels_test,
+                                                                    params=config[error]["params"]
+                                                                    )
+                    print(f"decision: {decision_lambda}")
+                    print(f"p_val: {p_val_lambda}")
+                    print(f"Stat: {stat_lambda}")
 
-                # # Train model
-                optim_l, loss_train, loss_val = get_optim_lambda_mlp(
-                                    dataset_train=dataset_train,
-                                    dataset_val=dataset_val,
-                                    dataset_test=dataset_test,
-                                    model=model,
-                                    loss=config[error]["params"]["loss"],
-                                    n_epochs=args.epochs,
-                                    lr=args.lr,
-                                    batch_size=args.batch_size,
-                                    patience=args.patience,
-                                    device=args.device,
-                                    verbose=args.verbose)
-                
-                # run test, first with lambda that was found by optimization
-                alpha = args.alpha
-                p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_test[2])
-                y_labels_test = data_test[1]
+                    # Compare to mean prediction
+                    mean_preds = data_test[2].mean(axis=1)
+                    pred_labels_mean = np.argmax(mean_preds, axis=1)
+                    accuracy_mean = np.mean(pred_labels_mean == y_labels_test.numpy()) 
+                    decision_mean, p_val_mean, stat_mean = npbe_test_vaicenavicius(alpha=alpha,
+                                                                    p_probs=mean_preds,
+                                                                    y_labels=y_labels_test,
+                                                                    params=config[error]["params"]
+                                                                    )
+                    
+                    print(f"decision with mean prediction: {decision_mean}")
+                    print(f"p_val: {p_val_mean}")
+                    print(f"Stat: {stat_mean}")
 
-                decision_lambda, p_val_lambda, stat_lambda = npbe_test_vaicenavicius(alpha=alpha,
-                                                                p_probs=p_bar,
-                                                                y_labels=y_labels_test,
-                                                                params=config[error]["params"]
-                                                                )
-                print(f"decision: {decision_lambda}")
-                print(f"p_val: {p_val_lambda}")
-                print(f"Stat: {stat_lambda}")
-                # compare to mean prediction
-                mean_preds = data_test[2].mean(axis=1)
-                decision_mean, p_val_mean, stat_mean = npbe_test_vaicenavicius(alpha=alpha,
-                                                                p_probs=mean_preds,
-                                                                y_labels=y_labels_test,
-                                                                params=config[error]["params"]
-                                                                )
-                
-                print(f"decision with mean prediciton: {decision_mean}")
-                print(f"p_val: {p_val_mean}")
-                print(f"Stat: {stat_mean}")
+                    # Save results for both the optimized lambda and mean prediction
+                    results_list.append({
+                        "dataset": dataset_name,    # Add dataset to the results
+                        "ensemble_size": n_ens,
+                        "model": model_type,
+                        "error_metric": error,
+                        "decision_lambda": decision_lambda,
+                        "p_val_lambda": p_val_lambda,
+                        "stat_lambda": stat_lambda,
+                        "accuracy_lambda": accuracy_lambda,
+                        "decision_mean": decision_mean,
+                        "p_val_mean": p_val_mean,
+                        "stat_mean": stat_mean,
+                        "accuracy_mean": accuracy_mean
+                    })
 
-                # save results for both the optimized lambda and mean predcition
-                results_list.append({
-                    "ensemble_size": n_ens,
-                    "model": model_type,
-                    "error_metric": error,
-                    "decision_lambda": decision_lambda,
-                    "p_val_lambda": p_val_lambda,
-                    "stat_lambda": stat_lambda,
-                    "decision_mean": decision_mean,
-                    "p_val_mean": p_val_mean,
-                    "stat_mean": stat_mean,
-                })
+    # Convert results to a DataFrame
     df_results = pd.DataFrame(results_list)
 
-    # Save results
+    # Save the DataFrame to a CSV file
     csv_path = os.path.join(args.results_dir, "calibration_analysis_results.csv")
     df_results.to_csv(csv_path, index=False)
 
