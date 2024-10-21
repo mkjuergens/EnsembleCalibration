@@ -1,9 +1,10 @@
 import os
-import torch
+from collections import defaultdict
 import numpy as np  
 import torchvision
 from torchvision import datasets, transforms
 from torch.utils.data import random_split, DataLoader
+from ensemblecalibration.data.dataset import MLPDataset
 
 
 DATASETS = {
@@ -118,9 +119,9 @@ def load_results(dataset_name, model_type, ensemble_type, ensemble_size=None, di
         labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_labels.npy")
     elif ensemble_type == "mc_dropout":
         # For MCDropout, no need for ensemble_size in the file names
-        predictions_path = os.path.join(directory, f"{dataset_name}_{model_type}_mc_dropout_predictions.npy")
-        instances_path = os.path.join(directory, f"{dataset_name}_{model_type}_mc_dropout_instances.npy")
-        labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_mc_dropout_labels.npy")
+        predictions_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_predictions.npy")
+        instances_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_instances.npy")
+        labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_labels.npy")
     else:
         raise ValueError(f"Unsupported ensemble type: {ensemble_type}")
 

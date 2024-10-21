@@ -6,8 +6,10 @@ import numpy as np
 import torch.utils
 from torch.utils.data import DataLoader
 import torch.utils.data
+from torch.nn import utils
 from ensemblecalibration.meta_model.mlp_model import MLPCalW
 from ensemblecalibration.meta_model.losses import CalibrationLoss
+from ensemblecalibration.data.dataset import StratifiedSampler
 
 
 def get_optim_lambda_mlp(
@@ -25,6 +27,7 @@ def get_optim_lambda_mlp(
     patience: int = 15,
     device: str = "cpu",
     verbose: bool = False,
+    stratified: bool = True
 ):
     """function for finding the weight vector which results in the lowest calibration error,
     using an MLP model. The model is trained to predict the optimal weight vector for the given
@@ -94,6 +97,7 @@ def get_optim_lambda_mlp(
         optim=optim,
         patience=patience,
         verbose=verbose,
+        stratified=stratified
 
     )
     # use features as input to model instead of probs
@@ -120,6 +124,7 @@ def train_one_epoch(
     loader_val=None,
     lr_scheduler=None,
     device: str = "cpu",
+    clip_gradients: bool = True
 ):
     """
     training loop for one epoch for the given model, loss function, data loaders and optimizers.
@@ -158,6 +163,9 @@ def train_one_epoch(
         loss_train = loss(p_probs, weights_l, y_labels_train)
         # set gradients to zero
         loss_train.backward()
+        if clip_gradients:
+            #print("Clipping gradients")
+            utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         loss_epoch_train += loss_train.item()
     if loader_val is not None:
@@ -222,6 +230,7 @@ def train_mlp(
     early_stopping: bool = True,
     patience: int = 10,
     verbose: bool = False,
+    stratified: bool = True,
     **kwargs,
 ):
     """trains the MLP model to predict the optimal weight matrix for the given ensemble model
@@ -265,13 +274,18 @@ def train_mlp(
         _description_
     """
     model.to(device)
-    optimizer = optim(model.parameters(), lr=lr)
+    optimizer = optim(model.parameters(), lr=lr, weight_decay=1e-5)
     if lr_scheduler is not None:
         lr_scheduler = lr_scheduler(
             optimizer, **kwargs
         )  # kwargs can be e.g. step_size or gamma
     loss_train = []
-    loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
+    if stratified:
+        sampler_train = StratifiedSampler(dataset_train, batch_size=batch_size,
+                                           num_classes=dataset_train.n_classes)
+        loader_train = DataLoader(dataset_train, batch_size=batch_size, sampler=sampler_train)
+    else:
+        loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
     if dataset_val is not None:
         loader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=False)
         loss_val = []

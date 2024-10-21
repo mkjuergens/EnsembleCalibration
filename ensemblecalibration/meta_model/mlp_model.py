@@ -199,18 +199,32 @@ class MLPCalWithPretrainedModel(nn.Module):
             param.requires_grad = False
 
         # Fully connected MLP layers
-        layers = []
-        if hidden_layers == 0:
-            layers.append(nn.Linear(self.feature_map_size, out_channels))
-        else:
-            layers.append(nn.Linear(self.feature_map_size, hidden_dim))
-            for _ in range(hidden_layers):
-                layers.append(nn.Linear(hidden_dim, hidden_dim))
-                if use_relu:
-                    layers.append(nn.ReLU(inplace=True))
-            layers.append(nn.Linear(hidden_dim, out_channels))
+        # layers = []
+        # if hidden_layers == 0:
+        #     layers.append(nn.Linear(self.feature_map_size, out_channels))
+        # else:
+        #     layers.append(nn.Linear(self.feature_map_size, hidden_dim))
+        #     for _ in range(hidden_layers):
+        #         layers.append(nn.Linear(hidden_dim, hidden_dim))
+        #         if use_relu:
+        #             layers.append(nn.ReLU(inplace=True))
+        #     layers.append(nn.Linear(hidden_dim, out_channels))
 
-        self.mlp_layers = nn.Sequential(*layers)
+        # self.mlp_layers = nn.Sequential(*layers)
+        self.mlp_layers = nn.Sequential(
+            nn.Linear(self.feature_map_size, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.LeakyReLU(negative_slope=0.01,inplace=True),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.LeakyReLU(negative_slope=0.01,inplace=True),
+            nn.Linear(hidden_dim, out_channels)
+    )       
+        self.layers = nn.Sequential(
+                nn.Linear(self.feature_map_size, hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(hidden_dim, out_channels)
+            )
 
         # Softmax layer to ensure weights are in (0, 1) and sum to 1
         self.softmax = nn.Softmax(dim=1)
@@ -218,12 +232,19 @@ class MLPCalWithPretrainedModel(nn.Module):
     def forward(self, x_in: torch.Tensor):
         # Extract features using the pretrained model
         out = self.feature_extractor(x_in)
+        assert not torch.isnan(out).any(), "NaN detected in output of feature layer!"
         # For VGG, flatten the output of the conv layers
         out = out.view(out.size(0), -1)
         # Apply MLP layers
+        # for name, param in self.mlp_layers.named_parameters():
+        #     if param.grad is not None:
+        #         print(f"Layer {name} - Weights min: {param.data.min()}, max: {param.data.max()}")
+        #         print(f"Layer {name} - Gradients min: {param.grad.min()}, max: {param.grad.max()}")
         out = self.mlp_layers(out)
+        logits = torch.clamp(out, min=-10, max=10)  # Prevent very large values in MLP output
+        assert not torch.isnan(logits).any(), "NaN detected in output of mlp!"
         # Apply softmax to get weights between 0 and 1 and summing up to 1
-        out = self.softmax(out)
+        out = self.softmax(logits)
         return out
 
 

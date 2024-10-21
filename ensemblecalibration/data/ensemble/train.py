@@ -17,7 +17,7 @@ def train_model(
     valloader,
     epochs=50,
     patience=5,
-    device="cuda",
+    device="cuda:1",
     dataset_name="",
     project_name: str = "ensemble-training",
     ensemble_size=10,
@@ -195,7 +195,8 @@ def mc_dropout_inference(model, inputs, num_samples=50):
     return mean_probs, all_probs
 
 
-def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ensemble", num_samples=50, device="cuda", model_type="resnet"):
+def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ensemble", 
+               num_samples=10, device="cuda:1", model_type="resnet"):
     """
     Test either an ensemble of models (deep ensemble) or a single model with MCDropout.
     
@@ -215,7 +216,7 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
     """
     if ensemble_type == "deep_ensemble":
         # Deep Ensemble: Load each model in the ensemble
-        ensemble_models = [get_model(num_classes, model_type=model_type, ensemble_type="deep_ensemble").to(device) for _ in model_or_paths]
+        ensemble_models = [get_model(num_classes, model_type=model_type, ensemble_type="deep_ensemble", device=device).to(device) for _ in model_or_paths]
         
         # Load the saved best model weights for each model in the ensemble
         for i, model_path in enumerate(model_or_paths):
@@ -288,8 +289,10 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
                 labels_list.append(labels.cpu().numpy())
 
                 # Perform MCDropout inference
-                mean_probs, _ = mc_dropout_inference(model, inputs, num_samples)
-                predictions.append(mean_probs)
+                mean_probs, probs = mc_dropout_inference(model, inputs, num_samples)
+                probs = probs.swapaxes(0,1)
+                assert probs.shape == (inputs.shape[0], num_samples, num_classes), f"predictions of MC dropout are in wrong shape, namely {probs.shape}"
+                predictions.append(probs) # changed to append predictions of each samples, not mean
 
                 # Get predicted classes and calculate accuracy
                 predicted = np.argmax(mean_probs, axis=1)
@@ -299,7 +302,7 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
         test_accuracy = 100 * correct / total
         print(f"Test Accuracy: {test_accuracy}%")
 
-        predictions = np.concatenate(predictions, axis=0)  # Shape: (total_samples, num_classes)
+        predictions = np.concatenate(predictions, axis=0)  # Shape: (total_samples, num_samples num_classes)
         labels = np.concatenate(labels_list)  # Shape: (total_samples,)
         instances = np.concatenate(instances_list)  # Shape: (total_samples, channels, height, width)
 
@@ -307,6 +310,7 @@ def test_model(model_or_paths, testloader, num_classes, ensemble_type="deep_ense
 
 
 if __name__ == "__main__":
+    device = "cuda:1"
     # Configurations
     ensemble_sizes = [5, 10]  # Number of models in ensembles
     datasets_to_use = ["CIFAR10", "CIFAR100"]  # Datasets
@@ -349,7 +353,7 @@ if __name__ == "__main__":
                                 f"\nTraining model {idx + 1}/{ensemble_size} in the ensemble\n"
                             )
                             model = get_model(
-                                num_classes, model_type, ensemble_type=ensemble_type
+                                num_classes, model_type, ensemble_type=ensemble_type, device=device
                             )
                             best_model_path = train_model(
                                 model,
@@ -395,54 +399,56 @@ if __name__ == "__main__":
                         )
 
                 elif ensemble_type == "mc_dropout":
-                    print(f"\nRunning MCDropout on {model_type} for {dataset_name}")
+                    for ensemble_size in ensemble_sizes:
+                        print(f"\nRunning MCDropout on {model_type} for {dataset_name}")
 
-                    # For MCDropout, a single model is trained and multiple forward passes are used
-                    model = get_model(
-                        num_classes, model_type, ensemble_type=ensemble_type
-                    )
-                    best_model_path = train_model(
-                        model,
-                        trainloader,
-                        valloader,
-                        dataset_name=dataset_name,
-                        ensemble_size=1,  # Only one model, no ensemble size
-                        model_idx=1,
-                    )
+                        # For MCDropout, a single model is trained and multiple forward passes are used
+                        model = get_model(
+                            num_classes, model_type, ensemble_type=ensemble_type, device=device
+                        )
+                        best_model_path = train_model(
+                            model,
+                            trainloader,
+                            valloader,
+                            dataset_name=dataset_name,
+                            ensemble_size=1,  # Only one model, no ensemble size
+                            model_idx=1,
+                        )
 
-                    # Test MCDropout with multiple stochastic passes
-                    predictions, instances, labels = test_model(
-                        model,
-                        testloader,
-                        num_classes,
-                        ensemble_type="mc_dropout",
-                        num_samples=50,
-                        model_type=model_type
-                    )
+                        # Test MCDropout with multiple stochastic passes
+                        predictions, instances, labels = test_model(
+                            model,
+                            testloader,
+                            num_classes,
+                            ensemble_type="mc_dropout",
+                            num_samples=ensemble_size,
+                            model_type=model_type
+                        )
+                        assert predictions.shape == (10000, ensemble_size, num_classes), "wrong shape of preds"
 
-                    # Save predictions, instances, and labels
-                    np.save(
-                        os.path.join(
-                            save_directory,
-                            f"{dataset_name}_{model_type}_mc_dropout_predictions.npy",
-                        ),
-                        predictions,
-                    )
-                    np.save(
-                        os.path.join(
-                            save_directory,
-                            f"{dataset_name}_{model_type}_mc_dropout_instances.npy",
-                        ),
-                        instances,
-                    )
-                    np.save(
-                        os.path.join(
-                            save_directory,
-                            f"{dataset_name}_{model_type}_mc_dropout_labels.npy",
-                        ),
-                        labels,
-                    )
+                        # Save predictions, instances, and labels
+                        np.save(
+                            os.path.join(
+                                save_directory,
+                                f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_predictions.npy",
+                            ),
+                            predictions,
+                        )
+                        np.save(
+                            os.path.join(
+                                save_directory,
+                                f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_instances.npy",
+                            ),
+                            instances,
+                        )
+                        np.save(
+                            os.path.join(
+                                save_directory,
+                                f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_labels.npy",
+                            ),
+                            labels,
+                        )
 
-                    print(
-                        f"Saved predictions for MCDropout on {dataset_name} with {model_type}\n"
-                    )
+                        print(
+                            f"Saved predictions for MCDropout on {dataset_name} with {model_type}\n"
+                        )

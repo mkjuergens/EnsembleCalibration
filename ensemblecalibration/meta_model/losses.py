@@ -144,15 +144,17 @@ class LpLoss(CalibrationLoss):
                 debug: bool = False):
 
         device = weights_l.device
+        #print(f"weights min: {weights_l.min()}, weights_max: {weights_l.max()}")
         # clip p_preds for numerical stability
-        p_preds = torch.clamp(p_preds, 1e-12, 1 - 1e-12)
+        #p_preds = torch.clamp(p_preds, 1e-12, 1 - 1e-12)
+       # weights_l = torch.clamp(weights_l, 1e-15, 1.0)
         # check for nans
         assert (
             np.isnan(p_preds.detach().cpu()).sum() == 0
         ), f"p_preds contains {np.isnan(p_preds.cpu().detach()).sum()} NaNs"
         assert (
             np.isnan(weights_l.detach().cpu()).sum() == 0
-        ), f"p_preds contains {np.isnan(weights_l.cpu().detach()).sum()} NaNs"
+        ), f"weights contain {np.isnan(weights_l.cpu().detach()).sum()} NaNs"
         
         # cehck max and min values of weights
         # print(f"max: {torch.max(weights_l)}, min: {torch.min(weights_l)}")
@@ -166,7 +168,7 @@ class LpLoss(CalibrationLoss):
         loss_ece = get_ece_kde(
             p_bar, y, bw, self.p, device=device
         )  # changed: not taking only the second column
-
+        #print(f"loss:{loss_ece}")
         if self.lambda_bce > 0:
             reg_loss = self.compute_reg_loss(p_bar, y)
             loss = loss_ece + self.lambda_bce * reg_loss

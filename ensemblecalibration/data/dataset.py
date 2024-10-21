@@ -1,3 +1,4 @@
+from collections import defaultdict
 import torch
 import numpy as np
 import pytorch_lightning as pl
@@ -88,3 +89,47 @@ class MLPDataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val, batch_size=self.batch_size, shuffle=False)
+
+# stratified sampler for Lp calibration error and CIFAR10
+
+class StratifiedSampler:
+    def __init__(self, dataset: MLPDataset, batch_size: int, num_classes: int):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.num_classes = num_classes
+        self.class_indices = defaultdict(list)
+
+        # Group dataset indices by class
+        for idx, (_, label, _) in enumerate(dataset):
+            self.class_indices[label].append(idx)
+
+    def __iter__(self):
+        batch = []
+        all_classes = list(self.class_indices.keys())
+        
+        while len(batch) < len(self.dataset):
+            current_batch = []
+
+            # Ensure at least two examples from each class in the batch
+            for class_idx in all_classes:
+                if len(self.class_indices[class_idx]) >= 2:
+                    samples = np.random.choice(self.class_indices[class_idx], 2, replace=False)
+                    current_batch.extend(samples)
+
+            # Shuffle remaining examples and fill the batch
+            remaining_indices = [idx for sublist in self.class_indices.values() for idx in sublist]
+            np.random.shuffle(remaining_indices)
+
+            for idx in remaining_indices:
+                if len(current_batch) < self.batch_size:
+                    current_batch.append(idx)
+                else:
+                    break
+
+            np.random.shuffle(current_batch)
+            batch.extend(current_batch)
+
+        return iter(batch)
+
+    def __len__(self):
+        return len(self.dataset) // self.batch_size
