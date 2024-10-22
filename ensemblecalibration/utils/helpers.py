@@ -68,16 +68,69 @@ def multinomial_label_sampling(probs, tensor: bool = False):
     return y
 
 
+def data_split(
+    x_inst: np.ndarray,
+    p_probs: np.ndarray,
+    y_labels: np.ndarray,
+    test_size: float = 0.2,
+    val_size: float = 0.2,
+    split_test: bool = True,
+    split_val: bool = True,
+    random_state: int = 42
+):
+    """
+    Split the data into train, validation, and test sets based on parameters.
+
+    Parameters:
+    - x_inst: Input instances.
+    - p_probs: Probabilistic predictions.
+    - y_labels: Labels.
+    - test_size: Fraction of data to reserve for testing.
+    - val_size: Fraction of data to reserve for validation.
+    - split_test: Whether to create a test split.
+    - split_val: Whether to create a validation split.
+    - random_state: Random seed for reproducibility.
+
+    Returns:
+    - A dictionary with keys 'train', 'val', 'test' containing the respective splits.
+    """
+    x_temp, y_temp, p_temp = x_inst, y_labels, p_probs
+
+    # Split off test set if required
+    if split_test:
+        x_temp, x_test, y_temp, y_test, p_temp, p_test = train_test_split(
+            x_temp, y_temp, p_temp, test_size=test_size, random_state=random_state
+        )
+    else:
+        x_test, y_test, p_test = None, None, None
+
+    # Split off validation set if required
+    if split_val:
+        val_size_adjusted = val_size / (1 - test_size) if split_test else val_size
+        x_train, x_val, y_train, y_val, p_train, p_val = train_test_split(
+            x_temp, y_temp, p_temp, test_size=val_size_adjusted, random_state=random_state
+        )
+    else:
+        x_train, y_train, p_train = x_temp, y_temp, p_temp
+        x_val, y_val, p_val = None, None, None
+
+    return {
+        "train": (x_train, y_train, p_train),
+        "val": (x_val, y_val, p_val),
+        "test": (x_test, y_test, p_test)
+    }
+
+
 def test_train_val_split(
     p_preds: np.ndarray,
     y_labels: np.ndarray,
     x_inst: np.ndarray,
-    test_size: float = 0.5,
-    val_size: float = 0.2,
+    test_size: float = 0.2,
+    val_size: float = 0.5,
 ):
 
     x_test, X_temp, y_test, y_temp, preds_test, predictions_temp = train_test_split(
-        x_inst, y_labels, p_preds, test_size=test_size, random_state=42
+        x_inst, y_labels, p_preds, test_size=1 - test_size, random_state=42
     )
 
     # Step 2: Split Temp into Validation (20%) and Test (20%)

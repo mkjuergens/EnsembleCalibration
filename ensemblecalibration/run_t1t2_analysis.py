@@ -9,7 +9,7 @@ import datetime
 
 from ensemblecalibration.config.config_cal_test import create_config
 from ensemblecalibration.data.experiments import get_experiment
-from ensemblecalibration.cal_test import npbe_test_ensemble
+from ensemblecalibration.cal_test import npbe_test_ensemble, npbe_test_ensemble_v2
 from ensemblecalibration.utils.helpers import save_results, make_serializable
 from ensemblecalibration.utils.plot_functions import plot_error_analysis
 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
         "--exp_name", type=str, default="gp", help="name of the experiment"
     )
     parser.add_argument(
-        "--cal_test", type=callable, default=npbe_test_ensemble, help="calibration test"
+        "--cal_test", type=callable, default=npbe_test_ensemble_v2, help="calibration test"
     )
     parser.add_argument("--miscal_stats", "--names-list", nargs="+", default=[])
     parser.add_argument("--optim", type=str, default="mlp", help="optimization method")

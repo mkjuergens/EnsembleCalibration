@@ -2,12 +2,12 @@ import numpy as np
 from scipy.optimize import minimize
 from ensemblecalibration.meta_model import get_optim_lambda_mlp, MLPCalW
 from ensemblecalibration.data.dataset import MLPDataset
-from ensemblecalibration.utils.helpers import calculate_pbar, test_train_val_split
+from ensemblecalibration.utils.helpers import calculate_pbar, test_train_val_split, data_split
 
 
 def calculate_min(
     x_inst: np.ndarray, p_probs: np.ndarray, y_labels: np.ndarray, params: dict,
-    verbose: bool = False
+    verbose: bool = False, val: bool = True, test: bool = True
 ):
     """calculate the optimal convex combination of predictors using a given miscalibration estimate
     and minimization technique.
@@ -24,6 +24,10 @@ def calculate_min(
         dictionary of parameters
     verbose : bool, optional
         whether to print the results and loss, by default False
+    val: bool, optional
+        whether to use validation set for training, by default True
+    test: bool, optional
+        whether to use test set for the convex combination, by default False
 
     Returns
     -------
@@ -38,14 +42,40 @@ def calculate_min(
     NotImplementedError
         if the optimization method is not implemented
     """
+    # Determine which splits to create
+    split_test = test
+    split_val = val
+
+    # Split the data based on the flags
+    data_splits = data_split(
+        x_inst, p_probs, y_labels,
+        test_size=0.2,
+        val_size=0.2,
+        split_test=split_test,
+        split_val=split_val,
+        random_state=42
+    )
+     # Select datasets based on flags
+    data_train = data_splits["train"]
+    data_val = data_splits["val"] if val else data_splits["train"]
+    data_test = data_splits["test"] if test else data_val
     #n_dims = 2 if params["x_dep"] else 1
     n_dims = 2 if params["optim"] == "mlp" else 1
-    data_test, data_train, data_val = test_train_val_split(p_probs, y_labels, x_inst)
+    # data_test, data_train, data_val = test_train_val_split(p_probs, y_labels, x_inst)
+    # print(len(data_train[0]))
+    # print(len(data_val[0]))
+    # print(len(data_test[0]))
     if params["optim"] == "mlp":
         # split data into train, validation and test (train and val are used to train the MLP)
         dataset_train = MLPDataset(x_train=data_train[0], P=data_train[2], y=data_train[1])
-        dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
-        dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+        if val:
+            dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
+        else: 
+            dataset_val = dataset_train
+        if test:
+            dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
+        else:
+            dataset_test = dataset_val
         # intialise model
         model = MLPCalW(
             in_channels=data_train[0].shape[1],

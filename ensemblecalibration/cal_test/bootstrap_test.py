@@ -1,6 +1,5 @@
 from typing import Union
 
-import random
 import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
@@ -8,6 +7,49 @@ from sklearn.model_selection import train_test_split
 from ensemblecalibration.utils.helpers import multinomial_label_sampling, calculate_pbar
 from ensemblecalibration.utils.minimization import calculate_min
 
+
+def npbe_test_ensemble_v2(
+    alpha: list,
+    x_inst: np.ndarray,
+    p_preds: np.ndarray,
+    y_labels: np.ndarray,
+    params: dict,
+    verbose: bool = True,
+):
+    """new version of the bootstrapping test using uniform sampling of the polytope for testing
+    whether there exists a calibrated version in the convex hull.
+    This version uses the validation set to calculate the optimal weights.
+
+    Parameters
+    ----------
+    alpha : list
+        significance level(s) of the test
+    x_inst : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing predictions for each instance and classifier
+    p_preds : np.ndarray of shape (n_samples, n_predictors, n_classes)
+        tensor containing probabilistic predictions for each instance and classifier
+    y_labels : np.ndarray of shape (n_samples,)
+        array containing labels
+    params : dict
+        dictionary of test parameters
+    Returns
+    -------
+    decision, (p_vals, stats)
+        decision: integer defining whether tso reject (1) or accept (0) the null hypothesis
+        ( p_vals: array of p values for each predictor )
+        ( stats: array of test statistics for each predictor )
+
+    """
+
+    # calculate optimal weights
+    _, _, p_bar_test, y_labels_test = calculate_min(x_inst, p_preds, y_labels, params,
+                                                     verbose=verbose, val=True, test=False)
+    
+    # run bootstrap test
+    decision, p_val, stat = npbe_test_vaicenavicius(alpha, p_bar_test, y_labels_test, params)
+    print("Decision: ", decision)
+
+    return decision, p_val, stat
 
 def npbe_test_ensemble(
     alpha: list,

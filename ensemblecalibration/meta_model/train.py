@@ -21,8 +21,6 @@ def get_optim_lambda_mlp(
     n_epochs: int = 100,
     lr: float = 0.001,
     batch_size: int = 128,
-    # hidden_dim: int = 8,
-    # hidden_layers: int = 0,
     optim=torch.optim.Adam,
     patience: int = 15,
     device: str = "cpu",
@@ -51,10 +49,6 @@ def get_optim_lambda_mlp(
         lewarning rate, by default 0.001
     batch_size : int, optional
         batch size, by default 128
-    hidden_dim : int, optional
-        number of hidden units in the hidden layers, by default 8
-    hidden_layers : int, optional
-        number of hidden layers, by default 0
     optim : torch.optim.Optimizer, optional
         optimizer used for training, by default torch.optim.Adam
     shuffle : bool, optional
@@ -76,12 +70,6 @@ def get_optim_lambda_mlp(
     loss_val
         validation loss
     # """
-    # model = MLPCalW(
-    #     in_channels=dataset_train.n_features,
-    #     out_channels=dataset_train.n_ens,
-    #     hidden_dim=hidden_dim,
-    #     hidden_layers=hidden_layers,
-    # )
     # assert that daataset has x_train attribute
     assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
 
@@ -109,10 +97,10 @@ def get_optim_lambda_mlp(
     )
     model.eval()
     # device
-    x_inst = x_inst.to(device)
-    optim_weights = model(x_inst)
+    with torch.no_grad():
+        x_inst = x_inst.to(device)
+        optim_weights = model(x_inst).detach().cpu()
 
-    optim_weights = optim_weights.detach().cpu()
     return optim_weights, loss_train, loss_val
 
 
