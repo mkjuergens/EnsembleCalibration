@@ -17,23 +17,24 @@ def rbf_kernel(u: torch.Tensor, v: torch.Tensor, bandwidth=1):
     return torch.exp(-diff_norm_mat / bandwidth)
 
 
-def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
+def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict, take_square: bool = False):
     if not isinstance(p_bar, torch.Tensor):
         p_bar = torch.tensor(p_bar, dtype=torch.float32)
     if not isinstance(y, torch.Tensor):
         y = torch.tensor(y, dtype=torch.int64)
     bw = params["bw"]
 
-    return mmd_kce(p_bar, y, kernel_fct=rbf_kernel, bw=bw)
+    return mmd_kce(p_bar, y, kernel_fct=rbf_kernel, bw=bw, take_square=take_square)
 
 
-def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False):
+def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False,
+                        take_square: bool = False):
     if x_dep:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
     else:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=False, n_dims=1)
 
-    obj = mmd_kce_obj(p_bar, y_labels, params)
+    obj = mmd_kce_obj(p_bar, y_labels, params, take_square=take_square)
     # convert to numpy array if needed
     if isinstance(obj, torch.Tensor):
         obj = obj.numpy()
