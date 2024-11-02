@@ -17,7 +17,7 @@ def rbf_kernel(u: torch.Tensor, v: torch.Tensor, bandwidth=1):
     return torch.exp(-diff_norm_mat / bandwidth)
 
 
-def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict, take_square: bool = False):
+def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict, take_square: bool = True):
     if not isinstance(p_bar, torch.Tensor):
         p_bar = torch.tensor(p_bar, dtype=torch.float32)
     if not isinstance(y, torch.Tensor):
@@ -28,7 +28,7 @@ def mmd_kce_obj(p_bar: np.ndarray, y: np.ndarray, params: dict, take_square: boo
 
 
 def mmd_kce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False,
-                        take_square: bool = False):
+                        take_square: bool = True):
     if x_dep:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
     else:

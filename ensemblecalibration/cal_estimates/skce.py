@@ -6,7 +6,9 @@ from ensemblecalibration.utils.distances import tv_distance
 from ensemblecalibration.utils.helpers import calculate_pbar
 
 
-def skce_obj(p_bar: torch.Tensor, y: torch.Tensor, params: dict, take_square: bool = False):
+def skce_obj(
+    p_bar: torch.Tensor, y: torch.Tensor, params: dict, take_square: bool = True
+):
 
     # convert to torch tensors if necessary
     if not isinstance(p_bar, torch.Tensor):
@@ -18,7 +20,9 @@ def skce_obj(p_bar: torch.Tensor, y: torch.Tensor, params: dict, take_square: bo
     return get_skce_ul(p_bar, y, dist_fct=tv_distance, bw=bw, take_square=take_square)
 
 
-def skce_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False, take_square: bool = False):
+def skce_obj_lambda(
+    weights_l, p_probs, y_labels, params, x_dep: bool = False, take_square: bool = True
+):
     if x_dep:
         p_bar = calculate_pbar(weights_l, p_probs, reshape=True, n_dims=2)
     else:
@@ -39,7 +43,7 @@ def get_skce_ul(
 ):
     skce_ul_stats = skce_ul_tensor(p_bar, y, dist_fct=dist_fct, bw=bw)
     # replace each entry with its L2 norm
-    #skce_ul_stats = torch.norm(skce_ul_stats, p=2, dim=0)
+    # skce_ul_stats = torch.norm(skce_ul_stats, p=2, dim=0)
 
     skce_ul = torch.mean(skce_ul_stats)  # sum instead of mean ?
     if take_square:

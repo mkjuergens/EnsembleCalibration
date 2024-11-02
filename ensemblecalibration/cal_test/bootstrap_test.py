@@ -14,6 +14,7 @@ def npbe_test_ensemble_v2(
     y_labels: np.ndarray,
     params: dict,
     verbose: bool = True,
+    use_val: bool = False,
 ):
     """new version of the bootstrapping test using uniform sampling of the polytope for testing
     whether there exists a calibrated version in the convex hull.
@@ -31,6 +32,10 @@ def npbe_test_ensemble_v2(
         array containing labels
     params : dict
         dictionary of test parameters
+    verbose : bool, optional
+        whether to print the results and loss, by default True
+    use_val : bool, optional
+        whether to use the validation set for training, by default False
     Returns
     -------
     decision, (p_vals, stats)
@@ -42,14 +47,17 @@ def npbe_test_ensemble_v2(
 
     # calculate optimal weights
     _, _, p_bar_test, y_labels_test = calculate_min(
-        x_inst, p_preds, y_labels, params, verbose=verbose, val=True, test=False
+        x_inst, p_preds, y_labels, params, verbose=verbose, val=use_val, test=False
     )
 
     # run bootstrap test
     decision, p_val, stat = npbe_test_vaicenavicius(
         alpha, p_bar_test, y_labels_test, params
     )
-    print("Decision: ", decision)
+    if verbose:
+        print(f"Shape of p_bar_test: {p_bar_test.shape}")
+        print(f"Shape of instance values: {x_inst.shape}")
+        print("Decision: ", decision)
 
     return decision, p_val, stat
 
@@ -209,14 +217,14 @@ def npbe_test_ensemble_v0(
     """
     old version of the bootstrapping test using uniform sampling of the polytope for testing
     """
-    # solve minimization problem
+    # solve minimization problem, return predictions on test data as well as test data
     _, _, p_bar_test, y_labels_test, p_preds_test = calculate_min(
         x_inst,
         p_preds,
         y_labels,
         params,
         verbose=verbose,
-        val=True,
+        val=False, # set val and test to False because we purely see it as an optimization problem
         test=False,
         output_p_preds=True,
     )
@@ -288,9 +296,9 @@ def npbe_test_ensemble_v0(
     q_alpha = torch.quantile(stats, 1 - torch.tensor(alpha, device=p_preds_test.device))
 
     # Solve minimization problem again
-    _, _, p_bar_test, y_labels_test = calculate_min(
-        x_inst, p_preds, y_labels, params, verbose=verbose, val=True, test=False
-    )
+    # _, _, p_bar_test, y_labels_test = calculate_min(
+    #     x_inst, p_preds, y_labels, params, verbose=verbose, val=True, test=False
+    # )
 
     # Calculate test statistic
     stat = params["obj"](p_bar_test, y_labels_test, params)
