@@ -147,8 +147,10 @@ def sample_pbar_h1(x, p_preds, kernel, setting=1, eps=1e-4, **kwargs):
     dist_0, dist_1 = abs(p_preds_min - 0), abs(p_preds_max - 1)
 
     if setting == 1:
+        # sample eps from Unif(0,0.05)
+        eps_dist = random.uniform(0, 0.05)
         p_bar_values = (
-            p_preds[:, 0, 0] - 0.03 if dist_0 > dist_1 else p_preds[:, 1, 0] + 0.03
+            p_preds[:, 0, 0] - eps_dist if dist_0 > dist_1 else p_preds[:, 1, 0] + eps_dist
         )
     elif setting == 2:
         ivl_pbar = (
