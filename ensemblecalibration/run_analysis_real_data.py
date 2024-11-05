@@ -68,6 +68,9 @@ def main(args):
                         data_train = (x_inst, y_labels, p_preds)
                         data_val = data_train
                         data_test = data_val
+                    # select n_samples randomly from the test set
+                    idx = np.random.choice(data_test[0].shape[0], args.n_samples, replace=False)
+                    data_test = (data_test[0][idx], data_test[1][idx], data_test[2][idx])
 
 
                     dataset_train = MLPDataset(
@@ -80,7 +83,7 @@ def main(args):
                     optim_l, loss_train, loss_val = get_optim_lambda_mlp(
                                         dataset_train=dataset_train,
                                         dataset_val=dataset_val,
-                                        dataset_test=dataset_val,
+                                        dataset_test=dataset_test,
                                         model=model,
                                         loss=config[error]["params"]["loss"],
                                         n_epochs=args.epochs,
@@ -97,8 +100,8 @@ def main(args):
                     # Ensure no gradients are tracked during evaluation
                     with torch.no_grad():
                         # change: evaluation on validation, not test set
-                        p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_val[2]).detach()
-                        y_labels_test = data_val[1]
+                        p_bar = calculate_pbar(weights_l=optim_l, p_preds=data_test[2]).detach()
+                        y_labels_test = data_test[1]
                         pred_labels_lambda = torch.argmax(p_bar, dim=1).to(args.device)
                         accuracy_lambda = (pred_labels_lambda == y_labels_test).float().mean().item()
 
@@ -111,7 +114,7 @@ def main(args):
                         print(f"Stat: {stat_lambda}")
 
                         # Compare to mean prediction
-                        mean_preds = torch.tensor(data_val[2].mean(axis=1)).to(args.device)
+                        mean_preds = torch.tensor(data_test[2].mean(axis=1)).to(args.device)
                         pred_labels_mean = torch.argmax(mean_preds, dim=1)
                         accuracy_mean = (pred_labels_mean == y_labels_test).float().mean().item()
 
