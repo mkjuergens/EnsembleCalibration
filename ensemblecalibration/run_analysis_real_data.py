@@ -19,7 +19,7 @@ def main(args):
     LIST_ERRORS = ["Brier", "MMD", "SKCE"]
     LIST_MODELS = ["vgg", "resnet"]
     LIST_N_ENS = [5, 10]
-    LIST_DATASETS = ["CIFAR100"]  # Add a list for datasets
+    LIST_DATASETS = ["CIFAR10"]  # Add a list for datasets
 
     # Save results in a dictionary
     results_list = []
@@ -62,7 +62,13 @@ def main(args):
                             torch.nn.init.xavier_uniform_(param)
 
                     # Split data into train, validation, and test (train and val are used to train the MLP)
-                    data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
+                    if args.split:
+                        data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
+                    else:
+                        data_train = (x_inst, y_labels, p_preds)
+                        data_val = data_train
+                        data_test = data_val
+
 
                     dataset_train = MLPDataset(
                         x_train=data_train[0], P=data_train[2], y=data_train[1]
@@ -260,6 +266,19 @@ if __name__ == "__main__":
             type=bool, 
             default=True, 
             help="Print results and loss"
+        )
+        parser.add_argument(
+            "--split_data",
+            type=bool,
+            default=False,
+            help="whether to split the data into train, val, test"
+        )
+
+        parser.add_argument(
+            "--n_samples",
+            type=int,
+            default=2000,
+            help="number of samples to be used on the test set"
         )
         
         args = parser.parse_args()
