@@ -173,3 +173,5 @@ notebooks/lightning_logs/
 notebooks/wandb/
 wandb/
 results/
+ensemble_results
+data

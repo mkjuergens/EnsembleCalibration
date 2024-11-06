@@ -413,6 +413,7 @@ if __name__ == "__main__":
                             dataset_name=dataset_name,
                             ensemble_size=1,  # Only one model, no ensemble size
                             model_idx=1,
+                            model_type=ensemble_type
                         )
 
                         # Test MCDropout with multiple stochastic passes
@@ -420,9 +421,10 @@ if __name__ == "__main__":
                             model,
                             testloader,
                             num_classes,
-                            ensemble_type="mc_dropout",
+                            ensemble_type=ensemble_type,
                             num_samples=ensemble_size,
                             model_type=model_type
+        
                         )
                         assert predictions.shape == (10000, ensemble_size, num_classes), "wrong shape of preds"
 
