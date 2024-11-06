@@ -25,7 +25,7 @@ def get_optim_lambda_mlp(
     patience: int = 15,
     device: str = "cpu",
     verbose: bool = False,
-    stratified: bool = True
+    stratified: bool = False
 ):
     """function for finding the weight vector which results in the lowest calibration error,
     using an MLP model. The model is trained to predict the optimal weight vector for the given
@@ -112,7 +112,7 @@ def train_one_epoch(
     loader_val=None,
     lr_scheduler=None,
     device: str = "cpu",
-    clip_gradients: bool = True
+    clip_gradients: bool = False
 ):
     """
     training loop for one epoch for the given model, loss function, data loaders and optimizers.
@@ -218,7 +218,7 @@ def train_mlp(
     early_stopping: bool = True,
     patience: int = 10,
     verbose: bool = False,
-    stratified: bool = True,
+    stratified: bool = False,
     **kwargs,
 ):
     """trains the MLP model to predict the optimal weight matrix for the given ensemble model

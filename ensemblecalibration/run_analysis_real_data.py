@@ -16,7 +16,7 @@ from ensemblecalibration.utils.helpers import calculate_pbar
 
 
 def main(args):
-    LIST_ERRORS = ["Brier", "MMD", "SKCE"]
+    LIST_ERRORS = ["LP", "Brier", "MMD", "SKCE"]
     LIST_MODELS = ["vgg", "resnet"]
     LIST_N_ENS = [5, 10]
     LIST_DATASETS = ["CIFAR10"]  # Add a list for datasets
@@ -40,7 +40,7 @@ def main(args):
                     p_preds, x_inst, y_labels = load_results(
                         dataset_name=dataset_name,   # Pass the dataset name dynamically
                         model_type=model_type,       # Pass the model type (resnet, vgg)
-                        ensemble_type="mc_dropout",  # Pass the ensemble type (deep_ensemble, mc_dropout)
+                        ensemble_type=args.ensemble_type,  # Pass the ensemble type (deep_ensemble, mc_dropout)
                         ensemble_size=n_ens,  # Ensemble size only for deep ensemble
                         directory=args.results_dir
                     )
@@ -62,7 +62,9 @@ def main(args):
                             torch.nn.init.xavier_uniform_(param)
 
                     # Split data into train, validation, and test (train and val are used to train the MLP)
-                    if args.split:
+                    if args.split_data:
+                        if args.verbose:
+                            print("Splitting data...")
                         data_test, data_train, data_val = test_train_val_split(p_preds, y_labels, x_inst)
                     else:
                         data_train = (x_inst, y_labels, p_preds)
@@ -71,6 +73,8 @@ def main(args):
                     # select n_samples randomly from the test set
                     idx = np.random.choice(data_test[0].shape[0], args.n_samples, replace=False)
                     data_test = (data_test[0][idx], data_test[1][idx], data_test[2][idx])
+                    if args.verbose:
+                        print(f"Size of test set: {data_test[0].shape[0]}")
 
 
                     dataset_train = MLPDataset(
@@ -92,7 +96,7 @@ def main(args):
                                         patience=args.patience,
                                         device=args.device,
                                         verbose=args.verbose,
-                                        stratified=True)
+                                        stratified=args.stratified)
 
                     # Run test, first with lambda that was found by optimization
                     alpha = args.alpha
@@ -150,7 +154,7 @@ def main(args):
     df_results = pd.DataFrame(results_list)
 
     # Save the DataFrame to a CSV file
-    csv_path = os.path.join(args.results_dir, f"calibration_analysis_results_va_{args.alpha}_{args.reg}_mc_dropout_100.csv")
+    csv_path = os.path.join(args.results_dir, f"calibration_analysis_results_{args.alpha}_{args.reg}_{args.ensemble_type}_{LIST_DATASETS[0]}_{args.split_data}.csv")
     df_results.to_csv(csv_path, index=False)
 
     print(f"Results saved to {csv_path}")
@@ -218,7 +222,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--hidden_layers",
             type=int,
-            default=1,
+            default=3,
             help="Number of hidden layers in the ConvNet"
         )
         
@@ -284,5 +288,11 @@ if __name__ == "__main__":
             help="number of samples to be used on the test set"
         )
         
+        parser.add_argument(
+            "--stratified",
+            type=bool,
+            default=False,
+            help="whether to do stratified sampling on the train data"
+        )
         args = parser.parse_args()
         main(args)
