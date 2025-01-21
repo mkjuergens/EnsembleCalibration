@@ -1,6 +1,6 @@
 import unittest
 
-from ensemblecalibration.data.gp_binary import exp_gp
+from ensemblecalibration.data.synthetic.gp_binary import exp_gp
 from ensemblecalibration.utils.minimization import minimize_const_weights
 from ensemblecalibration.config.config_cal_test import config_binary_const_weights
 

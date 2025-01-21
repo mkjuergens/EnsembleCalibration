@@ -42,7 +42,6 @@ def get_bandwidth(f, deivice: str = "cpu"):
 
 
 def ece_kde_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
-
     # convert to torch tensors if necessary
     if not isinstance(p_bar, torch.Tensor):
         p_bar = torch.tensor(p_bar, dtype=torch.float32)

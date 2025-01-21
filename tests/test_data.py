@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 
-from ensemblecalibration.data.gp_binary import exp_gp
-from ensemblecalibration.data.multiclass_dirichlet_new import syn_exp_multiclass
+from ensemblecalibration.data.synthetic.gp_binary import exp_gp
+from ensemblecalibration.data.synthetic.multiclass_dirichlet_new import syn_exp_multiclass
 
 def test_sample_dirichlet():
     n_samples = 1000

@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-import numpy as np  
+import numpy as np
 import torchvision
 from torchvision import datasets, transforms
 from torch.utils.data import random_split, DataLoader
@@ -40,6 +40,7 @@ DATASETS = {
     },
 }
 
+
 def load_dataset(name, batch_size=128, val_split=0.1):
     dataset_info = DATASETS[name]
     full_trainset = dataset_info["dataset"](
@@ -65,23 +66,19 @@ def load_dataset(name, batch_size=128, val_split=0.1):
 
     return trainloader, valloader, testloader, dataset_info["classes"]
 
+
 def save_results(dataset_name, ensemble_size, predictions, instances, labels):
     np.save(f"{dataset_name}_ensemble_{ensemble_size}_predictions.npy", predictions)
     np.save(f"{dataset_name}_ensemble_{ensemble_size}_instances.npy", instances)
     np.save(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", labels)
-    print(f"Saved predictions, instances, and labels for ensemble of size {ensemble_size} on {dataset_name}\n")
+    print(
+        f"Saved predictions, instances, and labels for ensemble of size {ensemble_size} on {dataset_name}\n"
+    )
 
-# # Function to load the saved predictions, instances, and labels
-# def load_results(dataset_name, ensemble_size):
-#     predictions = np.load(f"{dataset_name}_ensemble_{ensemble_size}_predictions.npy", allow_pickle=True)
-#     instances = np.load(f"{dataset_name}_ensemble_{ensemble_size}_instances.npy", allow_pickle=True)
-#     labels = np.load(f"{dataset_name}_ensemble_{ensemble_size}_labels.npy", allow_pickle=True)
-#     return predictions, instances, labels
 
-import os
-import numpy as np
-
-def load_results(dataset_name, model_type, ensemble_type, ensemble_size=None, directory=None):
+def load_results(
+    dataset_name, model_type, ensemble_type, ensemble_size=None, directory=None
+):
     """
     Load the saved predictions, instances, and labels from the specified directory.
 
@@ -114,14 +111,32 @@ def load_results(dataset_name, model_type, ensemble_type, ensemble_size=None, di
     # Handle file names based on ensemble type
     if ensemble_type == "deep_ensemble":
         # For deep ensembles, use the ensemble_size in the file names
-        predictions_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_predictions.npy")
-        instances_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_instances.npy")
-        labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_labels.npy")
+        predictions_path = os.path.join(
+            directory,
+            f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_predictions.npy",
+        )
+        instances_path = os.path.join(
+            directory,
+            f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_instances.npy",
+        )
+        labels_path = os.path.join(
+            directory,
+            f"{dataset_name}_{model_type}_{ensemble_type}_{ensemble_size}_labels.npy",
+        )
     elif ensemble_type == "mc_dropout":
         # For MCDropout, no need for ensemble_size in the file names
-        predictions_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_predictions.npy")
-        instances_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_instances.npy")
-        labels_path = os.path.join(directory, f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_labels.npy")
+        predictions_path = os.path.join(
+            directory,
+            f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_predictions.npy",
+        )
+        instances_path = os.path.join(
+            directory,
+            f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_instances.npy",
+        )
+        labels_path = os.path.join(
+            directory,
+            f"{dataset_name}_{model_type}_{ensemble_size}_mc_dropout_labels.npy",
+        )
     else:
         raise ValueError(f"Unsupported ensemble type: {ensemble_type}")
 

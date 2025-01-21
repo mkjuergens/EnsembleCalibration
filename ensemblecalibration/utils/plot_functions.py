@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 from ast import literal_eval
 import matplotlib.pyplot as plt
+import seaborn as sns
 import ternary
 from matplotlib.patches import Polygon
 from scipy.spatial import ConvexHull
@@ -13,6 +14,216 @@ from scipy.spatial import ConvexHull
 
 from ensemblecalibration.utils.projections import project_points2D
 from ensemblecalibration.utils.helpers import process_df
+
+
+def plot_ens_comb_cal(
+    experiment,
+    model,
+    file_name: str,
+    x_inst=None,
+    ens_preds=None,
+    p_true=None,
+    n_plot=1000,
+    device="cpu",
+    title="Combined and Calibrated Predictions",
+    output_path: str = "../../figures/",
+    alpha_ens=0.05,
+    alpha_comb=0.5,
+    marker='x',
+    max_ens_to_plot=3
+):
+    """
+    Plots an experiment's data and predictions:
+      - True probabilities vs. x
+      - Ensemble predictions
+      - Combined (p_bar) predictions
+      - Calibrated (p_cal) predictions
+
+    This version uses a discrete color palette ('tab10') so that each set of points 
+    has distinct, high-contrast colors. We also limit the number of ensemble members 
+    plotted to `max_ens_to_plot` so we don't run out of distinct colors or clutter the plot.
+
+    Parameters
+    ----------
+    experiment : object
+        The experiment instance, which typically has attributes:
+          - experiment.x_inst : shape (N,1) or (N,)
+          - experiment.p_true : shape (N,2), the 'true' probabilities for each x
+          - experiment.ens_preds : shape (N,K,2), the ensemble predictions
+    model : nn.Module
+        A model that when called with (x, p_preds), returns e.g. (p_cal, p_bar, weights).
+    x_inst : np.ndarray or torch.Tensor, optional
+        If not provided, we'll use experiment.x_inst.
+    ens_preds : np.ndarray or torch.Tensor, optional
+        If not provided, we'll use experiment.ens_preds.
+    p_true : np.ndarray, optional
+        If not provided, we'll use experiment.p_true.
+    n_plot : int, optional
+        Number of points to plot (from the start), by default 1000.
+    device : str, optional
+        "cpu" or "cuda" for moving data before passing to model, by default "cpu".
+    title : str, optional
+        Title for the plot, by default "Combined and Calibrated Predictions".
+    save_path : str, optional
+        If provided, the figure is saved to this path.
+    alpha_ens : float, optional
+        Alpha (transparency) for plotting individual ensemble predictions, by default 0.02.
+    alpha_comb : float, optional
+        Alpha (transparency) for the combined p_bar scatter, by default 0.5.
+    marker : str, optional
+        Marker style for scatter points, by default 'x'.
+    max_ens_to_plot : int, optional
+        How many ensemble members to individually plot, by default 3.
+
+    Returns
+    -------
+    (fig, ax) : tuple
+        The matplotlib figure and axis handles.
+    """
+
+    # If any is None, fall back to experiment attributes
+    if x_inst is None:
+        x_inst = experiment.x_inst
+    if ens_preds is None:
+        ens_preds = experiment.ens_preds
+    if p_true is None:
+        p_true = experiment.p_true
+
+    # Convert x_inst, ens_preds to torch if needed
+    if not isinstance(x_inst, torch.Tensor):
+        x_inst_torch = torch.tensor(x_inst, dtype=torch.float32)
+    else:
+        x_inst_torch = x_inst
+
+    if not isinstance(ens_preds, torch.Tensor):
+        ens_preds_torch = torch.tensor(ens_preds, dtype=torch.float32)
+    else:
+        ens_preds_torch = ens_preds
+
+    # Slice to n_plot
+    # x_inst_torch = x_inst_torch[:n_plot]
+    # ens_preds_torch = ens_preds_torch[:n_plot]
+
+    # slice randomly
+    idx = np.random.choice(x_inst_torch.shape[0], n_plot, replace=False)
+    x_inst_torch = x_inst_torch[idx].to(device)
+    ens_preds_torch = ens_preds_torch[idx].to(device)
+
+
+    # Call model => (p_cal, p_bar, weights) or similar
+    outputs = model(x_inst_torch, ens_preds_torch)
+    if isinstance(outputs, tuple):
+        if len(outputs) == 3:
+            p_cal, p_bar, weights = outputs
+        elif len(outputs) == 2:
+            p_cal, p_bar = outputs
+            weights = None
+        else:
+            # fallback
+            p_cal = outputs[0]
+            p_bar = outputs[-1]
+            weights = None
+    else:
+        # if just a single thing returned
+        p_cal = None
+        p_bar = outputs
+        weights = None
+
+    # Convert to numpy for plotting
+    p_bar_np = p_bar.detach().cpu().numpy()
+    if p_cal is not None:
+        p_cal_np = p_cal.detach().cpu().numpy()
+    else:
+        p_cal_np = None
+
+    x_np = x_inst_torch.cpu().numpy().squeeze()
+
+    # Also get p_true for class 0
+    if p_true is not None:
+        # select n_plot points of p_true
+        # use the indices from x_inst_torch
+        p_true_np = p_true[idx, 0]
+    else:
+        p_true_np = None
+
+    # Subset ensemble predictions for plotting
+    # # use again the indices from x_inst_torch
+    # ens_preds_subset = ens_preds_torch[idx].cpu().numpy()
+    K = ens_preds.shape[1]
+
+    #######################################################
+    # Create a discrete color palette with more "jumps"
+    # We'll use 'tab10' or 'Set2' for distinct colors
+    # We'll need up to max_ens_to_plot + 3 distinct colors
+    #######################################################
+    color_list = sns.color_palette("viridis", 3)
+    color_true = color_list[0]
+    color_comb = color_list[1]
+    color_cal  = color_list[2]
+
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(7,5))
+
+    # 1) True
+    if p_true_np is not None:
+        ax.scatter(
+            x_np,
+            p_true_np,
+            label=r"$\mathbb{P}(Y=0|X)$",
+            marker=marker,
+            color=color_true
+        )
+
+    # 2) Combined p_bar
+    ax.scatter(
+        x_np,
+        p_bar_np[:,0],
+        label=r"$f_{\lambda}(x)$",
+        alpha=alpha_comb,
+        marker=marker,
+        color=color_comb
+    )
+
+    # 3) Calibrated p_cal (if available)
+    if p_cal_np is not None:
+        ax.scatter(
+            x_np,
+            p_cal_np[:,0],
+            label=r"$g(f_{\lambda}(x))$",
+            marker=marker,
+            color=color_cal
+        )
+
+    # 4) Ensemble members
+    # We'll limit ourselves to max_ens_to_plot for distinct colors
+    n_plot_members = min(K, max_ens_to_plot)
+    for k in range(n_plot_members):
+        ens_color = "grey" # pick next color
+        ax.scatter(
+            x_np,
+            ens_preds_torch[:,k,0],
+            alpha=alpha_ens,
+            label=(f"ens" if k==0 else None),
+            marker="o",
+            color=ens_color
+        )
+    # If you wanted to label each ensemble member differently, you could remove the
+    # condition 'if k==0 else None' for the label, or create separate legends.
+
+    ax.set_title(title)
+    ax.set_xlabel(r"$x$")
+    ax.set_ylabel(r"$\mathbb{P}(Y=0|X)$")
+    ax.legend()
+
+    save_path = os.path.join(output_path, file_name)
+    # make output path if it does not exist
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"Figure saved to: {save_path}")
+
+    return fig, ax
 
 
 def read_and_plot_error_analysis(

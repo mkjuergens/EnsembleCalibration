@@ -9,6 +9,25 @@ from ensemblecalibration.utils.helpers import calculate_pbar
 def skce_obj(
     p_bar: torch.Tensor, y: torch.Tensor, params: dict, take_square: bool = True
 ):
+    """function for calculating the SKCE calibration error test statistic.
+
+    Parameters
+    ----------
+    p_bar : torch.Tensor
+        tensor of shape (n_samples, n_classes) containing the predicted probabilities
+    y : torch.Tensor
+        tensor of shape (n_samples,) containing the true labels
+    params : dict
+        dictionary containing the bandwidth parameter
+    take_square : bool, optional
+        whether we take the square of the respective estimators to avoid having negative values,
+          by default True
+
+    Returns
+    -------
+    obj
+        SKCE calibration error test statistic
+    """
 
     # convert to torch tensors if necessary
     if not isinstance(p_bar, torch.Tensor):
@@ -49,7 +68,7 @@ def get_skce_ul(
     if take_square:
         skce_ul = torch.sqrt(skce_ul**2)  # take square root of the sum
     return skce_ul
-
+ 
 
 def skce_ul_tensor(p_bar, y, dist_fct=tv_distance, bw=2.0):
     n = int(p_bar.shape[0] / 2)
@@ -75,13 +94,11 @@ def skce_ul_tensor(p_bar, y, dist_fct=tv_distance, bw=2.0):
     y_diff_j = y_j - p_j  # Shape: (n, n_classes)
 
     # Compute dot products between corresponding rows
-    dot_products = torch.sum(y_diff_i * y_diff_j, dim=1)  # Shape: (n,)
-
+    dot_products = torch.sum(y_diff_i * y_diff_j, dim=1)  # Shape: (n,)s
     # Compute h_ij
     h_ij = gamma * dot_products  # Shape: (n,)
 
     return h_ij
-
 
 # OLD CODE
 

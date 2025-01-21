@@ -8,7 +8,7 @@ import argparse
 import datetime
 
 from ensemblecalibration.config.config_cal_test import create_config
-from ensemblecalibration.data.experiments import get_experiment
+from ensemblecalibration.data.experiments_cal_test import get_experiment
 from ensemblecalibration.cal_test import (
     npbe_test_ensemble,
     npbe_test_ensemble_v2,

@@ -1,6 +1,6 @@
 from ensemblecalibration.cal_estimates import *
 from ensemblecalibration.cal_test import *
-from ensemblecalibration.meta_model.losses import *
+from ensemblecalibration.losses.cal_losses import *
 
 
 def create_config(
@@ -179,6 +179,7 @@ def create_config(
                 "n_samples": n_samples,
                 "n_resamples": n_resamples,
                 "n_classes": n_classes,
+                
                 "n_members": n_members,
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,

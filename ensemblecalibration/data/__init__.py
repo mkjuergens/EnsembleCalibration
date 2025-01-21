@@ -1,3 +1,3 @@
-from ensemblecalibration.data.gp_binary import exp_gp
-from ensemblecalibration.data.multiclass_dirichlet import exp_dirichlet
+from ensemblecalibration.data.synthetic.gp_binary import exp_gp
+from ensemblecalibration.data.synthetic.multiclass_dirichlet import exp_dirichlet
 from ensemblecalibration.data.dataset import MLPDataset
