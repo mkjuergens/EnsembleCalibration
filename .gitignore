@@ -174,4 +174,6 @@ notebooks/wandb/
 wandb/
 results/
 ensemble_results
-data
+./data/
+output/
+TODO.md
