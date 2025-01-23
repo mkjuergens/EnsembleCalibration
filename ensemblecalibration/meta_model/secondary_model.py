@@ -4,22 +4,6 @@ import torch.nn.functional as F
 from ensemblecalibration.utils.helpers import calculate_pbar
 
 
-def create_calibrator(
-    calibrator_name: str, n_classes: int, *args, **kwargs
-) -> nn.Module:
-
-    calibrator_name = calibrator_name.lower()
-    if calibrator_name == "linear":
-        return LinearCalibrator(n_classes=n_classes, *args, **kwargs)
-    elif calibrator_name == "dirichlet":
-        return DirichletCalibrator(n_classes=n_classes, *args, **kwargs)
-    elif calibrator_name == "temperature":
-        return TemperatureScalingCalibrator(n_classes=n_classes, *args, **kwargs)
-    # elif ...
-    else:
-        raise ValueError(f"Unknown calibrator name: {calibrator_name}")
-
-
 class LinearCalibrator(nn.Module):
     """calibrater network that maps from (combined) probability vector to he
 

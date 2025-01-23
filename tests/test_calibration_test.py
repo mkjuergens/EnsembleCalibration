@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import torch
 
-from ensemblecalibration.config import create_config
+from ensemblecalibration.config import create_config_recal
 from ensemblecalibration.config.config_cal_test import config_binary_const_weights
 from ensemblecalibration.cal_test import npbe_test_vaicenavicius, npbe_test_ensemble
 from ensemblecalibration.data.dataset import MLPDataset
@@ -21,7 +21,7 @@ class TestCalibrationTest(unittest.TestCase):
         self.test = npbe_test_ensemble
         self.n_iter = 10
         # create configuration for calibration test
-        self.params = create_config(
+        self.params = create_config_recal(
             exp_name="gp",
             cal_test=self.test,
             loss=SKCELoss,

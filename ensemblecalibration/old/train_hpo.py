@@ -4,7 +4,7 @@ import wandb
 from ensemblecalibration.data.experiments_cal_test import get_experiment
 from ensemblecalibration.meta_model import MLPCalW
 from ensemblecalibration.losses.cal_losses import LpLoss, MMDLoss, SKCELoss, BrierLoss
-from ensemblecalibration.config import create_config
+from ensemblecalibration.config import create_config_recal
 from ensemblecalibration.meta_model.train import train_epoch_1
 
 # import lr schedulers
@@ -52,7 +52,7 @@ def build_optimizer(model, optimizer: str = "adam", lr: float = 0.001):
 
 def train(config=None):
 
-    config_default = create_config(exp_name="gp")
+    config_default = create_config_recal(exp_name="gp")
     with wandb.init(config=config):
         # If called by wandb.agent, as below,
         # this config will be set by Sweep Controller

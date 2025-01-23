@@ -4,8 +4,6 @@ import torch.nn.functional as F
 from torchvision import models
 
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
 from torchvision.models import ResNet18_Weights, VGG19_Weights
 
 

@@ -85,7 +85,11 @@ def train_model(
     # For alternating mode
     subepochs_comb=1,
     subepochs_cal=1,
-    verbose=False,
+    # Early stopping params
+    early_stopping=False,
+    patience=10,
+    min_delta=0.0,
+    verbose=False
 ):
     """
     Trains a model in one of three modes:
@@ -93,7 +97,7 @@ def train_model(
       2) 'avg_then_calibrate' -> fix combination to ensemble average, only train calibrator
       3) 'alternating' -> freeze comb_model while training cal_model, and vice versa in blocks
 
-    Assumes `model` may have .comb_model and .cal_model submodules if needed.
+    Integrates Early Stopping if early_stopping=True.
 
     Parameters
     ----------
@@ -126,20 +130,22 @@ def train_model(
         For 'alternating' mode, how many sub-epochs to train comb_model per block, by default 1.
     subepochs_cal : int, optional
         For 'alternating' mode, how many sub-epochs to train cal_model per block, by default 1.
+    early_stopping : bool, optional
+        If True, we apply early stopping on the validation loss.
+    patience : int, optional
+        Number of epochs/cycles with no improvement in val loss before stopping.
+    min_delta : float, optional
+        Minimum improvement in val loss to reset patience, by default 0.0.
     verbose : bool, optional
         Print progress, by default False.
 
     Returns
     -------
-    model
-        The trained model.
-    train_losses : list[float]
-        Training loss per epoch or cycle.
-    val_losses : list[float] or None
-        Validation loss per epoch, if dataset_val is not None.
+    (model, train_losses, val_losses) : (nn.Module, list[float], list[float] or None)
+        The trained model (potentially rolled back to best state if early stopping),
+        plus the list of training losses, and list of validation losses if val set is provided.
     """
-
-    # Create data loaders
+    # 1) Create data loaders
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=shuffle)
     if dataset_val is not None:
         loader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=False)
@@ -148,12 +154,11 @@ def train_model(
         loader_val = None
         val_losses = None
 
-    # Prepare for different train modes
+    # 2) Prepare for different train modes
     train_losses = []
 
     if train_mode == "avg_then_calibrate":
         # We only train cal_model => fix comb_model or skip it
-        # The combination is simply the average of ensemble predictions
         optimizer = optimizer_class(model.cal_model.parameters(), lr=lr)
 
     elif train_mode == "joint":
@@ -167,9 +172,12 @@ def train_model(
         optimizer_comb = optimizer_class(comb_params, lr=lr)
         optimizer_cal = optimizer_class(cal_params, lr=lr)
     else:
-        raise ValueError(
-            "Invalid train_mode, must be one of 'joint', 'avg_then_calibrate', 'alternating'."
-        )
+        raise ValueError("Invalid train_mode, must be one of 'joint', 'avg_then_calibrate', 'alternating'.")
+
+    # 3) Initialize EarlyStopping if needed
+    stopper = None
+    if early_stopping and (loader_val is not None):
+        stopper = EarlyStopping(patience=patience, min_delta=min_delta, verbose=verbose)
 
     ############################################
     # Helper function: run one epoch of "joint"
@@ -178,7 +186,6 @@ def train_model(
         model.train()
         epoch_loss = 0.0
         for batch in loader_train:
-            # Suppose batch = (p_preds, y, x)
             if len(batch) == 3:
                 p_preds_batch, y_batch, x_batch = batch
             else:
@@ -189,7 +196,6 @@ def train_model(
             y_batch = y_batch.to(device)
 
             optimizer.zero_grad()
-            # forward pass => typical: p_cal, p_bar, weights = model(x_batch, p_preds_batch)
             outputs = model(x_batch, p_preds_batch)
             if isinstance(outputs, tuple) and len(outputs) == 3:
                 p_cal, p_bar, weights_l = outputs
@@ -198,7 +204,7 @@ def train_model(
                 p_bar = None
                 weights_l = None
 
-            # e.g. measure loss on p_bar
+            # measure loss on p_cal or p_bar
             loss = loss_fn(y=y_batch, p_bar=p_cal)
             loss.backward()
             optimizer.step()
@@ -225,7 +231,6 @@ def train_model(
             y_batch = y_batch.to(device)
 
             optimizer.zero_grad()
-
             # average across ensemble dimension => shape (batch_size, C)
             p_bar = p_preds_batch.mean(dim=1)
             # pass through calibrator
@@ -240,12 +245,9 @@ def train_model(
         return epoch_loss
 
     ############################################
-    # Helper: run one subepoch for comb_model or cal_model in "alternating" mode
+    # Helper: run one subepoch for comb_model or cal_model in "alternating"
     ############################################
     def train_comb_subepoch():
-        """
-        Freeze cal_model, unfreeze comb_model, do one epoch.
-        """
         for param in model.cal_model.parameters():
             param.requires_grad = False
         for param in model.comb_model.parameters():
@@ -280,9 +282,6 @@ def train_model(
         return sub_loss / len(loader_train)
 
     def train_cal_subepoch():
-        """
-        Freeze comb_model, unfreeze cal_model, do one epoch.
-        """
         for param in model.comb_model.parameters():
             param.requires_grad = False
         for param in model.cal_model.parameters():
@@ -317,27 +316,35 @@ def train_model(
         return sub_loss / len(loader_train)
 
     ############################################
-    # Training Loop
+    # MAIN TRAINING LOOP
     ############################################
     val_losses = [] if loader_val else None
 
     if train_mode == "joint":
-        # Simple: for each epoch, train one epoch "joint"
+        # For each epoch, train "joint"
         for epoch in range(n_epochs):
             epoch_loss = train_one_epoch_joint()
             train_losses.append(epoch_loss)
 
-            # Evaluate if we have a val set
+            val_loss = None
             if loader_val is not None:
                 val_loss = evaluate_model(model, loader_val, loss_fn, device=device)
                 val_losses.append(val_loss)
 
-                if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
-                    print(
-                        f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}, val={val_loss:.4f}"
-                    )
-            else:
-                if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
+                # Check early stopping
+                if stopper is not None:
+                    stopper(val_losses, model)
+                    if stopper.early_stopping_flag:
+                        model = stopper.best_model
+                        if verbose:
+                            print(f"Stopped early at epoch {epoch+1}")
+                        break
+
+            # Print progress
+            if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
+                if val_loss is not None:
+                    print(f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}, val={val_loss:.4f}")
+                else:
                     print(f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}")
 
     elif train_mode == "avg_then_calibrate":
@@ -346,23 +353,29 @@ def train_model(
             epoch_loss = train_one_epoch_avg()
             train_losses.append(epoch_loss)
 
+            val_loss = None
             if loader_val is not None:
                 val_loss = evaluate_model_avg(model, loader_val, loss_fn, device=device)
                 val_losses.append(val_loss)
 
-                if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
-                    print(
-                        f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}, val={val_loss:.4f}"
-                    )
-            else:
-                if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
+                # Check early stopping
+                if stopper is not None:
+                    stopper(val_losses, model)
+                    if stopper.early_stopping_flag:
+                        model = stopper.best_model
+                        if verbose:
+                            print(f"Stopped early at epoch {epoch+1}")
+                        break
+
+            # Print progress
+            if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
+                if val_loss is not None:
+                    print(f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}, val={val_loss:.4f}")
+                else:
                     print(f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}")
 
     elif train_mode == "alternating":
-        # We'll treat each iteration as 1 'cycle', in which:
-        #  - we do subepochs_comb times training comb,
-        #  - then subepochs_cal times training cal
-        # repeated n_epochs cycles
+        # We'll treat each iteration as 1 'cycle'
         for cycle in range(n_epochs):
             # Step A: train comb_model subepochs_comb times
             for _ in range(subepochs_comb):
@@ -375,23 +388,27 @@ def train_model(
             # We'll record the last subepoch's loss as the "train loss" for this cycle
             train_losses.append(cal_loss)
 
-            # Evaluate if val set
+            val_loss = None
             if loader_val is not None:
                 val_loss = evaluate_model(model, loader_val, loss_fn, device=device)
                 val_losses.append(val_loss)
 
-                if verbose and (cycle == 0 or (cycle + 1) % 5 == 0):
-                    print(
-                        f"Cycle {cycle+1}/{n_epochs}: comb_loss={comb_loss:.4f}, cal_loss={cal_loss:.4f}, val={val_loss:.4f}"
-                    )
-            else:
-                if verbose and (cycle == 0 or (cycle + 1) % 5 == 0):
-                    print(
-                        f"Cycle {cycle+1}/{n_epochs}: comb_loss={comb_loss:.4f}, cal_loss={cal_loss:.4f}"
-                    )
+                # Check early stopping
+                if stopper is not None:
+                    stopper(val_losses, model)
+                    if stopper.early_stopping_flag:
+                        model = stopper.best_model
+                        if verbose:
+                            print(f"Stopped early at cycle {cycle+1}")
+                        break
+
+            if verbose and (cycle == 0 or (cycle + 1) % 5 == 0):
+                if val_loss is not None:
+                    print(f"Cycle {cycle+1}/{n_epochs}: comb_loss={comb_loss:.4f}, cal_loss={cal_loss:.4f}, val={val_loss:.4f}")
+                else:
+                    print(f"Cycle {cycle+1}/{n_epochs}: comb_loss={comb_loss:.4f}, cal_loss={cal_loss:.4f}")
 
     return model, train_losses, val_losses
-
 
 ########################################
 # Helper: Evaluate model in "joint" or "alternating" scenario

@@ -5,26 +5,27 @@ from torch import optim
 from ensemblecalibration.losses.proper_losses import *
 
 
-def create_config(
+def create_config_recal(
     experiment_name="gp_experiment",
     dataset_method="gp",  # or "logistic", "cifar10", "cifar100"
     n_samples=5000,
     n_ens=5,
     scale_noise=0.5,
+    mixture_loc=(-1.0, +1.0),
+    mixture_std=1.0,
     kernel_width=0.1,
-    # If real data, you might store 'ensemble_preds_file' or other paths here
     ensemble_preds_file=None,
-    # Training params
     n_epochs=100,
     lr=1e-3,
     batch_size=128,
+    hidden_dim=128,
+    hidden_layers=2,
     patience=10,
-    # Which calibration methods to run
-    opt_methods=("joint", "alternating", "avg_then_calibrate"),
-    # Metrics to evaluate
-    eval_metrics=("brier", "l2", "mmd", "skce"),
-    loss_function="brier",  # or "log_loss", etc.
-    calibration_map="temperature_scaling",
+    opt_methods: list = ("joint", "alternating", "avg_then_calibrate"),
+    eval_metrics: list = ("brier", "l2", "mmd", "skce"),
+    loss_function: str = "brier",  # or "log_loss", etc.
+    calibration_map: str = "temperature",
+    comb_model: str = "mlp",
     calibrator_params=None,
     loss_params=None,
     # Output directory
@@ -58,12 +59,22 @@ def create_config(
         Learning rate.
     batch_size : int
         Training batch size.
+    hidden_dim : int
+        Hidden dimension for the combination model.
+    hidden_layers : int
+        Number of hidden layers for the combination model.
     patience : int
         Patience for early stopping, etc.
     opt_methods : tuple of str
         Which calibration optimization methods to use: 'joint', 'alternating', 'avg_then_calibrate'.
     eval_metrics : tuple of str
         Which metrics to compute in the evaluation step.
+    loss_function : str
+        Name of the loss function to use. Options: 'brier', 'log_loss'.
+    calibration_map : str
+        Name of the calibration map to use. Options: {'temperature', 'dirichlet', 'linear'}.
+    comb_model : str
+        Name of the combination model to use. Options: {'mlp', 'conv'}.
     output_dir : str or None
         If None, defaults to "./outputs/<experiment_name>".
     kwargs : dict
@@ -95,15 +106,23 @@ def create_config(
             "lr": lr,
             "batch_size": batch_size,
             "patience": patience,
+            "hidden_dim": hidden_dim,
+            "hidden_layers": hidden_layers,
+
         },
         "optimization_methods": list(opt_methods),
         "loss_function": loss_function,
         "calibration_map": calibration_map,
+        "comb_model": comb_model,
         "calibrator_params": calibrator_params or {},
         "loss_params": loss_params or {},
         "eval_metrics": list(eval_metrics),
         "output_dir": output_dir,
     }
+    # if method == "logistic": (add logistic-specific params)
+    if dataset_method == "logistic":
+        config["dataset"]["mixture_loc"] = mixture_loc
+        config["dataset"]["mixture_std"] = mixture_std
 
     # Merge additional kwargs if you have special fields
     for k, v in kwargs.items():
@@ -124,13 +143,13 @@ def save_config_as_yaml(config_dict, save_path):
 
 if __name__ == "__main__":
     # Creating a GP experiment config
-    gp_cfg = create_config(
+    gp_cfg = create_config_recal(
         experiment_name="gp_experiment",
         dataset_method="gp",
-        n_samples=3000,
-        scale_noise=0.4,
-        kernel_width=0.05,
-        n_epochs=150,
+        n_samples=1000,
+        scale_noise=0.5,
+        kernel_width=0.01,
+        n_epochs=1000,
         lr=1e-3,
         batch_size=64,
 
@@ -155,7 +174,7 @@ if __name__ == "__main__":
     save_config_as_yaml(gp_cfg, "./configs/gp_experiment.yml")
 
     # Creating a real-data CIFAR config
-    cifar_cfg = create_config(
+    cifar_cfg = create_config_recal(
         experiment_name="cifar10_ensemble",
         dataset_method="cifar10",
         ensemble_preds_file="./data/cifar10_ensembles.pt",

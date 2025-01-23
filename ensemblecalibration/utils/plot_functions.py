@@ -25,12 +25,13 @@ def plot_ens_comb_cal(
     p_true=None,
     n_plot=1000,
     device="cpu",
-    title="Combined and Calibrated Predictions",
+    title: Optional[str] = None,
     output_path: str = "../../figures/",
     alpha_ens=0.05,
     alpha_comb=0.5,
     marker='x',
-    max_ens_to_plot=3
+    max_ens_to_plot=3,
+    output_pbar: str = "weighted"
 ):
     """
     Plots an experiment's data and predictions:
@@ -63,7 +64,7 @@ def plot_ens_comb_cal(
     device : str, optional
         "cpu" or "cuda" for moving data before passing to model, by default "cpu".
     title : str, optional
-        Title for the plot, by default "Combined and Calibrated Predictions".
+        Title for the plot, by default None.
     save_path : str, optional
         If provided, the figure is saved to this path.
     alpha_ens : float, optional
@@ -74,6 +75,8 @@ def plot_ens_comb_cal(
         Marker style for scatter points, by default 'x'.
     max_ens_to_plot : int, optional
         How many ensemble members to individually plot, by default 3.
+    output_pbar : str, optional
+        how to aggregate p_bar, options: "weighted", which takes the weights of the comb model, or "average",
 
     Returns
     -------
@@ -101,6 +104,7 @@ def plot_ens_comb_cal(
         ens_preds_torch = ens_preds
 
     # Slice to n_plot
+    n_plot = min(n_plot, x_inst_torch.shape[0])
     # x_inst_torch = x_inst_torch[:n_plot]
     # ens_preds_torch = ens_preds_torch[:n_plot]
 
@@ -128,6 +132,10 @@ def plot_ens_comb_cal(
         p_cal = None
         p_bar = outputs
         weights = None
+
+    if output_pbar == "average":
+        # take average of enssemble predictions
+        p_bar = ens_preds_torch.mean(dim=1)
 
     # Convert to numpy for plotting
     p_bar_np = p_bar.detach().cpu().numpy()
@@ -211,10 +219,14 @@ def plot_ens_comb_cal(
     # If you wanted to label each ensemble member differently, you could remove the
     # condition 'if k==0 else None' for the label, or create separate legends.
 
-    ax.set_title(title)
-    ax.set_xlabel(r"$x$")
-    ax.set_ylabel(r"$\mathbb{P}(Y=0|X)$")
-    ax.legend()
+    if title is not None:
+        ax.set_title(title)
+    ax.set_xlabel(r"$x$", fontsize=15)
+    ax.set_ylabel(r"$\mathbb{P}(Y=0|X)$", fontsize=15)
+    ax.legend(fontsize=15)
+
+    # set x ticks and y tick size
+    ax.tick_params(axis="both", labelsize=15)
 
     save_path = os.path.join(output_path, file_name)
     # make output path if it does not exist

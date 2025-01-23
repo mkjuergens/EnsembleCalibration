@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Optional
 import torch
 import numpy as np
 import pytorch_lightning as pl
@@ -16,7 +17,8 @@ class MLPDataset(Dataset):
         x_train: np.ndarray,
         P: np.ndarray,
         y: np.ndarray,
-        weights_l: np.ndarray = None,
+        p_true: Optional[torch.Tensor] = None,
+        weights_l: Optional[torch.Tensor] = None,
     ):
         """
         Parameters
@@ -28,6 +30,8 @@ class MLPDataset(Dataset):
             for each instance and each predictor
         y : np.ndarray
             array of shape (N,) containing labels
+        p_true: torch.Tensor, optional, of shape (N, K)
+            tensor containing the true probabilities, by default None
         weights_l : np.ndarray, optional
             array of shape (N, M) containing the weights of the convex combination
             of the probabilistic predictions, by default None
@@ -40,6 +44,7 @@ class MLPDataset(Dataset):
         self.n_features = x_train.shape[1]
         self.x_train = x_train
         self.weights_l = weights_l
+        self.p_true = p_true
 
     def __len__(self):
         return len(self.p_probs)

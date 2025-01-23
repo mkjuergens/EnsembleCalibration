@@ -52,6 +52,7 @@ class BinaryExperiment:
         # logistic mixture parameters:
         mixture_loc=(-1.0, +1.0),    # location of Gaussians for Y=0, Y=1
         mixture_std=1.0,
+        offset_range : list = [-0.1, 2.0],
         # for GP kernel
         kernel_width=0.05
     ):
@@ -65,9 +66,10 @@ class BinaryExperiment:
         # if logistic mixture approach:
         self.mixture_loc = mixture_loc
         self.mixture_std = mixture_std
-
+        self.offset_range = offset_range
         # extra param for GP kernel
         self.kernel_width = kernel_width
+        self.deterministic_ens = True
 
         # placeholders
         self.x_inst = None
@@ -127,7 +129,7 @@ class BinaryExperiment:
         return p_true
 
     def _default_shift_fn(self, x):
-        return np.sin(np.pi * x)
+        return .5* np.sin(np.pi * x) + .5
 
     def _generate_ens_preds_gp(self, x_inst, p_true, shift_fn):
         """
@@ -136,12 +138,13 @@ class BinaryExperiment:
         """
         p_true_logit = np.log(p_true / (1 - p_true + 1e-12) + 1e-12)
         shift_vals = shift_fn(x_inst)
-        m_logit = p_true_logit + shift_vals
+        m_logit = p_true_logit #+ shift_vals
 
         ens_preds = np.zeros((x_inst.shape[0], self.n_ens, self.n_classes))
         for m in range(self.n_ens):
             # random offset
-            offset = np.random.uniform(-0.5, 0.5, size=x_inst.shape[0])
+            offset = np.random.uniform(self.offset_range[0], self.offset_range[1])
+            # repeat for all samples
             # correlated noise from GP
             noise = self._sample_gp_noise(x_inst)
             noise_scaled = noise * self.scale_noise
@@ -195,7 +198,10 @@ class BinaryExperiment:
         self.p_true = p_true
 
         # 4) ensemble predictions with random offsets around some logistic param
-        self.ens_preds = self._generate_ens_preds_logistic(x_array, p)
+        if self.deterministic_ens:
+            self.ens_preds = self._generate_ens_preds_logistic_more_deterministic(x_array)
+        else:
+            self.ens_preds = self._generate_ens_preds_logistic(x_array, p)
 
         # store x_inst as torch
         self.x_inst = torch.from_numpy(x_array).float().view(-1,1)
@@ -224,6 +230,32 @@ class BinaryExperiment:
             ens_preds[:,k,1] = z2
 
         return ens_preds
+    
+    def _generate_ens_preds_logistic_more_deterministic(self, x_array):
+        """
+        Creates K logistic-based ensemble members, each with a distinct but fixed
+        slope/intercept. 
+        """
+        N = len(x_array)
+        ens_preds = np.zeros((N, self.n_ens, self.n_classes), dtype=np.float32)
+
+        # 1) For each ensemble member, sample once:
+        #    (beta0_k, beta1_k).
+        #    For instance, sample slope from ~ Unif(1,3), intercept from ~ Unif(-2,2).
+        beta0 = np.random.uniform(low=-2.0, high=5.0, size=self.n_ens)
+        beta1 = np.random.uniform(low=.5, high=6.0, size=self.n_ens)
+
+        # 2) For each x_i, compute f_k(x_i) = beta0_k + beta1_k * x
+        for k in range(self.n_ens):
+            f_k = beta0[k] + beta1[k] * x_array  # shape (N,)
+            # 3) logistic transform
+            z1 = 1.0 / (1.0 + np.exp(f_k))
+            z2 = 1.0 - z1
+            ens_preds[:, k, 0] = z1
+            ens_preds[:, k, 1] = z2
+
+        return ens_preds
+
 
 
 ##################################################

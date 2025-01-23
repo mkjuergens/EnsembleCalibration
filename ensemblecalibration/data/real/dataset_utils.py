@@ -4,7 +4,6 @@ import numpy as np
 import torchvision
 from torchvision import datasets, transforms
 from torch.utils.data import random_split, DataLoader
-from ensemblecalibration.data.dataset import MLPDataset
 
 
 DATASETS = {

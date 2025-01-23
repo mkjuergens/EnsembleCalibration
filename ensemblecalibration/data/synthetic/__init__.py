@@ -33,8 +33,9 @@ def create_synthetic_dataset(dataset_cfg):
     method = dataset_cfg["method"]  # "gp" or "logistic"
     n_samples = dataset_cfg["n_samples"]
     n_ens = dataset_cfg.get("n_ens", 5)
-    scale_noise = dataset_cfg.get("scale_noise", 0.5)
-    kernel_width = dataset_cfg.get("kernel_width", 0.05)
+    scale_noise = dataset_cfg["scale_noise"]
+    kernel_width = dataset_cfg["kernel_width"]
+    offset_range = dataset_cfg["offset_range"]
 
     # create the experiment
     exp = BinaryExperiment(
@@ -43,23 +44,20 @@ def create_synthetic_dataset(dataset_cfg):
         n_ens=n_ens,
         scale_noise=scale_noise,
         kernel_width=kernel_width,
+        offset_range=offset_range
         # add any other needed init args
     )
-    exp.generate_data()  # populates exp.x_inst, exp.ens_preds, exp.y_labels, etc.
+    exp.generate_data() 
 
-    # We assume exp.x_inst is shape (N,1), exp.ens_preds is (N,K,2), exp.y_labels is (N,)
-    # For multi-class, the shape might differ.
-
-    # 2) Decide how to feed this data to your train loop. 
-    #    Possibly your training code expects (p_preds, y, x) or just (p_preds, y).
     x_inst = exp.x_inst  # shape (N,1)
     y_labels = exp.y_labels  # shape (N,)
-    p_preds = torch.tensor(exp.ens_preds, dtype=torch.float32)  # shape (N,K,2), if not already torch
+    p_preds = torch.tensor(exp.ens_preds, dtype=torch.float32)
+    p_true = torch.tensor(exp.p_true, dtype=torch.float32)
 
     # 3) Build a single 'master' TensorDataset
     #    Suppose your pipeline wants a tuple (p_preds, y, x).
     #    Adjust as needed for your pipeline.
-    master_dataset = MLPDataset(x_train=x_inst, P=p_preds, y=y_labels)
+    master_dataset = MLPDataset(x_train=x_inst, P=p_preds, y=y_labels, p_true=p_true)
     # 4) Split into train/val/test
     #    We'll do an 80/10/10 split as an example
     total_n = len(master_dataset)

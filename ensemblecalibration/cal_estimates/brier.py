@@ -1,10 +1,12 @@
+from typing import Optional
+
 import torch
 import numpy as np
 
 from ensemblecalibration.utils.helpers import calculate_pbar
 
  
-def brier_obj(p_bar: np.ndarray, y: np.ndarray, params: dict):
+def brier_obj(p_bar: np.ndarray, y: np.ndarray, params: Optional[dict] = None):
     if not isinstance(p_bar, torch.Tensor):
         p_bar = torch.tensor(p_bar, dtype=torch.float32)
     if not isinstance(y, torch.Tensor):
