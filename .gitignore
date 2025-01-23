@@ -177,3 +177,6 @@ ensemble_results
 ./data/
 output/
 TODO.md
+data/real/data
+model_preds
+checkpoints_models
