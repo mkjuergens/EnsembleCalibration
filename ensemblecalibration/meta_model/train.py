@@ -233,6 +233,7 @@ def train_model(
 
             p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
             y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)
 
             optimizer.zero_grad()
             # average across ensemble dimension => shape (batch_size, C)
@@ -268,6 +269,7 @@ def train_model(
 
             p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
             y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)
 
             optimizer_comb.zero_grad()
             outputs = model(x_batch, p_preds_batch)
@@ -302,6 +304,7 @@ def train_model(
 
             p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
             y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)
 
             optimizer_cal.zero_grad()
             outputs = model(x_batch, p_preds_batch)

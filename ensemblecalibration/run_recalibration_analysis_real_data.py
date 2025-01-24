@@ -71,22 +71,31 @@ class RealDataExperiment:
 
         # metric params
         self.dict_mmd = {"bw": 0.1}
-        self.dict_skce = {"bw": 0.05}
-        self.dict_kde_ece = {"p": 2, "bw": 0.05}
+        self.dict_skce = {"bw": 0.001}
+        self.dict_kde_ece = {"p": 2, "bw": 0.01}
 
         os.makedirs(output_dir, exist_ok=True)
 
-    def measure_calibration_metrics(self, p_cal, y_tensor):
+    def measure_calibration_metrics(self, p_cal, y_tensor, max_mmd_samples: int = 1000):
         """
         Return a dict: {brier, mmd, skce, ece_kde}
         """
         # brier
         brier_val = brier_obj(p_cal, y_tensor)
-        mmd_val = mmd_kce(p_cal, y_tensor, bw=self.dict_mmd["bw"])
         skce_val = get_skce_ul(p_cal, y_tensor, bw=self.dict_skce["bw"])
         ece_val = get_ece_kde(
             p_cal, y_tensor, p=self.dict_kde_ece["p"], bw=self.dict_kde_ece["bw"]
         )
+        # restrict sample size for mmd calculation
+        N = p_cal.shape[0]
+        if N > max_mmd_samples:
+            indices = torch.randperm(N, device=p_cal.device)[:max_mmd_samples]
+            p_cal_mmd = p_cal[indices]
+            y_mmd     = y_tensor[indices]
+        else:
+            p_cal_mmd = p_cal
+            y_mmd     = y_tensor
+        mmd_val = mmd_kce(p_cal_mmd, y_mmd, bw=self.dict_mmd["bw"])
         d = {}
         d["brier"] = float(abs(brier_val))
         d["mmd"] = float(abs(mmd_val))
@@ -190,7 +199,7 @@ class RealDataExperiment:
                         x_tensor = (
                             torch.from_numpy(instances_np).float().to(self.device)
                         )
-                        y_tensor = torch.from_numpy(labels_np).long().to(self.device)
+                        y_tensor = torch.from_numpy(labels_np).long().cpu()
 
                         with torch.no_grad():
                             if train_mode in ["joint", "alternating"]:
@@ -199,9 +208,9 @@ class RealDataExperiment:
                                 # average
                                 p_bar = p_preds_tensor.mean(dim=1)  # (N, K)
                                 p_cal = model.cal_model(p_bar)
-
+                        p_cal = p_cal.cpu()
                         # measure calibration metrics
-                        metric_d = self.measure_calibration_metrics(p_cal.cpu().numpy(), y_tensor)
+                        metric_d = self.measure_calibration_metrics(p_cal, y_tensor)
                         # measure accuracy
                         preds = torch.argmax(p_cal, dim=1).cpu().numpy()
                         acc = np.mean(preds == labels_np)
@@ -314,6 +323,7 @@ def main():
         n_repeats=args.n_repeats,
         pretrained=args.pretrained,
         pretrained_model=args.pretrained_model,
+        verbose=args.verbose
     )
     runner.run()
 
