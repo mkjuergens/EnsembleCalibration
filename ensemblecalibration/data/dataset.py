@@ -6,10 +6,62 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 
 
+# class MLPDataset(Dataset):
+#     """
+#     Dataset containing probabilistic predictions of an ensemble of synthetic classifiers,
+
+#     """
+
+#     def __init__(
+#         self,
+#         x_train: np.ndarray,
+#         P: np.ndarray,
+#         y: np.ndarray,
+#         p_true: Optional[torch.Tensor] = None,
+#         weights_l: Optional[torch.Tensor] = None,
+#     ):
+#         """
+#         Parameters
+#         ----------
+#         x_train : np.ndarray
+#             array of shape (N, F) containing the training data (instances)
+#         P : np.ndarray
+#             tensor of shape (N, M, K) containing probabilistic predictions
+#             for each instance and each predictor
+#         y : np.ndarray
+#             array of shape (N,) containing labels
+#         p_true: torch.Tensor, optional, of shape (N, K)
+#             tensor containing the true probabilities, by default None
+#         weights_l : np.ndarray, optional
+#             array of shape (N, M) containing the weights of the convex combination
+#             of the probabilistic predictions, by default None
+#         """
+#         super().__init__()
+#         self.p_probs = P
+#         self.y_true = y
+#         self.n_classes = P.shape[2]
+#         self.n_ens = P.shape[1]
+#         self.n_features = x_train.shape[1]
+#         self.x_train = x_train
+#         self.weights_l = weights_l
+#         self.p_true = p_true
+
+#     def __len__(self):
+#         return len(self.p_probs)
+
+#     def __getitem__(self, index):
+
+#         return self.p_probs[index], self.y_true[index], self.x_train[index]
+    
+
 class MLPDataset(Dataset):
     """
-    Dataset containing probabilistic predictions of an ensemble of synthetic classifiers,
+    A dataset that returns:
+      - p_probs[i]: (M, K) ensemble predictions for instance i
+      - y_true[i]:  scalar label
+      - x_train[i]: input features or image, shape can be (F,) or (C,H,W)
 
+    Optionally can store p_true or weights_l if needed.
     """
 
     def __init__(
@@ -17,41 +69,51 @@ class MLPDataset(Dataset):
         x_train: np.ndarray,
         P: np.ndarray,
         y: np.ndarray,
-        p_true: Optional[torch.Tensor] = None,
-        weights_l: Optional[torch.Tensor] = None,
+        p_true: Optional[np.ndarray] = None,
+        weights_l: Optional[np.ndarray] = None,
     ):
         """
         Parameters
         ----------
         x_train : np.ndarray
-            array of shape (N, F) containing the training data (instances)
+            shape (N, F) or (N, C, H, W) containing the inputs (images or features)
         P : np.ndarray
-            tensor of shape (N, M, K) containing probabilistic predictions
-            for each instance and each predictor
+            shape (N, M, K) => ensemble predictions
         y : np.ndarray
-            array of shape (N,) containing labels
-        p_true: torch.Tensor, optional, of shape (N, K)
-            tensor containing the true probabilities, by default None
+            shape (N,) integer labels
+        p_true : np.ndarray, optional
+            shape (N, K) => ground-truth probabilities if available
         weights_l : np.ndarray, optional
-            array of shape (N, M) containing the weights of the convex combination
-            of the probabilistic predictions, by default None
+            shape (N, M), optional weights
         """
         super().__init__()
-        self.p_probs = P
-        self.y_true = y
-        self.n_classes = P.shape[2]
-        self.n_ens = P.shape[1]
-        self.n_features = x_train.shape[1]
-        self.x_train = x_train
-        self.weights_l = weights_l
-        self.p_true = p_true
+        # Convert to torch tensors
+        self.p_probs = torch.from_numpy(P).float()       # (N, M, K)
+        self.y_true  = torch.from_numpy(y).long()        # (N,)
+        self.x_train = torch.from_numpy(x_train).float() # (N, F) or (N, C, H, W)
+        self.p_true  = None
+        self.weights_l= None
+
+        if p_true is not None:
+            self.p_true = torch.from_numpy(p_true).float()
+        if weights_l is not None:
+            self.weights_l = torch.from_numpy(weights_l).float()
+
+        # Basic attributes
+        self.n_classes = self.p_probs.shape[2]
+        self.n_ens     = self.p_probs.shape[1]
 
     def __len__(self):
-        return len(self.p_probs)
+        return len(self.y_true)
 
-    def __getitem__(self, index):
+    def __getitem__(self, idx):
+        # Return a tuple: (p_probs[idx], y_true[idx], x_train[idx])
+        return (
+            self.p_probs[idx], 
+            self.y_true[idx], 
+            self.x_train[idx]
+        )
 
-        return self.p_probs[index], self.y_true[index], self.x_train[index]
 
 
 class MLPDataModule(pl.LightningDataModule):
