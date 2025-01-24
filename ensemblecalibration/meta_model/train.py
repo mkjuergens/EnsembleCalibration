@@ -182,6 +182,8 @@ def train_model(
     ############################################
     # Helper function: run one epoch of "joint"
     ############################################
+
+    model.to(device)
     def train_one_epoch_joint():
         model.train()
         epoch_loss = 0.0
@@ -194,6 +196,8 @@ def train_model(
 
             p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
             y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)
+
 
             optimizer.zero_grad()
             outputs = model(x_batch, p_preds_batch)

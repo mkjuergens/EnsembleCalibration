@@ -44,6 +44,7 @@ class RealDataExperiment:
         n_repeats: int = 1,
         pretrained: bool = False,
         pretrained_model: str = "resnet18",
+        verbose: bool = False
     ):
         self.dir_predictions = dir_predictions
         self.dataset_name = dataset_name
@@ -60,6 +61,7 @@ class RealDataExperiment:
         self.n_repeats = n_repeats
         self.pretrained = pretrained
         self.pretrained_model = pretrained_model
+        self.verbose = verbose
 
         # define losses, train_modes, calibrators as needed
         self.losses = [GeneralizedBrierLoss(), GeneralizedLogLoss()]
@@ -177,7 +179,7 @@ class RealDataExperiment:
                             n_epochs=self.n_epochs,
                             lr=self.lr,
                             batch_size=self.batch_size,
-                            verbose=False,
+                            verbose=self.verbose,
                             early_stopping=False,
                         )
 
@@ -199,7 +201,7 @@ class RealDataExperiment:
                                 p_cal = model.cal_model(p_bar)
 
                         # measure calibration metrics
-                        metric_d = self.measure_calibration_metrics(p_cal, y_tensor)
+                        metric_d = self.measure_calibration_metrics(p_cal.cpu().numpy(), y_tensor)
                         # measure accuracy
                         preds = torch.argmax(p_cal, dim=1).cpu().numpy()
                         acc = np.mean(preds == labels_np)
@@ -257,7 +259,7 @@ def main():
     parser.add_argument(
         "--ensemble_size",
         type=int,
-        default=5,
+        default=10,
         help="Number of ensemble models or #MC passes.",
     )
     # parser.add_argument(
@@ -278,7 +280,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="./calibration_results")
     parser.add_argument("--n_repeats", type=int, default=1)
     parser.add_argument(
-        "--pretrained", action="store_true", help="Use pretrained model for the comb model."
+        "--pretrained", type=bool, default=True, help="Use pretrained model for the comb model."
     )
     parser.add_argument(
         "--pretrained_model",
@@ -292,6 +294,7 @@ def main():
         default="ensemble_results",
         help="Directory where ensemble predictions, instances, labels are saved.",
     )
+    parser.add_argument("--verbose", type=bool, default=False, help="whether to output training losses")
 
     args = parser.parse_args()
 
