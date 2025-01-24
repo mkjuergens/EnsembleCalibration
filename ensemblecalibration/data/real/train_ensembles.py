@@ -9,7 +9,7 @@ import wandb
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
-from ensemblecalibration.data.real.dataset_utils import load_dataset, save_results
+from ensemblecalibration.data.real.dataset_utils import load_dataset
 from ensemblecalibration.data.real.model import get_model
 
 
@@ -31,35 +31,6 @@ def train_single_model(
     """
     Train a single model (ResNet/VGG or MC-Dropout), with early stopping based on validation loss,
     logging to Weights & Biases.
-
-    Parameters
-    ----------
-    model : nn.Module
-        PyTorch model to train.
-    trainloader : DataLoader
-        DataLoader for training set.
-    valloader : DataLoader
-        DataLoader for validation set.
-    device : str, optional
-        Compute device, e.g. "cuda" or "cpu".
-    epochs : int, optional
-        Number of training epochs.
-    patience : int, optional
-        Early stopping patience.
-    lr : float, optional
-        Learning rate.
-    weight_decay : float, optional
-        Weight decay for optimizer.
-    dataset_name : str, optional
-        Name of dataset (for logging).
-    ensemble_type : str, optional
-        "deep_ensemble" or "mc_dropout".
-    model_idx : int, optional
-        Model index if training an ensemble.
-    model_dir : str, optional
-        Directory to save best checkpoint.
-    project_name : str, optional
-        W&B project name.
 
     Returns
     -------
@@ -176,25 +147,19 @@ def train_single_model(
     return best_model_path
 
 
-def test_deep_ensemble(
-    model_paths, testloader, num_classes, device="cuda", model_type="resnet"
+def evaluate_deep_ensemble(
+    model_paths, dataloader, num_classes, device="cuda", model_type="resnet"
 ):
     """
-    Evaluate a Deep Ensemble of multiple saved models on the test set,
-    returning ensemble predictions, instances, and labels.
-
-    Returns:
-      predictions: (N, ensemble_size, num_classes)
-      instances:   (N, channels, height, width)
-      labels:      (N,)
+    Evaluate a Deep Ensemble on a given dataloader (val or test).
+    Returns predictions, instances, labels in np arrays.
     """
     ensemble_size = len(model_paths)
     ensemble_models = []
 
-    for i, path_ckpt in enumerate(model_paths):
-        # Create the same architecture and load weights
+    for path_ckpt in model_paths:
         single_model = get_model(
-            num_classes,
+            num_classes=num_classes,
             model_type=model_type,
             ensemble_type="deep_ensemble",
             device=device,
@@ -211,89 +176,49 @@ def test_deep_ensemble(
     total = 0
 
     with torch.no_grad():
-        for inputs, labels in tqdm(testloader, desc="Testing Deep Ensemble"):
+        for inputs, labels in tqdm(dataloader, desc="Evaluating Deep Ensemble"):
             inputs = inputs.to(device)
-            batch_size = inputs.shape[0]
             all_inputs.append(inputs.cpu().numpy())
             all_labels.append(labels.cpu().numpy())
 
-            # predictions from each model
             ensemble_batch_preds = []
             for model in ensemble_models:
                 outputs = model(inputs)
                 probs = torch.softmax(outputs, dim=1)
                 ensemble_batch_preds.append(probs.cpu().numpy())
 
-            # shape => (ensemble_size, batch_size, num_classes)
+            # (ensemble_size, batch_size, num_classes)
             ensemble_batch_preds = np.stack(ensemble_batch_preds, axis=0)
-            # transpose => (batch_size, ensemble_size, num_classes)
+            # => (batch_size, ensemble_size, num_classes)
             ensemble_batch_preds = ensemble_batch_preds.transpose(1, 0, 2)
             all_preds.append(ensemble_batch_preds)
 
-            # ensemble-based accuracy
+            # Accuracy from mean of ensemble
             mean_probs = np.mean(ensemble_batch_preds, axis=1)
             preds_np = np.argmax(mean_probs, axis=1)
             total += labels.size(0)
             correct += (preds_np == labels.numpy()).sum()
 
-    test_acc = 100.0 * correct / total
-    print(f"Test Accuracy (Deep Ensemble) = {test_acc:.2f}%")
+    accuracy = 100.0 * correct / total
+    print(f"Ensemble accuracy on this split = {accuracy:.2f}%")
 
     predictions = np.concatenate(all_preds, axis=0)  # (N, ensemble_size, num_classes)
     labels_arr = np.concatenate(all_labels, axis=0)
     instances_arr = np.concatenate(all_inputs, axis=0)
-
     return predictions, instances_arr, labels_arr
 
 
-def test_mc_dropout(
-    model, testloader, num_classes: int, device="cuda", num_samples: int = 10
-):
+def evaluate_mc_dropout(model, dataloader, num_classes, device="cuda", num_samples=10):
     """
-    Evaluate MCDropout by sampling multiple forward passes per input.
-
-    Parameters
-    ----------
-    model : nn.Module
-        A single MCDropoutModel or similar model with dropout active in eval mode.
-    testloader : DataLoader
-        Test set loader.
-    num_classes : int
-        Number of classes in the dataset.
-    device : str, optional
-        Computation device.
-    num_samples : int, optional
-        Number of forward passes (MC samples) to use.
-
-    Returns
-    -------
-    predictions : np.ndarray
-        Shape (n_samples, num_samples, num_classes).
-    instances : np.ndarray
-        Shape (n_samples, channels, height, width).
-    labels : np.ndarray
-        Shape (n_samples,).
+    Evaluate MC-Dropout with num_samples forward passes on a given dataloader.
+    Returns predictions, instances, labels in np arrays.
     """
     model.eval()
-    model = model.to(device)
+    model.to(device)
 
-    # function that forcibly leaves dropout "on"
     def enable_mc_dropout(m: nn.Module):
         if isinstance(m, nn.Dropout):
             m.train()
-
-    # We'll define a local helper for inference
-    def mc_inference(model, inputs):
-        model.apply(enable_mc_dropout)  # set dropout layers to train mode
-        # gather samples
-        samples = []
-        with torch.no_grad():
-            for _ in range(num_samples):
-                out = model(inputs)
-                samples.append(torch.softmax(out, dim=1).cpu().numpy())
-        # shape: (num_samples, batch_size, num_classes)
-        samples = np.stack(samples, axis=0)
-        return samples
 
     all_preds = []
     all_labels = []
@@ -302,28 +227,36 @@ def test_mc_dropout(
     correct = 0
     total = 0
 
-    for inputs, labels in tqdm(testloader, desc="Testing MC-Dropout"):
-        inputs = inputs.to(device)
-        all_inputs.append(inputs.cpu().numpy())
-        all_labels.append(labels.cpu().numpy())
+    with torch.no_grad():
+        for inputs, labels in tqdm(dataloader, desc="Evaluating MC-Dropout"):
+            inputs = inputs.to(device)
+            all_inputs.append(inputs.cpu().numpy())
+            all_labels.append(labels.cpu().numpy())
 
-        # shape: (num_samples, batch_size, num_classes)
-        samples = mc_inference(model, inputs)
-        samples = samples.swapaxes(0, 1)  # (batch_size, num_samples, num_classes)
-        all_preds.append(samples)
+            # gather multiple passes
+            samples_list = []
+            for _ in range(num_samples):
+                model.apply(enable_mc_dropout)
+                outputs = model(inputs)
+                probs = torch.softmax(outputs, dim=1)
+                samples_list.append(probs.cpu().numpy())
 
-        # ensemble-based accuracy from mean
-        mean_probs = np.mean(samples, axis=1)  # shape (batch_size, num_classes)
-        preds_np = np.argmax(mean_probs, axis=1)
-        total += labels.size(0)
-        correct += (preds_np == labels.numpy()).sum()
+            # shape => (num_samples, batch_size, num_classes)
+            samples_np = np.stack(samples_list, axis=0)
+            # => (batch_size, num_samples, num_classes)
+            samples_np = samples_np.transpose(1, 0, 2)
+            all_preds.append(samples_np)
 
-    test_acc = 100.0 * correct / total
-    print(f"Test Accuracy (MC-Dropout): {test_acc:.2f}%")
+            # accuracy from mean
+            mean_probs = np.mean(samples_np, axis=1)
+            preds_np = np.argmax(mean_probs, axis=1)
+            total += labels.size(0)
+            correct += (preds_np == labels.numpy()).sum()
 
-    predictions = np.concatenate(
-        all_preds, axis=0
-    )  # shape (N, num_samples, num_classes)
+    accuracy = 100.0 * correct / total
+    print(f"MC-Dropout accuracy on this split = {accuracy:.2f}%")
+
+    predictions = np.concatenate(all_preds, axis=0)  # (N, num_samples, num_classes)
     labels_arr = np.concatenate(all_labels, axis=0)
     instances_arr = np.concatenate(all_inputs, axis=0)
     return predictions, instances_arr, labels_arr
@@ -358,25 +291,15 @@ def main():
         "--ensemble_size",
         type=int,
         default=5,
-        help="Number of models in a deep ensemble, or # of MC passes in MC-Dropout.",
+        help="Number of models in a deep ensemble, or #MC passes in MC-Dropout.",
     )
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=128,
-        help="Batch size for training/evaluation.",
-    )
+    parser.add_argument("--batch_size", type=int, default=128, help="Batch size.")
     parser.add_argument("--epochs", type=int, default=50, help="Training epochs.")
     parser.add_argument(
-        "--patience", type=int, default=5, help="Patience for early stopping."
+        "--patience", type=int, default=5, help="Early stopping patience."
     )
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate.")
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda:0",
-        help="Computation device, e.g. 'cuda:0' or 'cpu'.",
-    )
+    parser.add_argument("--device", type=str, default="cuda:0", help="Compute device.")
     parser.add_argument(
         "--model_dir",
         type=str,
@@ -391,14 +314,13 @@ def main():
     )
     args = parser.parse_args()
 
-    # 1) Load dataset
     print(f"\n=== Loading dataset: {args.dataset} ===")
     trainloader, valloader, testloader, num_classes = load_dataset(
         args.dataset, batch_size=args.batch_size
     )
 
-    # 2) If ensemble_type=deep_ensemble, train 'ensemble_size' models
     if args.ensemble_type == "deep_ensemble":
+        # 1) Train each model in the ensemble
         best_paths = []
         for idx in range(args.ensemble_size):
             print(
@@ -425,46 +347,83 @@ def main():
             )
             best_paths.append(ckpt_path)
 
-        # Evaluate
-        preds, instances, labels = test_deep_ensemble(
+        # 2) Evaluate on validation set
+        preds_val, insts_val, labels_val = evaluate_deep_ensemble(
             model_paths=best_paths,
-            testloader=testloader,
+            dataloader=valloader,
             num_classes=num_classes,
             device=args.device,
             model_type=args.model_type,
         )
         print(
-            f"preds shape: {preds.shape}, instances: {instances.shape}, labels: {labels.shape}"
+            f"Validation set: preds={preds_val.shape}, insts={insts_val.shape}, labels={labels_val.shape}"
         )
 
-        # Save predictions
+        # 3) Evaluate on test set
+        preds_test, insts_test, labels_test = evaluate_deep_ensemble(
+            model_paths=best_paths,
+            dataloader=testloader,
+            num_classes=num_classes,
+            device=args.device,
+            model_type=args.model_type,
+        )
+        print(
+            f"Test set: preds={preds_test.shape}, insts={insts_test.shape}, labels={labels_test.shape}"
+        )
+
+        # 4) Save results
         os.makedirs(args.save_dir, exist_ok=True)
+
+        # validation set
         np.save(
             os.path.join(
                 args.save_dir,
-                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_predictions.npy",
+                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_val_predictions.npy",
             ),
-            preds,
+            preds_val,
         )
         np.save(
             os.path.join(
                 args.save_dir,
-                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_instances.npy",
+                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_val_instances.npy",
             ),
-            instances,
+            insts_val,
         )
         np.save(
             os.path.join(
                 args.save_dir,
-                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_labels.npy",
+                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_val_labels.npy",
             ),
-            labels,
+            labels_val,
         )
 
-        print(f"Saved predictions to: {args.save_dir}\n")
+        # test set
+        np.save(
+            os.path.join(
+                args.save_dir,
+                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_test_predictions.npy",
+            ),
+            preds_test,
+        )
+        np.save(
+            os.path.join(
+                args.save_dir,
+                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_test_instances.npy",
+            ),
+            insts_test,
+        )
+        np.save(
+            os.path.join(
+                args.save_dir,
+                f"{args.dataset}_{args.model_type}_{args.ensemble_type}_{args.ensemble_size}_test_labels.npy",
+            ),
+            labels_test,
+        )
 
-    # 3) If ensemble_type=mc_dropout, train 1 model, do 'ensemble_size' passes
+        print(f"Saved val & test predictions to: {args.save_dir}\n")
+
     elif args.ensemble_type == "mc_dropout":
+        # 1) Train single model with MC-Dropout
         print(
             f"\nTraining a single model with MCDropout for {args.ensemble_size} passes ..."
         )
@@ -490,42 +449,80 @@ def main():
         # Load best model
         mc_model.load_state_dict(torch.load(ckpt_path, map_location=args.device))
 
-        # Evaluate with multiple passes
-        preds, instances, labels = test_mc_dropout(
+        # 2) Evaluate on validation set
+        preds_val, insts_val, labels_val = evaluate_mc_dropout(
             model=mc_model,
-            testloader=testloader,
+            dataloader=valloader,
             num_classes=num_classes,
             device=args.device,
             num_samples=args.ensemble_size,
         )
         print(
-            f"preds shape: {preds.shape}, instances: {instances.shape}, labels: {labels.shape}"
+            f"Validation set: preds={preds_val.shape}, insts={insts_val.shape}, labels={labels_val.shape}"
         )
 
+        # 3) Evaluate on test set
+        preds_test, insts_test, labels_test = evaluate_mc_dropout(
+            model=mc_model,
+            dataloader=testloader,
+            num_classes=num_classes,
+            device=args.device,
+            num_samples=args.ensemble_size,
+        )
+        print(
+            f"Test set: preds={preds_test.shape}, insts={insts_test.shape}, labels={labels_test.shape}"
+        )
+
+        # 4) Save results
         os.makedirs(args.save_dir, exist_ok=True)
+
+        # validation set
         np.save(
             os.path.join(
                 args.save_dir,
-                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_predictions.npy",
+                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_val_predictions.npy",
             ),
-            preds,
+            preds_val,
         )
         np.save(
             os.path.join(
                 args.save_dir,
-                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_instances.npy",
+                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_val_instances.npy",
             ),
-            instances,
+            insts_val,
         )
         np.save(
             os.path.join(
                 args.save_dir,
-                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_labels.npy",
+                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_val_labels.npy",
             ),
-            labels,
+            labels_val,
         )
 
-        print(f"Saved predictions to: {args.save_dir}\n")
+        # test set
+        np.save(
+            os.path.join(
+                args.save_dir,
+                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_test_predictions.npy",
+            ),
+            preds_test,
+        )
+        np.save(
+            os.path.join(
+                args.save_dir,
+                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_test_instances.npy",
+            ),
+            insts_test,
+        )
+        np.save(
+            os.path.join(
+                args.save_dir,
+                f"{args.dataset}_{args.model_type}_{args.ensemble_size}_mc_dropout_test_labels.npy",
+            ),
+            labels_test,
+        )
+
+        print(f"Saved val & test predictions to: {args.save_dir}\n")
 
 
 if __name__ == "__main__":
