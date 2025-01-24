@@ -27,6 +27,10 @@ from ensemblecalibration.cal_estimates import (
 
 
 class RealDataExperiment:
+    """
+    Trains a comb/cal model on validation data, then evaluates calibration metrics on test data.
+    """
+
     def __init__(
         self,
         dir_predictions: str,
@@ -44,7 +48,9 @@ class RealDataExperiment:
         n_repeats: int = 1,
         pretrained: bool = False,
         pretrained_model: str = "resnet18",
-        verbose: bool = False
+        verbose: bool = False,
+        early_stopping: bool = True,
+        patience: int = 10,
     ):
         self.dir_predictions = dir_predictions
         self.dataset_name = dataset_name
@@ -62,40 +68,47 @@ class RealDataExperiment:
         self.pretrained = pretrained
         self.pretrained_model = pretrained_model
         self.verbose = verbose
+        self.early_stopping = early_stopping
+        self.patience = patience
 
-        # define losses, train_modes, calibrators as needed
+        # define losses, train_modes, calibrators
         self.losses = [GeneralizedBrierLoss(), GeneralizedLogLoss()]
         self.train_modes = ["joint", "alternating", "avg_then_calibrate"]
-        # if you only want e.g. Dirichlet + Temperature
         self.calibrators = [DirichletCalibrator, TemperatureScalingCalibrator]
 
-        # metric params
+        # metric parameters
         self.dict_mmd = {"bw": 0.1}
         self.dict_skce = {"bw": 0.001}
         self.dict_kde_ece = {"p": 2, "bw": 0.01}
 
         os.makedirs(output_dir, exist_ok=True)
 
-    def measure_calibration_metrics(self, p_cal, y_tensor, max_mmd_samples: int = 1000):
+    def measure_calibration_metrics(
+        self, p_cal: torch.Tensor, y_tensor: torch.Tensor, max_mmd_samples: int = 1000
+    ):
         """
-        Return a dict: {brier, mmd, skce, ece_kde}
+        Return a dict: {brier, mmd, skce, ece_kde, accuracy},
+        using random subset for MMD if needed.
         """
         # brier
         brier_val = brier_obj(p_cal, y_tensor)
-        skce_val = get_skce_ul(p_cal, y_tensor, bw=self.dict_skce["bw"])
+        # skce
+        skce_val = get_skce_ul(p_cal, y_tensor, bw=self.dict_skce["bw"], take_square=False)
+        # ece
         ece_val = get_ece_kde(
-            p_cal, y_tensor, p=self.dict_kde_ece["p"], bw=self.dict_kde_ece["bw"]
+            p_cal, y_tensor, p=self.dict_kde_ece["p"], bw=self.dict_kde_ece["bw"],
         )
-        # restrict sample size for mmd calculation
+        # subset for MMD
         N = p_cal.shape[0]
         if N > max_mmd_samples:
             indices = torch.randperm(N, device=p_cal.device)[:max_mmd_samples]
             p_cal_mmd = p_cal[indices]
-            y_mmd     = y_tensor[indices]
+            y_mmd = y_tensor[indices]
         else:
             p_cal_mmd = p_cal
-            y_mmd     = y_tensor
-        mmd_val = mmd_kce(p_cal_mmd, y_mmd, bw=self.dict_mmd["bw"])
+            y_mmd = y_tensor
+        mmd_val = mmd_kce(p_cal_mmd, y_mmd, bw=self.dict_mmd["bw"], take_square=False)
+
         d = {}
         d["brier"] = float(abs(brier_val))
         d["mmd"] = float(abs(mmd_val))
@@ -104,51 +117,64 @@ class RealDataExperiment:
         return d
 
     def run(self):
-        # 1) Load predictions, instances, labels
-        predictions_np, instances_np, labels_np = load_results_real_data(
+        # 1) Load validation data from *val* .npy files
+        # e.g. "CIFAR100_resnet_deep_ensemble_10_val_predictions.npy" etc.
+        val_prefix = "val"
+        predictions_val, instances_val, labels_val = load_results_real_data(
             dataset_name=self.dataset_name,
             model_type=self.model_type,
             ensemble_type=self.ensemble_type,
             ensemble_size=self.ensemble_size,
-            directory=self.dir_predictions,  # or pass from outside
+            directory=self.dir_predictions,
+            file_prefix=val_prefix,
         )
 
-        # 2) Build MLPDataset, DataLoader
-        dataset_val = MLPDataset(
-            x_train=instances_np,  # shape (N, C, H, W) for images
-            P=predictions_np,  # shape (N, M, K)
-            y=labels_np,  # shape (N,)
+        # 2) Build MLPDataset for *val*
+        dataset_val = MLPDataset(x_train=instances_val, P=predictions_val, y=labels_val)
+
+        # 3) Load test data from *test* .npy files
+        test_prefix = "test"
+        predictions_test, instances_test, labels_test = load_results_real_data(
+            dataset_name=self.dataset_name,
+            model_type=self.model_type,
+            ensemble_type=self.ensemble_type,
+            ensemble_size=self.ensemble_size,
+            directory=self.dir_predictions,
+            file_prefix=test_prefix,
+        )
+        dataset_test = MLPDataset(
+            x_train=instances_test,
+            P=predictions_test,
+            y=labels_test,
         )
 
-        # We store results over repeats
-        results = {}  # {(loss_name, mode, cal_name): list_of_dicts}
+        # We'll store final results (only tested on test set)
+        results = {}  # {(loss_name,train_mode,calibrator) : [metric_dict, ...]}
 
+        # 4) multiple repeats if you want random re-initialization seeds
         for repeat_idx in range(self.n_repeats):
             print(f"\n=== Repetition {repeat_idx+1}/{self.n_repeats} ===")
-            # We'll treat loader_val as both "train" and "val" for calibrator
-            # Or build a small "val" subset if you'd like
-            dataset_train = dataset_val  # same data for calibration
-            dataset_val2 = None  # if you want no separate val
 
-            for loss_obj in self.losses:
-                loss_name = loss_obj.__class__.__name__
+            # We do not build separate "val" for calibrator's early-stopping.
+            # We'll pass None to dataset_val in train_model if we want no separate split.
+            dataset_train = dataset_val
+            # dataset_val2 = None
+
+            for loss_fn in self.losses:
+                loss_name = loss_fn.__class__.__name__
                 for train_mode in self.train_modes:
                     for CalCls in self.calibrators:
                         cal_name = CalCls.__name__
                         print(f" -> {loss_name} / {train_mode} / {cal_name}")
 
-                        # Build the model
-                        # shape (N, M, K) => M = # ensemble members, K = # classes
-                        n_ens = predictions_np.shape[1]
-                        n_classes = predictions_np.shape[2]
+                        # shape check
+                        n_ens = predictions_val.shape[1]
+                        n_classes = predictions_val.shape[2]
 
-                        # if train_mode in ["joint", "alternating"]:
-                        #     # comb_model => MLPCalWConv
-                        #     # we define a lambda to pass into CredalSetCalibrator
-                        #     # or just build it directly
+                        # Build comb model (CNN-based if you'd like)
                         def comb_builder(**kwargs):
                             return MLPCalWConv(
-                                in_channels=instances_np.shape[1],  # 3 for CIFAR
+                                in_channels=instances_val.shape[1],
                                 out_channels=n_ens,
                                 hidden_dim=self.hidden_dim,
                                 hidden_layers=self.hidden_layers,
@@ -156,98 +182,96 @@ class RealDataExperiment:
                                 pretrained_model=self.pretrained_model,
                             )
 
-                        # else:
-                        #     # "avg_then_calibrate" => comb model won't be used,
-                        #     # but we still pass something: dummy
-                        #     def comb_builder(**kwargs):
-                        #         return MLPCalWConv(
-                        #             in_channels=3,  # dummy
-                        #             out_channels=n_ens,
-                        #             pretrained=False,
-                        #         )
-
                         model = CredalSetCalibrator(
                             comb_model=comb_builder,
                             cal_model=CalCls,
-                            in_channels=instances_np.shape[1],  # e.g. 3
+                            in_channels=instances_val.shape[1],
                             n_classes=n_classes,
                             n_ensembles=n_ens,
                             hidden_dim=self.hidden_dim,
                             hidden_layers=self.hidden_layers,
                         )
 
-                        # Train
-                        # Reuse your train_model
-                        model, _, _ = train_model(
+                        # 5) Train on validation set
+                        trained_model, _, _ = train_model(
                             model=model,
                             dataset_train=dataset_train,
-                            dataset_val=dataset_val2,
-                            loss_fn=loss_obj,
+                            dataset_val=dataset_test,
+                            loss_fn=loss_fn,
                             train_mode=train_mode,
                             device=self.device,
                             n_epochs=self.n_epochs,
                             lr=self.lr,
                             batch_size=self.batch_size,
                             verbose=self.verbose,
-                            early_stopping=False,
+                            early_stopping=self.early_stopping,
+                            patience=self.patience,
                         )
 
-                        # Evaluate on the entire dataset
-                        p_preds_tensor = (
-                            torch.from_numpy(predictions_np).float().to(self.device)
+                        # 6) Evaluate on test set
+                        p_preds_test_tensor = (
+                            torch.from_numpy(predictions_test).float().to(self.device)
                         )
-                        x_tensor = (
-                            torch.from_numpy(instances_np).float().to(self.device)
+                        x_test_tensor = (
+                            torch.from_numpy(instances_test).float().to(self.device)
                         )
-                        y_tensor = torch.from_numpy(labels_np).long().cpu()
+                        y_test_tensor = torch.from_numpy(labels_test).long()
 
                         with torch.no_grad():
                             if train_mode in ["joint", "alternating"]:
-                                p_cal, p_bar, weights = model(x_tensor, p_preds_tensor)
+                                p_cal_test, _, _ = trained_model(
+                                    x_test_tensor, p_preds_test_tensor
+                                )
                             else:
-                                # average
-                                p_bar = p_preds_tensor.mean(dim=1)  # (N, K)
-                                p_cal = model.cal_model(p_bar)
-                        p_cal = p_cal.cpu()
+                                # avg-then-calibrate
+                                p_bar_test = p_preds_test_tensor.mean(dim=1)
+                                p_cal_test = trained_model.cal_model(p_bar_test)
+                        p_cal_test = p_cal_test.cpu()
+
                         # measure calibration metrics
-                        metric_d = self.measure_calibration_metrics(p_cal, y_tensor)
+                        metric_d = self.measure_calibration_metrics(
+                            p_cal_test, y_test_tensor
+                        )
+
                         # measure accuracy
-                        preds = torch.argmax(p_cal, dim=1).cpu().numpy()
-                        acc = np.mean(preds == labels_np)
-                        metric_d["accuracy"] = float(acc)
+                        preds_test = torch.argmax(p_cal_test, dim=1).cpu().numpy()
+                        acc_test = np.mean(preds_test == labels_test)
+                        metric_d["accuracy"] = float(acc_test)
 
                         key = (loss_name, train_mode, cal_name)
                         if key not in results:
                             results[key] = []
                         results[key].append(metric_d)
 
-        # Summarize
+        # 7) Summarize results (over repeats)
         final_scores = {}
         for key, list_of_dicts in results.items():
-            metric_keys = list(list_of_dicts[0].keys())
+            metric_keys = sorted(
+                list_of_dicts[0].keys()
+            )  # e.g. [accuracy, brier, ece_kde, mmd, skce]
             agg = {}
             for mk in metric_keys:
                 vals = [d[mk] for d in list_of_dicts]
-                mean_val = np.mean(vals)
-                std_val = np.std(vals)
-                agg[f"{mk}_mean"] = float(mean_val)
-                agg[f"{mk}_std"] = float(std_val)
+                agg[f"{mk}_mean"] = float(np.mean(vals))
+                agg[f"{mk}_std"] = float(np.std(vals))
             final_scores[key] = agg
 
-        # Write CSV
+        # 8) Write to CSV
         csv_path = os.path.join(
             self.output_dir,
             f"calibration_scores_{self.dataset_name}_{self.model_type}_{self.ensemble_type}_{self.ensemble_size}.csv",
         )
         os.makedirs(self.output_dir, exist_ok=True)
-        # gather metric fields
+
+        # columns
         metric_fields = sorted(final_scores[next(iter(final_scores))].keys())
         columns = ["loss", "train_mode", "cal_model"] + metric_fields
+
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(columns)
-            for (loss_name, tm, cal_name), aggdict in final_scores.items():
-                row = [loss_name, tm, cal_name] + [aggdict[mf] for mf in metric_fields]
+            for (loss_name, tm, cal_name), agg_dict in final_scores.items():
+                row = [loss_name, tm, cal_name] + [agg_dict[mf] for mf in metric_fields]
                 writer.writerow(row)
 
         print(f"Saved final calibration results to {csv_path}")
@@ -269,15 +293,8 @@ def main():
         "--ensemble_size",
         type=int,
         default=10,
-        help="Number of ensemble models or #MC passes.",
+        help="#models in ensemble or #MC passes.",
     )
-    # parser.add_argument(
-    #     "--ensemble_dir",
-    #     type=str,
-    #     default="ensemble_results",
-    #     help="Directory where ensemble predictions, instances, labels are saved.",
-    # )
-
     parser.add_argument(
         "--device", type=str, default="cuda", help="Device for calibration."
     )
@@ -289,21 +306,29 @@ def main():
     parser.add_argument("--output_dir", type=str, default="./calibration_results")
     parser.add_argument("--n_repeats", type=int, default=1)
     parser.add_argument(
-        "--pretrained", type=bool, default=True, help="Use pretrained model for the comb model."
+        "--pretrained", action="store_true", help="Use pretrained comb model."
     )
     parser.add_argument(
         "--pretrained_model",
         type=str,
         default="resnet18",
-        help="Pretrained model to use.",
+        help="Which pretrained model.",
     )
     parser.add_argument(
         "--dir_predictions",
         type=str,
         default="ensemble_results",
-        help="Directory where ensemble predictions, instances, labels are saved.",
+        help="Dir where val/test ensemble predictions are saved.",
     )
-    parser.add_argument("--verbose", type=bool, default=False, help="whether to output training losses")
+    parser.add_argument(
+        "--verbose", action="store_true", help="whether to output training losses"
+    )
+    parser.add_argument(
+        "--early_stopping", type=bool, default=True, help="whether to use early stopping"
+    )
+    parser.add_argument(
+        "--patience", type=int, default=10, help="patience for early stopping"
+    )
 
     args = parser.parse_args()
 
@@ -323,7 +348,7 @@ def main():
         n_repeats=args.n_repeats,
         pretrained=args.pretrained,
         pretrained_model=args.pretrained_model,
-        verbose=args.verbose
+        verbose=args.verbose,
     )
     runner.run()
 

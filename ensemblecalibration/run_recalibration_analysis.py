@@ -259,8 +259,8 @@ def measure_calibration_metrics(p_cal, y, dict_params: dict = {}):
     """
     # e.g.
     brier_val = brier_obj(p_cal, y)
-    mmd_val = mmd_kce(p_cal, y, bw=dict_params["dict_mmd"]["bw"])
-    skce_val = get_skce_ul(p_cal, y, bw=dict_params["dict_skce"]["bw"])
+    mmd_val = mmd_kce(p_cal, y, bw=dict_params["dict_mmd"]["bw"], take_square=False)
+    skce_val = get_skce_ul(p_cal, y, bw=dict_params["dict_skce"]["bw"], take_square=False)
     ece_val = get_ece_kde(
         p_cal,
         y,
