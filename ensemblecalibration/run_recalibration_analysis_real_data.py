@@ -306,7 +306,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="./calibration_results")
     parser.add_argument("--n_repeats", type=int, default=1)
     parser.add_argument(
-        "--pretrained", action="store_true", help="Use pretrained comb model."
+        "--pretrained", type=bool, default=True, help="Use pretrained comb model."
     )
     parser.add_argument(
         "--pretrained_model",
@@ -321,7 +321,7 @@ def main():
         help="Dir where val/test ensemble predictions are saved.",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="whether to output training losses"
+        "--verbose", type=bool, default=True, help="whether to output training losses"
     )
     parser.add_argument(
         "--early_stopping", type=bool, default=True, help="whether to use early stopping"

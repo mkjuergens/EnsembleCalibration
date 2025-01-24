@@ -433,6 +433,7 @@ def evaluate_model(model, loader, loss_fn, device="cpu"):
 
             p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
             y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)
 
             outputs = model(x_batch, p_preds_batch)
             if isinstance(outputs, tuple) and len(outputs) == 3:
@@ -467,6 +468,7 @@ def evaluate_model_avg(model, loader, loss_fn, device="cpu"):
 
             p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
             y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)
 
             # average
             p_bar = p_preds_batch.mean(dim=1)  # shape (batch_size, n_classes)
