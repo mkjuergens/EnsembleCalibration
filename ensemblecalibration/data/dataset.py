@@ -87,17 +87,34 @@ class MLPDataset(Dataset):
             shape (N, M), optional weights
         """
         super().__init__()
-        # Convert to torch tensors
-        self.p_probs = torch.from_numpy(P).float()       # (N, M, K)
-        self.y_true  = torch.from_numpy(y).long()        # (N,)
-        self.x_train = torch.from_numpy(x_train).float() # (N, F) or (N, C, H, W)
+        # Convert to torch tensors, only if needed
+        if not isinstance(P, torch.Tensor):
+            self.p_probs = torch.from_numpy(P).float()
+        else:
+            self.p_probs = P.float()
+        if not isinstance(y, torch.Tensor):
+            self.y_true = torch.from_numpy(y).long()
+        else:
+            self.y_true = y.long()
+        if not isinstance(x_train, torch.Tensor):
+            self.x_train = torch.from_numpy(x_train).float() # (N, F) or (N, C, H, W)
+        else:
+            self.x_train = x_train.float()
         self.p_true  = None
         self.weights_l= None
 
         if p_true is not None:
-            self.p_true = torch.from_numpy(p_true).float()
+            # Convert to torch tensor if needed
+            if not isinstance(p_true, torch.Tensor):
+                self.p_true = torch.from_numpy(p_true).float()
+            else:
+                self.p_true = p_true.float()
         if weights_l is not None:
-            self.weights_l = torch.from_numpy(weights_l).float()
+            # Convert to torch tensor if needed
+            if not isinstance(weights_l, torch.Tensor):
+                self.weights_l = torch.from_numpy(weights_l).float()
+            else:
+                self.weights_l = weights_l.float()
 
         # Basic attributes
         self.n_classes = self.p_probs.shape[2]

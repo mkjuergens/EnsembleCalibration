@@ -145,8 +145,10 @@ def run_experiment_full(
                         lr=lr,
                         batch_size=batch_size,
                         early_stopping=True,
-                        patience=40,
+                        patience=train_params["patience"],
                         verbose=True,
+                        subepochs_cal=train_params["subepochs_cal"],
+                        subepochs_comb=train_params["subepochs_comb"],
                     )
 
                     # 4) Evaluate on val
