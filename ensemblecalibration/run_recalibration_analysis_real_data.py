@@ -51,6 +51,8 @@ class RealDataExperiment:
         verbose: bool = False,
         early_stopping: bool = True,
         patience: int = 10,
+        subepochs_cal: int = 1,
+        subepochs_comb: int = 1,
     ):
         self.dir_predictions = dir_predictions
         self.dataset_name = dataset_name
@@ -329,6 +331,12 @@ def main():
     parser.add_argument(
         "--patience", type=int, default=10, help="patience for early stopping"
     )
+    parser.add_argument(
+        "--subepochs_cal", type=int, default=1, help="subepochs for calibration model"
+    )
+    parser.add_argument(
+        "--subepochs_comb", type=int, default=1, help="subepochs for comb model"
+    )
 
     args = parser.parse_args()
 
@@ -349,6 +357,10 @@ def main():
         pretrained=args.pretrained,
         pretrained_model=args.pretrained_model,
         verbose=args.verbose,
+        early_stopping=args.early_stopping,
+        patience=args.patience,
+        subepochs_cal=args.subepochs_cal,
+        subepochs_comb=args.subepochs_comb,
     )
     runner.run()
 
