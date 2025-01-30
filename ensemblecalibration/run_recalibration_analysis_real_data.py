@@ -154,6 +154,15 @@ class RealDataExperiment:
 
         # We'll store final results (only tested on test set)
         results = {}  # {(loss_name,train_mode,calibrator) : [metric_dict, ...]}
+        # calculate accuracy and scores on ground truth
+        acc_val = np.mean(np.argmax(predictions_val.mean(axis=1), axis=1) == labels_val)
+        print(f"Accuracy on Validation set: {acc_val}")
+        #caliubration scores
+        metric_d = self.measure_calibration_metrics(
+            torch.from_numpy(predictions_val.mean(axis=1)).float(),
+            torch.from_numpy(labels_val).long(),
+        )
+        print(f"Calibration scores on Validation set: {metric_d}")
 
         # 4) multiple repeats if you want random re-initialization seeds
         for repeat_idx in range(self.n_repeats):
