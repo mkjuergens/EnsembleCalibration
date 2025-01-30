@@ -72,6 +72,8 @@ class RealDataExperiment:
         self.verbose = verbose
         self.early_stopping = early_stopping
         self.patience = patience
+        self.subepochs_cal = subepochs_cal
+        self.subepochs_comb = subepochs_comb
 
         # define losses, train_modes, calibrators
         self.losses = [GeneralizedBrierLoss(), GeneralizedLogLoss()]
@@ -132,7 +134,7 @@ class RealDataExperiment:
         )
 
         # 2) Build MLPDataset for *val*
-        dataset_val = MLPDataset(x_train=instances_val, P=predictions_val, y=labels_val)
+        dataset_1 = MLPDataset(x_train=instances_val, P=predictions_val, y=labels_val)
 
         # 3) Load test data from *test* .npy files
         test_prefix = "test"
@@ -144,7 +146,7 @@ class RealDataExperiment:
             directory=self.dir_predictions,
             file_prefix=test_prefix,
         )
-        dataset_test = MLPDataset(
+        dataset_2 = MLPDataset(
             x_train=instances_test,
             P=predictions_test,
             y=labels_test,
@@ -159,7 +161,8 @@ class RealDataExperiment:
 
             # We do not build separate "val" for calibrator's early-stopping.
             # We'll pass None to dataset_val in train_model if we want no separate split.
-            dataset_train = dataset_val
+            dataset_train = dataset_2
+            dataset_test = dataset_1
             # dataset_val2 = None
 
             for loss_fn in self.losses:
@@ -208,16 +211,18 @@ class RealDataExperiment:
                             verbose=self.verbose,
                             early_stopping=self.early_stopping,
                             patience=self.patience,
+                            subepochs_comb=self.subepochs_comb,
+                            subepochs_cal=self.subepochs_cal
                         )
 
                         # 6) Evaluate on test set
                         p_preds_test_tensor = (
-                            torch.from_numpy(predictions_test).float().to(self.device)
+                            torch.from_numpy(predictions_val).float().to(self.device)
                         )
                         x_test_tensor = (
-                            torch.from_numpy(instances_test).float().to(self.device)
+                            torch.from_numpy(instances_val).float().to(self.device)
                         )
-                        y_test_tensor = torch.from_numpy(labels_test).long()
+                        y_test_tensor = torch.from_numpy(labels_val).long()
 
                         with torch.no_grad():
                             if train_mode in ["joint", "alternating"]:
@@ -237,8 +242,9 @@ class RealDataExperiment:
 
                         # measure accuracy
                         preds_test = torch.argmax(p_cal_test, dim=1).cpu().numpy()
-                        acc_test = np.mean(preds_test == labels_test)
+                        acc_test = np.mean(preds_test == labels_val)
                         metric_d["accuracy"] = float(acc_test)
+                        print(f"Accuracy on Test set: {acc_test}")
 
                         key = (loss_name, train_mode, cal_name)
                         if key not in results:
@@ -300,11 +306,11 @@ def main():
     parser.add_argument(
         "--device", type=str, default="cuda", help="Device for calibration."
     )
-    parser.add_argument("--n_epochs", type=int, default=50)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--n_epochs", type=int, default=100)
+    parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--hidden_dim", type=int, default=128)
-    parser.add_argument("--hidden_layers", type=int, default=1)
+    parser.add_argument("--hidden_layers", type=int, default=3)
     parser.add_argument("--output_dir", type=str, default="./calibration_results")
     parser.add_argument("--n_repeats", type=int, default=1)
     parser.add_argument(
@@ -329,13 +335,13 @@ def main():
         "--early_stopping", type=bool, default=True, help="whether to use early stopping"
     )
     parser.add_argument(
-        "--patience", type=int, default=10, help="patience for early stopping"
+        "--patience", type=int, default=20, help="patience for early stopping"
     )
     parser.add_argument(
-        "--subepochs_cal", type=int, default=1, help="subepochs for calibration model"
+        "--subepochs_cal", type=int, default=5, help="subepochs for calibration model"
     )
     parser.add_argument(
-        "--subepochs_comb", type=int, default=1, help="subepochs for comb model"
+        "--subepochs_comb", type=int, default=5, help="subepochs for comb model"
     )
 
     args = parser.parse_args()
