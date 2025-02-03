@@ -293,11 +293,13 @@ def main():
         default=5,
         help="Number of models in a deep ensemble, or #MC passes in MC-Dropout.",
     )
+    parser.add_argument("--project_name", default="ensemble_training", type=str, help="Name of the wandb project")
     parser.add_argument("--batch_size", type=int, default=128, help="Batch size.")
     parser.add_argument("--epochs", type=int, default=50, help="Training epochs.")
     parser.add_argument(
         "--patience", type=int, default=5, help="Early stopping patience."
     )
+    parser.add_argument("--dropout_p", default=0.5, type=float, help="Dropout probability for the MC Dropout")
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate.")
     parser.add_argument("--device", type=str, default="cuda:0", help="Compute device.")
     parser.add_argument(
@@ -344,6 +346,7 @@ def main():
                 ensemble_type=args.ensemble_type,
                 model_idx=idx + 1,
                 model_dir=args.model_dir,
+                project_name = args.project_name
             )
             best_paths.append(ckpt_path)
 
