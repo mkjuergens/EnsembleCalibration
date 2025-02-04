@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -123,7 +125,7 @@ class CredalSetCalibrator(nn.Module):
         self.n_classes = n_classes
         self.n_ensembles = n_ensembles
 
-    def forward(self, x: torch.Tensor, p_preds: torch.Tensor):
+    def forward(self, x: torch.Tensor, p_preds: Optional[torch.Tensor] = None):
 
         # 1) convex combinations given by the comb_model
         weights_l = self.comb_model(x)

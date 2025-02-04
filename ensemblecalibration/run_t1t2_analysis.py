@@ -7,7 +7,10 @@ import pandas as pd
 import argparse
 import datetime
 
-from ensemblecalibration.config.config_cal_test import create_config
+from ensemblecalibration.config.config_cal_test import (
+    create_config,
+    create_config_proper_losses,
+)
 from ensemblecalibration.data.experiments_cal_test import get_experiment
 from ensemblecalibration.cal_test import (
     npbe_test_ensemble,
@@ -18,26 +21,48 @@ from ensemblecalibration.utils.helpers import save_results, make_serializable
 from ensemblecalibration.utils.plot_functions import plot_error_analysis
 
 
-def _get_config_from_parser(args: dict):
-    config = create_config(
-        exp_name=args.exp_name,
-        cal_test=args.cal_test,
-        optim=args.optim,
-        n_samples=args.n_samples,
-        n_resamples=args.n_resamples,
-        n_classes=args.n_classes,
-        n_members=args.n_members,
-        n_epochs=args.n_epochs,
-        lr=args.lr,
-        batch_size=args.batch_size,
-        patience=args.patience,
-        hidden_layers=args.hidden_layers,
-        hidden_dim=args.hidden_dim,
-        x_dep=args.x_dep,
-        deg=args.deg,
-        x_bound=args.x_bound,
-        device=args.device,
-    )
+def _get_config_from_parser(args: dict, proper_losses: bool = True):
+
+    if proper_losses:
+        config = create_config_proper_losses(
+            exp_name=args.exp_name,
+            cal_test=args.cal_test,
+            optim=args.optim,
+            n_samples=args.n_samples,
+            n_resamples=args.n_resamples,
+            n_classes=args.n_classes,
+            n_members=args.n_members,
+            n_epochs=args.n_epochs,
+            lr=args.lr,
+            batch_size=args.batch_size,
+            patience=args.patience,
+            hidden_layers=args.hidden_layers,
+            hidden_dim=args.hidden_dim,
+            x_dep=args.x_dep,
+            deg=args.deg,
+            x_bound=args.x_bound,
+            device=args.device,
+        )
+    else:
+        config = create_config(
+            exp_name=args.exp_name,
+            cal_test=args.cal_test,
+            optim=args.optim,
+            n_samples=args.n_samples,
+            n_resamples=args.n_resamples,
+            n_classes=args.n_classes,
+            n_members=args.n_members,
+            n_epochs=args.n_epochs,
+            lr=args.lr,
+            batch_size=args.batch_size,
+            patience=args.patience,
+            hidden_layers=args.hidden_layers,
+            hidden_dim=args.hidden_dim,
+            x_dep=args.x_dep,
+            deg=args.deg,
+            x_bound=args.x_bound,
+            device=args.device,
+        )
     return config
 
 
@@ -169,15 +194,17 @@ def save_results(results_list, save_dir, file_name: str, col_names: list):
 
 def main_t1_t2(args):
     cal_test_functions = {
-    'npbe_test_ensemble': npbe_test_ensemble,
-    'npbe_test_ensemble_v2': npbe_test_ensemble_v2,
-    'npbe_test_ensemble_v0': npbe_test_ensemble_v0
-}
+        "npbe_test_ensemble": npbe_test_ensemble,
+        "npbe_test_ensemble_v2": npbe_test_ensemble_v2,
+        "npbe_test_ensemble_v0": npbe_test_ensemble_v0,
+    }
     args.cal_test = cal_test_functions[args.cal_test]
 
     # get parameters from parser
     n_resamples = args.n_resamples
     config = _get_config_from_parser(args)
+    # print keys of config
+    print(f"Config keys: {config.keys()}")
     # select keys args.miscal_stats if list is not None
     if args.miscal_stats:
         # select only the keys that are in the list (as strings)
@@ -252,6 +279,7 @@ def main_t1_t2(args):
         )
 
         # plot results
+        print(f"list of errors: {results_df.columns}")
         fig = plot_error_analysis(
             results_df,
             list_errors=results_df.columns,
@@ -269,7 +297,7 @@ def main_t1_t2(args):
 
         print("Start H1 simulation...")
         # for setting in range(1, args.n_settings + 1):
-        degs_h1 = [0.05, 0.3, 0.95]
+        degs_h1 = [0.02, 0.08, 0.1]
         # set alpha differently for h1
         alpha_h1 = [0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
         results_h1 = []

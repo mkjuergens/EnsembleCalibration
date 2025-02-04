@@ -1,4 +1,5 @@
 import os
+import re
 
 from typing import Optional
 import numpy as np
@@ -326,6 +327,19 @@ def read_and_plot_error_analysis_full(
     return fig_t1, fig_t2
 
 
+from typing import Optional
+
+def safe_literal_eval(val):
+    """Convert a string with np.float64 wrappers to a valid Python literal.
+    
+    If the value is a string containing entries like np.float64(0.0),
+    this function removes the 'np.float64(' and the closing ')', so that
+    literal_eval can parse it.
+    """
+    if isinstance(val, str):
+        fixed = re.sub(r'np\.float64\((.*?)\)', r'\1', val)
+        return literal_eval(fixed)
+    return val
 
 def plot_error_analysis(
     df: pd.DataFrame,
@@ -336,6 +350,7 @@ def plot_error_analysis(
     type_1: bool = True,
     alpha: Optional[np.ndarray] = None,
 ):
+    # Determine alpha values.
     if "alpha" in df:
         alphas = df["alpha"].values
     elif alpha is not None:
@@ -344,18 +359,30 @@ def plot_error_analysis(
         alphas = np.array(
             [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
         )
-    fig, ax = plt.subplots(
-        len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True
-    )
-    # process the dataframe if needed
-    df = process_df(df)
+    
+    # Create subplots.
     if len(list_errors) > 1:
+        fig, ax = plt.subplots(len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True)
+    else:
+        fig, ax = plt.subplots(len(df), figsize=figsize, sharex=True, sharey=True)
+        # Ensure ax is iterable (list) in the single error case.
+        if not hasattr(ax, '__iter__'):
+            ax = [ax]
+        else:
+            ax = list(ax)
+    
+    # Process the dataframe if needed.
+    df = process_df(df)
+    
+    if len(list_errors) > 1:
+        # Multiple error metrics: ax is 2D.
         for i in range(len(list_errors)):
             ax[i, 0].set_ylabel(f"{list_errors[i]}", fontsize=15)
-            # set y lim to (0,1)
             ax[i, 0].set_ylim(0, 1)
             for j in range(len(df)):
-                # plot thick lines, with crosses where the data points are
+                # Get value and process if it is a string.
+                val = df[list_errors[i]].iloc[j]
+                y_values = safe_literal_eval(val) if isinstance(val, str) else val
                 label = (
                     r"$\frac{\#(H_1)}{\#(H_1) + \#(H_0)}$"
                     if type_1
@@ -363,7 +390,7 @@ def plot_error_analysis(
                 )
                 ax[i, j].plot(
                     alphas,
-                    df[list_errors[i]].iloc[j],
+                    y_values,
                     linewidth=3,
                     marker="x",
                     markersize=10,
@@ -372,33 +399,114 @@ def plot_error_analysis(
                 )
                 if type_1:
                     ax[i, j].plot(alphas, alphas, "--", color="black", alpha=0.5)
-                # ax[i, j].spines[["right", "top"]].set_visible(False)
                 ax[i, j].grid()
                 ax[i, j].spines[["right", "top"]].set_visible(False)
 
         for i, col_title in enumerate(list_col_titles):
             ax[0, i].set_title(col_title, fontsize=18)
-        ax[0,0].legend(fontsize=15)
+        ax[0, 0].legend(fontsize=15)
     else:
-        ax[0].set_ylabel(f"{list_errors[0]}")
+        # Single error metric: ax is a 1D array.
+        ax[0].set_ylabel(f"{list_errors[0]}", fontsize=15)
         for j in range(len(df)):
-            ax[j].plot(alphas, literal_eval(df[list_errors[0]].iloc[j]))
+            val = df[list_errors[0]].iloc[j]
+            y_values = safe_literal_eval(val) if isinstance(val, str) else val
+            ax[j].plot(alphas, y_values, linewidth=3, marker="x", markersize=10, color="black")
             if j == 0:
-                # plot lines with crosses (data points)
-                ax[j].plot(alphas, alphas, "--")
-            ax[j].spines[["right", "top"]].set_visible(False)
+                ax[j].plot(alphas, alphas, "--", color="black", alpha=0.5)
             ax[j].grid()
+            ax[j].spines[["right", "top"]].set_visible(False)
+    
     fig.supxlabel(r"$\alpha$", fontsize=20, y=0.03)
-    # fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
-    # plt.tight_layout()
     if title is not None:
         plt.suptitle(title, fontsize=18, y=0.97)
     fig.subplots_adjust(hspace=0.1)
-    # set x and y ticks and labels to be big
-    for i in range(len(list_errors)):
+    
+    # Set tick parameters appropriately.
+    if len(list_errors) > 1:
+        for i in range(len(list_errors)):
+            for j in range(len(df)):
+                ax[i, j].tick_params(axis="both", labelsize=15)
+    else:
         for j in range(len(df)):
-            ax[i, j].tick_params(axis="both", labelsize=15)
+            ax[j].tick_params(axis="both", labelsize=15)
+    
     return fig
+
+
+
+# def plot_error_analysis(
+#     df: pd.DataFrame,
+#     list_errors: list,
+#     figsize: tuple = (8, 12),
+#     title: Optional[str] = None,
+#     list_col_titles: list = ["S_0", "S_1", "S_2", "S_3"],
+#     type_1: bool = True,
+#     alpha: Optional[np.ndarray] = None,
+# ):
+#     if "alpha" in df:
+#         alphas = df["alpha"].values
+#     elif alpha is not None:
+#         alphas = alpha
+#     else:
+#         alphas = np.array(
+#             [0.05, 0.13, 0.21, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.87, 0.95]
+#         )
+#     fig, ax = plt.subplots(
+#         len(list_errors), len(df), figsize=figsize, sharex=True, sharey=True
+#     )
+#     # process the dataframe if needed
+#     df = process_df(df)
+#     if len(list_errors) > 1:
+#         for i in range(len(list_errors)):
+#             ax[i, 0].set_ylabel(f"{list_errors[i]}", fontsize=15)
+#             # set y lim to (0,1)
+#             ax[i, 0].set_ylim(0, 1)
+#             for j in range(len(df)):
+#                 # plot thick lines, with crosses where the data points are
+#                 label = (
+#                     r"$\frac{\#(H_1)}{\#(H_1) + \#(H_0)}$"
+#                     if type_1
+#                     else r"$\frac{\#(H_0)}{\#(H_1) + \#(H_0)}$"
+#                 )
+#                 ax[i, j].plot(
+#                     alphas,
+#                     df[list_errors[i]].iloc[j],
+#                     linewidth=3,
+#                     marker="x",
+#                     markersize=10,
+#                     color="black",
+#                     label=label,
+#                 )
+#                 if type_1:
+#                     ax[i, j].plot(alphas, alphas, "--", color="black", alpha=0.5)
+#                 # ax[i, j].spines[["right", "top"]].set_visible(False)
+#                 ax[i, j].grid()
+#                 ax[i, j].spines[["right", "top"]].set_visible(False)
+
+#         for i, col_title in enumerate(list_col_titles):
+#             ax[0, i].set_title(col_title, fontsize=18)
+#         ax[0,0].legend(fontsize=15)
+#     else:
+#         ax[0].set_ylabel(f"{list_errors[0]}")
+#         for j in range(len(df)):
+#             ax[j].plot(alphas, literal_eval(df[list_errors[0]].iloc[j]))
+#             if j == 0:
+#                 # plot lines with crosses (data points)
+#                 ax[j].plot(alphas, alphas, "--")
+#             ax[j].spines[["right", "top"]].set_visible(False)
+#             ax[j].grid()
+#     fig.supxlabel(r"$\alpha$", fontsize=20, y=0.03)
+#     # fig.supylabel(r"Type $1$/$2$ error", fontsize=15)
+#     # plt.tight_layout()
+#     if title is not None:
+#         plt.suptitle(title, fontsize=18, y=0.97)
+#     fig.subplots_adjust(hspace=0.1)
+#     # set x and y ticks and labels to be big
+#     for i in range(len(list_errors)):
+#         for j in range(len(df)):
+#             ax[i, j].tick_params(axis="both", labelsize=15)
+#     return fig
 
 
 def plot_heatmap_dirichlet_2D(alpha: torch.tensor, scale: int = 100):

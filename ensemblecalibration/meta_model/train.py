@@ -172,6 +172,8 @@ def train_model(
         cal_params = model.cal_model.parameters()
         optimizer_comb = optimizer_class(comb_params, lr=lr)
         optimizer_cal = optimizer_class(cal_params, lr=lr)
+    elif train_mode == "comb":
+        optimizer_comb = optimizer_class(model.comb_model.parameters(), lr=lr)
     else:
         raise ValueError(
             "Invalid train_mode, must be one of 'joint', 'avg_then_calibrate', 'alternating'."
@@ -188,14 +190,13 @@ def train_model(
 
     model.to(device)
 
-
     def train_one_epoch_comb():
         for param in model.cal_model.parameters():
             param.requires_grad = False
         for param in model.comb_model.parameters():
             param.requires_grad = True
 
-        loss = 0.0
+        epoch_loss = 0.0
         model.train()
         for batch in loader_train:
             if len(batch) == 3:
@@ -218,13 +219,12 @@ def train_model(
                 p_bar = outputs
                 weights_l = None
 
-            loss = loss_fn(y=y_batch, p_bar=p_bar) # loss for p_bar
+            loss = loss_fn(y=y_batch, p_bar=p_bar)  # loss for p_bar
             loss.backward()
             optimizer_comb.step()
-            sub_loss += loss.item()
+            epoch_loss += loss.item()
 
-        return sub_loss / len(loader_train)
-
+        return epoch_loss / len(loader_train)
 
     def train_one_epoch_joint():
         model.train()
@@ -319,7 +319,9 @@ def train_model(
             else:
                 p_cal = outputs
 
-            loss = loss_fn(y=y_batch, p_bar=p_cal) # note: loss for p_cal here, not p_bar
+            loss = loss_fn(
+                y=y_batch, p_bar=p_cal
+            )  # note: loss for p_cal here, not p_bar
             loss.backward()
             optimizer_comb.step()
             sub_loss += loss.item()
@@ -461,7 +463,7 @@ def train_model(
                     print(
                         f"Cycle {cycle+1}/{n_epochs}: comb_loss={comb_loss:.4f}, cal_loss={cal_loss:.4f}"
                     )
-    
+
     elif train_mode == "comb":
 
         for epoch in range(n_epochs):
@@ -470,7 +472,9 @@ def train_model(
 
             val_loss = None
             if loader_val is not None:
-                val_loss = evaluate_model_comb(model, loader_val, loss_fn, device=device)
+                val_loss = evaluate_model_comb(
+                    model, loader_val, loss_fn, device=device
+                )
                 val_losses.append(val_loss)
 
                 # Check early stopping
@@ -482,6 +486,13 @@ def train_model(
                             print(f"Stopped early at epoch {epoch+1}")
                         break
 
+            if verbose and (epoch == 0 or (epoch + 1) % 10 == 0):
+                if val_loss is not None:
+                    print(
+                        f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}, val={val_loss:.4f}"
+                    )
+                else:
+                    print(f"Epoch {epoch+1}/{n_epochs}: train={epoch_loss:.4f}")
 
     return model, train_losses, val_losses
 
@@ -512,7 +523,7 @@ def evaluate_model_cal(model, loader, loss_fn, device="cpu"):
                 p_bar = None
                 weights_l = None
 
-            loss_val = loss_fn(y=y_batch, p_bar=p_cal) # bugfix!! loss on p_cal
+            loss_val = loss_fn(y=y_batch, p_bar=p_cal)  # bugfix!! loss on p_cal
             val_loss += loss_val.item()
     return val_loss / len(loader)
 
@@ -1056,80 +1067,92 @@ def get_optim_lambda_mlp(
     patience: int = 15,
     device: str = "cpu",
     verbose: bool = False,
-    stratified: bool = False,
+    early_stopping: bool = True,
 ):
-    """function for finding the weight vector which results in the lowest calibration error,
-    using an MLP model. The model is trained to predict the optimal weight vector for the given
+    """Finds the weight vector yielding the lowest calibration error via an MLP model.
+
+    The model is trained on dataset_train (using calibration loss) and evaluated on dataset_test.
+    The dataset_test can be a full dataset or a Subset (in which case it accesses the parent dataset).
 
     Parameters
     ----------
     dataset_train : torch.utils.data.Dataset
-        dataset which contains instances, as well as probabilistic predictions of ensemble members
-        and labels
+        Dataset containing instances, ensemble predictions, and labels.
     dataset_val : torch.utils.data.Dataset
-        dataset which contains instances, as well as probabilistic predictions of ensemble members
+        Validation dataset containing instances and ensemble predictions.
     dataset_test : torch.utils.data.Dataset
-        dataset which contains instances, as well as probabilistic predictions of ensemble members
+        Test dataset containing instances and ensemble predictions. Can either be a full dataset
+        or a Subset (which has a `dataset` attribute and `indices`).
     model : torch.nn.Module
-        model used for training
-    loss : _type_
-        loss of the form loss(p_probs, weights, y_labels) indicating the calibration error of the
+        The model used to predict the optimal weight vector.
+    loss : CalibrationLoss
+        Loss function of the form loss(p_probs, weights, y_labels) that quantifies the calibration error.
     n_epochs : int, optional
-        number of epochs the model is trained, by default 100
+        Number of training epochs (default is 100).
     lr : float, optional
-        lewarning rate, by default 0.001
+        Learning rate (default is 0.001).
     batch_size : int, optional
-        batch size, by default 128
+        Batch size (default is 128).
     optim : torch.optim.Optimizer, optional
-        optimizer used for training, by default torch.optim.Adam
-    shuffle : bool, optional
-        whether to shuffle the training data, by default True
+        Optimizer class (default is torch.optim.Adam).
     patience : int, optional
-        number of epochs without improvement after which the training is stopped, by default 15
+        Number of epochs without improvement after which training stops (default is 15).
     device : str, optional
-        device on which the calculations are performed, by default "cpu"
+        Device on which computations are performed (default is "cpu").
     verbose : bool, optional
-        whether to print the training loss at every epoch, by default False
-
+        Whether to print the training loss each epoch (default is False).
+    early_stopping : bool, optional
+        Whether to use early stopping (default is True).
 
     Returns
     -------
-    optim_weights
-        resulting optimal weight vector
-    loss_train
-        training loss
-    loss_val
-        validation loss
-    #"""
-    # assert that daataset has x_train attribute
-    assert hasattr(dataset_train, "x_train"), "dataset needs to have x_train attribute"
-
+    optim_weights : torch.Tensor
+        The optimal weight vector as predicted by the model.
+    loss_train : list
+        Training loss history.
+    loss_val : list
+        Validation loss history.
+    """
+    # Train the model and capture the training/validation loss history.
     model, loss_train, loss_val = train_model(
         model,
         dataset_train=dataset_train,
-        loss=loss,
+        loss_fn=loss,
         dataset_val=dataset_val,
+        train_mode="comb",
         device=device,
         n_epochs=n_epochs,
         lr=lr,
         batch_size=batch_size,
-        optim=optim,
+        optimizer_class=optim,
         patience=patience,
         verbose=verbose,
-        stratified=stratified,
+        early_stopping=early_stopping,
     )
-    # use features as input to model instead of probs
-    # new: use test data
-    x_inst = (
-        torch.from_numpy(dataset_test.x_train).float()
-        if isinstance(dataset_test.x_train, np.ndarray)
-        else dataset_test.x_train
-    )
+
+    # Handle dataset_test: if it is a Subset, retrieve the parent dataset and indices;
+    # otherwise, use the dataset directly.
+    if hasattr(dataset_test, "dataset"):
+        # dataset_test is a Subset.
+        x_test = dataset_test.dataset.x_train[dataset_test.indices]
+        p_preds_test = dataset_test.dataset.p_probs[dataset_test.indices]
+    else:
+        # dataset_test is a full dataset.
+        x_test = dataset_test.x_train
+        p_preds_test = dataset_test.p_probs
+
+    # Convert from NumPy arrays to torch tensors if needed.
+    x_test, p_preds_test = [
+        torch.from_numpy(arr).float() if isinstance(arr, np.ndarray) else arr
+        for arr in (x_test, p_preds_test)
+    ]
+
+    # Ensure the tensors are on the correct device and evaluate the model.
     model.eval()
-    # device
     with torch.no_grad():
-        x_inst = x_inst.to(device)
-        optim_weights = model(x_inst).detach().cpu()
+        x_test = x_test.to(device)
+        p_preds_test = p_preds_test.to(device)
+        p_cal, p_bar, optim_weights = model(x_test, p_preds_test)
 
     return optim_weights, loss_train, loss_val
 

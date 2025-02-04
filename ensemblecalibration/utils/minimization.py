@@ -1,11 +1,16 @@
 import numpy as np
 import torch
+from torch import nn
 from scipy.optimize import minimize
-from ensemblecalibration.meta_model import get_optim_lambda_mlp, MLPCalW
+from ensemblecalibration.meta_model import (
+    get_optim_lambda_mlp,
+    MLPCalW,
+    DirichletCalibrator,
+    CredalSetCalibrator,
+)
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.utils.helpers import (
     calculate_pbar,
-    test_train_val_split,
     data_split,
 )
 
@@ -18,11 +23,52 @@ def calculate_min(
     verbose: bool = False,
     val: bool = True,
     test: bool = True,
-    output_p_preds: bool = False,
+    recal: bool = False,
+    calibrator_class: nn.Module = DirichletCalibrator,
 ):
-    """
-    Calculate the optimal convex combination of predictors using a given miscalibration estimate
-    and minimization technique.
+    """calcula
+
+    Parameters
+    ----------
+    x_inst : torch.Tensor
+        _description_
+    p_probs : torch.Tensor
+        _description_
+    y_labels : torch.Tensor
+        _description_
+    params : dict
+        _description_
+    verbose : bool, optional
+        _description_, by default False
+    val : bool, optional
+        _description_, by default True
+    test : bool, optional
+        _description_, by default True
+    output_p_preds : bool, optional
+        _description_, by default False
+    recal : bool, optional
+        _description_, by default False
+    calibrator_class : nn.Module, optional
+        _description_, by default DirichletCalibrator
+
+    Returns
+    -------
+    minstat, x_inst_test l_weights, p_bar, y_labels, p_preds
+        stat: minimal statistic
+        x_inst_test: instances of test set
+        l_weights: optimal weights
+        p_bar: convex combination of predictors on test set
+        y_labels: labels of test set
+        p_preds: probabilistic predictions of the ensemble
+
+        on test set if test is True, else on validation set
+
+    Raises
+    ------
+    NotImplementedError
+        recalibration not implemented yet
+    NotImplementedError
+        only 'mlp', 'COBYLA', and 'SLSQP' are implemented
     """
     device = params.get("device", "cpu")
 
@@ -51,18 +97,25 @@ def calculate_min(
 
     if params["optim"] == "mlp":
         # Create datasets
-        dataset_train = MLPDataset(x_train=data_train[0], P=data_train[2], y=data_train[1])
+        dataset_train = MLPDataset(
+            x_train=data_train[0], P=data_train[2], y=data_train[1]
+        )
         dataset_val = MLPDataset(x_train=data_val[0], P=data_val[2], y=data_val[1])
         dataset_test = MLPDataset(x_train=data_test[0], P=data_test[2], y=data_test[1])
 
-        # Initialize model
-        model = MLPCalW(
+        # combine them
+        model = CredalSetCalibrator(
+            comb_model=MLPCalW,
+            cal_model=calibrator_class,
             in_channels=data_train[0].shape[1],
-            out_channels=data_train[2].shape[1],
+            n_classes=data_train[2].shape[2],
+            n_ensembles=data_train[2].shape[1],
             hidden_dim=params["hidden_dim"],
             hidden_layers=params["hidden_layers"],
-            use_relu=True,
         ).to(device)
+
+        if recal:
+            raise NotImplementedError("Recalibration not implemented yet.")
 
         # Find optimal weights using the MLP model
         l_weights, loss_train, loss_val = get_optim_lambda_mlp(
@@ -79,7 +132,9 @@ def calculate_min(
             verbose=verbose,
         )
     elif params["optim"] in ["COBYLA", "SLSQP"]:
-        l_weights = minimize_const_weights(data_test[2], data_test[1], params, method=params["optim"])
+        l_weights = minimize_const_weights(
+            data_test[2], data_test[1], params, method=params["optim"]
+        )
     else:
         raise NotImplementedError("Only 'mlp', 'COBYLA', and 'SLSQP' are implemented.")
 
@@ -88,11 +143,15 @@ def calculate_min(
 
     # Calculate test statistic
     minstat = params["obj"](p_bar, data_test[1], params)
+    y_test = data_test[1]
+    p_preds_test = data_test[2]
+    x_inst_test = data_test[0]
 
-    if output_p_preds:
-        return minstat, l_weights, p_bar, data_test[1], data_test[2]
-    else:
-        return minstat, l_weights, p_bar, data_test[1]
+    # if output_p_preds:
+    #     return minstat, l_weights, p_bar, data_test[1], data_test[2]
+    # else:
+        
+    return minstat, x_inst_test, l_weights, p_bar, y_test, p_preds_test
 
 
 # def calculate_min(

@@ -175,8 +175,9 @@ wandb/
 results/
 ensemble_results
 ./data/
-output/
+outputs/
 TODO.md
 data/real/data
 model_preds
 checkpoints_models
+*.yml

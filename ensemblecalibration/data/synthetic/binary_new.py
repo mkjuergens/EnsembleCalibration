@@ -52,7 +52,7 @@ class BinaryExperiment:
         # logistic mixture parameters:
         mixture_loc=(-1.0, +1.0),    # location of Gaussians for Y=0, Y=1
         mixture_std=1.0,
-        offset_range : list = [-0.1, 2.0],
+        offset_range : list = [-0.0, 4.0],
         # for GP kernel
         kernel_width=0.05
     ):

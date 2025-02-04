@@ -46,7 +46,7 @@ def npbe_test_ensemble_v2(
     """
 
     # calculate optimal weights
-    _, _, p_bar_test, y_labels_test = calculate_min(
+    _, _, _, p_bar_test, y_labels_test, _ = calculate_min(
         x_inst, p_preds, y_labels, params, verbose=verbose, val=use_val, test=False
     )
 
@@ -218,7 +218,7 @@ def npbe_test_ensemble_v0(
     old version of the bootstrapping test using uniform sampling of the polytope for testing
     """
     # solve minimization problem, return predictions on test data as well as test data
-    _, _, p_bar_test, y_labels_test, p_preds_test = calculate_min(
+    _, _, _, p_bar_test, y_labels_test, p_preds_test = calculate_min(
         x_inst,
         p_preds,
         y_labels,
@@ -226,7 +226,6 @@ def npbe_test_ensemble_v0(
         verbose=verbose,
         val=False, # set val and test to False because we purely see it as an optimization problem
         test=False,
-        output_p_preds=True,
     )
 
     # stats = np.zeros(params["n_resamples"])
