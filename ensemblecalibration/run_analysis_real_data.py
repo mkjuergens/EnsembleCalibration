@@ -110,7 +110,7 @@ class RealDataExperimentCalTest:
 
         n_classes = dataset_train.p_probs.shape[2]
         n_ens = dataset_train.p_probs.shape[1]
-
+        print(f"pretrained: {self.pretrained}")
         def comb_builder(**kwargs):
             return MLPCalWConv(
                 in_channels=dataset_train.x_train.shape[1],
@@ -122,8 +122,9 @@ class RealDataExperimentCalTest:
             )
 
         model = CredalSetCalibrator(
-            comb_builder=comb_builder,
+            comb_model=comb_builder,
             cal_model=DirichletCalibrator,
+            in_channels=dataset_train.x_train.shape[1],
             n_classes=n_classes,
             n_ensembles=n_ens,
             hidden_dim=self.hidden_dim,
@@ -171,13 +172,13 @@ class RealDataExperimentCalTest:
             loss_fn_name = loss_fn.__name__
             results[loss_fn_name] = {}
             # iterate over keys in config_params (cal erros)
-            l_weights_test = self.learn_comb(dataset_2, dataset_1, loss_fn)
+            l_weights_test = self.learn_comb(dataset_2, dataset_1, loss_fn).detach().cpu()
 
             p_bar = calculate_pbar(
-                weights_l=l_weights_test, p_probs=dataset_1.p_probs
+                weights_l=l_weights_test, p_preds=dataset_1.p_probs
             ).detach()
-            y_labels_test = dataset_1.y_labels
-            pred_labels_lambda = torch.argmax(p_bar, dim=1).to(self.device)
+            y_labels_test = dataset_1.y_true
+            pred_labels_lambda = torch.argmax(p_bar, dim=1) #.to(self.device)
             accuracy_lambda = (
                 (pred_labels_lambda == y_labels_test).float().mean().item()
             )
@@ -185,7 +186,7 @@ class RealDataExperimentCalTest:
             results[loss_fn_name]["accuracy_lambda"] = accuracy_lambda
 
             # Compare to mean prediction
-            mean_preds = torch.tensor(dataset_1.p_probs.mean(axis=1)).to(self.device)
+            mean_preds = torch.tensor(dataset_1.p_probs.mean(axis=1)) #.to(self.device)
             pred_labels_mean = torch.argmax(mean_preds, dim=1)
             accuracy_mean = (pred_labels_mean == y_labels_test).float().mean().item()
             print(f"Accuracy with mean prediction: {accuracy_mean}")
