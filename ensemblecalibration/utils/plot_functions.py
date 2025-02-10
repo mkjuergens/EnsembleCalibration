@@ -11,10 +11,12 @@ import seaborn as sns
 import ternary
 from matplotlib.patches import Polygon
 from scipy.spatial import ConvexHull
+import argparse
 
 
 from ensemblecalibration.utils.projections import project_points2D
 from ensemblecalibration.utils.helpers import process_df
+from ensemblecalibration.cal_estimates.utils import create_heatmap_data
 
 
 def plot_ens_comb_cal(
@@ -435,6 +437,115 @@ def plot_error_analysis(
 
 
 
+def plot_heatmaps(
+    data_dicts,
+    scale,
+    ternary_point=None,
+    out_path="heatmap_cal_estimates.png"
+):
+    """
+    Plot multiple heatmaps in a 2x2 or NxN grid, one per measure
+    within data_dicts. Writes to 'out_path'.
+    """
+    measures = list(data_dicts.keys())
+    n_measures = len(measures)
+
+    # We'll produce up to 4 or 6 subplots
+    fig_cols = 2
+    fig_rows = int(np.ceil(n_measures / fig_cols))
+
+    fig, axes = plt.subplots(fig_rows, fig_cols, figsize=(8*fig_cols, 6*fig_rows))
+    axes = axes.ravel() if n_measures>1 else [axes]
+
+    for i, measure in enumerate(measures):
+        ax = axes[i]
+        ax.set_title(f"{measure}", fontsize=14, pad=10)
+
+        # Convert the dictionary data => use ternary.heatmap
+        # Possibly we do log scale? Then we do np.log...
+        # For demonstration, let's skip log transform:
+        measure_data = data_dicts[measure]
+
+        tax = ternary.TernaryAxesSubplot(ax=ax, scale=scale)
+        tax.gridlines(multiple=5, color="black")
+
+        # heatmap wants a dict (i,j)-> val with i+j <= scale
+        # Just pass measure_data directly:
+        tax.heatmap(
+            measure_data,
+            scale=scale,
+            style="hexagonal",
+            cmap="inferno",
+            colorbar=True
+        )
+
+        if ternary_point is not None:
+            # e.g. (0.1,0.1,0.8) * scale
+            # Convert to scaled coords
+            scaled_point = (
+                ternary_point[0]*scale,
+                ternary_point[1]*scale,
+                ternary_point[2]*scale
+            )
+            tax.scatter([scaled_point], marker='o', color='red', s=70, label="p^*")
+
+        tax.set_axis_limits({'b': [0, 1], 'l': [0, 1], 'r': [0, 1]})
+        tax.get_ticks_from_axis_limits(multiple=5)
+        tax.set_custom_ticks(tick_formats="%.2f", offset=0.03, fontsize=10)
+        tax.clear_matplotlib_ticks()
+        tax.get_axes().axis('off')
+
+    # If we put a legend for the point:
+    if ternary_point is not None:
+        axes[0].legend(fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=300)
+    print(f"Saved heatmaps to {out_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate and plot calibration heatmaps over the 2-simplex."
+    )
+    parser.add_argument("--scale", type=int, default=40,
+                        help="Resolution of the simplex grid.")
+    parser.add_argument("--nsamples", type=int, default=2000,
+                        help="Number of random samples for miscalibration estimation.")
+    parser.add_argument("--measures", nargs="+", default=["Brier","L2","SKCE","MMD","KL"],
+                        help="Which calibration measures to compute.")
+    parser.add_argument("--out", type=str, default="heatmap_cal_estimates.png",
+                        help="Output path for the figure.")
+    parser.add_argument("--ptrue", type=float, nargs="+", default=[0.1,0.1,0.8],
+                        help="Ground-truth distribution, e.g. '--ptrue 0.1 0.1 0.8'")
+
+    args = parser.parse_args()
+
+    scale = args.scale
+    n_samples = args.nsamples
+    measures = args.measures
+    out_path = args.out
+    ptrue = np.array(args.ptrue, dtype=float)
+
+    # Compute the data
+    data_dicts = create_heatmap_data(
+        scale=scale,
+        n_samples=n_samples,
+        p_true=ptrue,
+        measures=measures
+    )
+
+    # Plot
+    plot_heatmaps(
+        data_dicts=data_dicts,
+        scale=scale,
+        ternary_point=ptrue,
+        out_path=out_path
+    )
+
+
+
+
 # def plot_error_analysis(
 #     df: pd.DataFrame,
 #     list_errors: list,
@@ -597,3 +708,8 @@ def plot_polytope_2D(points: np.ndarray, title: str, extra_points: np.ndarray = 
 
     # remove outer axes
     tax.clear_matplotlib_ticks()
+
+
+
+if __name__ == "__main__":
+    main()

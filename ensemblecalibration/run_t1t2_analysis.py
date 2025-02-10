@@ -83,6 +83,8 @@ def _simulation_h0(
                     y_labels=data[3],
                     params=dict_tests[test]["params"],
                     verbose=verbose,
+                    use_val = True,
+                    use_test = True
                 )[0],
                 dtype=np.float64,
             )
@@ -125,6 +127,8 @@ def _simulation_h1(
                     y_labels=data[3],
                     params=dict_tests[test]["params"],
                     verbose=verbose,
+                    use_val = True,
+                    use_test = True
                 )[0]
             )
     for test in dict_tests:
@@ -235,6 +239,7 @@ def main_t1_t2(args):
         print("Start H0 simulation...")
         # first no x-dependecy
         print("no x-dependency..")
+        print(f"verbose: {verbose}")
         res = _simulation_h0(
             dict_tests=config,
             n_resamples=n_resamples,
@@ -380,7 +385,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--reg", type=bool, default=False, help="adds extra termn in the loss"
     )
-    parser.add_argument("--hidden_dim", type=int, default=32, help="hidden dimension")
+    parser.add_argument("--hidden_dim", type=int, hiddendefault=16, help="hidden dimension")
     parser.add_argument("--x_dep", type=bool, default=True, help="x_dep")
     parser.add_argument("--deg", type=int, default=2, help="degree")
     parser.add_argument(

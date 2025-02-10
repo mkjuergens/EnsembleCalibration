@@ -15,7 +15,7 @@ own code
 """
 
 
-def get_bandwidth(f, deivice: str = "cpu"):
+def get_bandwidth(f, device: str = "cpu"):
     """
     Select a bandwidth for the kernel based on maximizing the leave-one-out likelihood (LOO MLE).
 
@@ -31,7 +31,7 @@ def get_bandwidth(f, deivice: str = "cpu"):
     max_l = 0
     n = len(f)
     for b in bandwidths:
-        log_kern = get_kernel(f, b, deivice)
+        log_kern = get_kernel(f, b, device)
         log_fhat = torch.logsumexp(log_kern, 1) - torch.log(torch.tensor(n - 1))
         l = torch.sum(log_fhat)
         if l > max_l:
@@ -229,7 +229,7 @@ def beta_kernel(z, zi, bandwidth=0.1):
 
 def dirichlet_kernel(z, bandwidth=0.1):
     # add small value to avoid log of 0
-    z = torch.clamp(z, min=1e-10, max=1.0 - 1e-10)
+    z = torch.clamp(z, min=1e-10, max=1.0)
     alphas = z / bandwidth + 1
     log_beta = torch.sum((torch.lgamma(alphas)), dim=1) - torch.lgamma(
         torch.sum(alphas, dim=1)

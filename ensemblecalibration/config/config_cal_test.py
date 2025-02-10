@@ -73,6 +73,32 @@ def create_config_proper_losses(
     """
 
     config = {
+        "KL":{
+            "experiment": exp_name,
+            "test": cal_test,
+            "params": {
+                "optim": optim,
+                "n_samples": n_samples,
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "obj": kl_kde_obj,
+                "obj_lambda": kl_kde_obj_lambda,
+                "bw": 0.01, # TODO: check this
+                "loss": GeneralizedLogLoss(), # changed
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "x_dep": x_dep,
+                "deg": deg,
+                "device": device,
+                "bounds_p": bounds_p,
+                **kwargs
+            }
+        },
         "LP": {
             "experiment": exp_name,
             "test": cal_test,
@@ -337,7 +363,7 @@ def create_config(
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
                 "bw": 0.001, # TODO: check this
-                "loss": SKCELoss(bw=0.0001, lambda_bce=reg_skce), # changed!!
+                "loss": SKCELoss(bw=0.001, lambda_bce=reg_skce), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,

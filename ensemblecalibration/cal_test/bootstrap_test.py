@@ -14,7 +14,8 @@ def npbe_test_ensemble_v2(
     y_labels: np.ndarray,
     params: dict,
     verbose: bool = True,
-    use_val: bool = False,
+    use_val: bool = True,
+    use_test: bool = True,
 ):
     """new version of the bootstrapping test using uniform sampling of the polytope for testing
     whether there exists a calibrated version in the convex hull.
@@ -47,7 +48,7 @@ def npbe_test_ensemble_v2(
 
     # calculate optimal weights
     _, _, _, p_bar_test, y_labels_test, _ = calculate_min(
-        x_inst, p_preds, y_labels, params, verbose=verbose, val=use_val, test=False
+        x_inst, p_preds, y_labels, params, verbose=verbose, val=use_val, test=use_test
     )
 
     # run bootstrap test
@@ -165,7 +166,7 @@ def npbe_test_vaicenavicius(
     stat = stat.detach().cpu().numpy() if isinstance(stat, torch.Tensor) else stat
 
     # Calculate alpha-quantile of empirical distribution of the test statistic
-    q_alpha = np.quantile(stats_h0.cpu().numpy(), 1 - np.array(alpha))
+    q_alpha = np.quantile(stats_h0.cpu().detach().numpy(), 1 - np.array(alpha))
 
     # Decision: reject test if stat > q_alpha
     decision = (np.abs(stat) > q_alpha).astype(int).tolist()
@@ -213,6 +214,8 @@ def npbe_test_ensemble_v0(
     y_labels: torch.tensor,
     params: dict,
     verbose: bool = False,
+    use_val: bool = True,
+    use_test: bool = True,
 ):
     """
     old version of the bootstrapping test using uniform sampling of the polytope for testing
@@ -224,8 +227,8 @@ def npbe_test_ensemble_v0(
         y_labels,
         params,
         verbose=verbose,
-        val=False, # set val and test to False because we purely see it as an optimization problem
-        test=False,
+        val=use_val, # set val and test to False because we purely see it as an optimization problem
+        test=use_test,
     )
 
     # stats = np.zeros(params["n_resamples"])
