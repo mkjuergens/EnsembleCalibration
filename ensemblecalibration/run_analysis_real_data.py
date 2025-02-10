@@ -192,10 +192,17 @@ class RealDataExperimentCalTest:
             print(f"Accuracy with mean prediction: {accuracy_mean}")
             results[loss_fn_name]["accuracy_mean"] = accuracy_mean
 
+            # use random sub sample of size 1000 for the test
+            idx = np.random.choice(
+                dataset_1.x_train.shape[0], 1000, replace=False
+
+            )
+            p_probs_test = p_bar[idx]
+            y_labels_test = y_labels_test[idx]
             for cal_error in config_params.keys():
                 decision_lambda, p_val_lambda, stat_lambda = self.cal_test(
                     alpha=alpha,
-                    p_probs=p_bar,
+                    p_probs=p_probs_test.cpu().numpy(),
                     y_labels=y_labels_test.cpu().numpy(),
                     params=config_params[cal_error]["params"],
                 )
