@@ -3,7 +3,6 @@ import csv
 import argparse
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 
 from ensemblecalibration.data.dataset import MLPDataset
 from ensemblecalibration.data.real.dataset_utils import load_results_real_data
@@ -26,7 +25,7 @@ from ensemblecalibration.cal_estimates import (
 )
 
 
-class RealDataExperiment:
+class RealDataExperimentRecalibration:
     """
     Trains a comb/cal model on validation data, then evaluates calibration metrics on test data.
     """
@@ -97,10 +96,15 @@ class RealDataExperiment:
         # brier
         brier_val = brier_obj(p_cal, y_tensor)
         # skce
-        skce_val = get_skce_ul(p_cal, y_tensor, bw=self.dict_skce["bw"], take_square=False)
+        skce_val = get_skce_ul(
+            p_cal, y_tensor, bw=self.dict_skce["bw"], take_square=False
+        )
         # ece
         ece_val = get_ece_kde(
-            p_cal, y_tensor, p=self.dict_kde_ece["p"], bw=self.dict_kde_ece["bw"],
+            p_cal,
+            y_tensor,
+            p=self.dict_kde_ece["p"],
+            bw=self.dict_kde_ece["bw"],
         )
         # subset for MMD
         N = p_cal.shape[0]
@@ -157,7 +161,7 @@ class RealDataExperiment:
         # calculate accuracy and scores on ground truth
         acc_val = np.mean(np.argmax(predictions_val.mean(axis=1), axis=1) == labels_val)
         print(f"Accuracy on Validation set: {acc_val}")
-        #caliubration scores
+        # caliubration scores
         metric_d = self.measure_calibration_metrics(
             torch.from_numpy(predictions_val.mean(axis=1)).float(),
             torch.from_numpy(labels_val).long(),
@@ -221,7 +225,7 @@ class RealDataExperiment:
                             early_stopping=self.early_stopping,
                             patience=self.patience,
                             subepochs_comb=self.subepochs_comb,
-                            subepochs_cal=self.subepochs_cal
+                            subepochs_cal=self.subepochs_cal,
                         )
 
                         # 6) Evaluate on test set
@@ -341,7 +345,10 @@ def main():
         "--verbose", type=bool, default=True, help="whether to output training losses"
     )
     parser.add_argument(
-        "--early_stopping", type=bool, default=True, help="whether to use early stopping"
+        "--early_stopping",
+        type=bool,
+        default=True,
+        help="whether to use early stopping",
     )
     parser.add_argument(
         "--patience", type=int, default=20, help="patience for early stopping"
@@ -355,7 +362,7 @@ def main():
 
     args = parser.parse_args()
 
-    runner = RealDataExperiment(
+    runner = RealDataExperimentRecalibration(
         dir_predictions=args.dir_predictions,
         dataset_name=args.dataset_name,
         model_type=args.model_type,
