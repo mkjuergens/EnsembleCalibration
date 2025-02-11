@@ -137,7 +137,9 @@ def calculate_min(
         )
     else:
         raise NotImplementedError("Only 'mlp', 'COBYLA', and 'SLSQP' are implemented.")
-
+    # check if l_weights is a tensor, if yes, detach and convert to cpu
+    if isinstance(l_weights, torch.Tensor):
+        l_weights = l_weights.detach().cpu().numpy()
     # Compute the convex combination
     p_bar = calculate_pbar(l_weights, data_test[2], reshape=False, n_dims=n_dims)
 
