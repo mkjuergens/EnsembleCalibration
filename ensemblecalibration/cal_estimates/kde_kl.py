@@ -43,7 +43,11 @@ def kl_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False)
     return kl_kde
 
 def get_kl_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, device: str = "cpu"):
-
+    # print("Does p_bar require grad?", p_bar.requires_grad)
+    # check if p_bar contains nans:
+    print(p_bar)
+    if _isnan(p_bar):
+        raise ValueError("p_bar contains nans")
     kl_kde = get_bregman_ce(negative_entropy, p_bar, y, bandwidth=bw, device=device)
     return kl_kde
 
@@ -69,10 +73,9 @@ def get_bregman_ce(convex_fcn, gx, y, bandwidth, device="cpu"):
     """
     check_input(gx, bandwidth=bandwidth)
     gx = _convert_to_device_and_dtype(gx, device)
-    gx.detach()
+    #gx = gx.clone().detach().requires_grad_()
     if not gx.requires_grad:
         gx.requires_grad = True
-
     ratio = _get_ratio(gx, y, bandwidth, device)
     #check if ratio is nan
     if _isnan(ratio):
@@ -86,6 +89,11 @@ def get_bregman_ce(convex_fcn, gx, y, bandwidth, device="cpu"):
     # check if f_gx is nan
     if _isnan(f_gx):
         raise ValueError("f_gx contains nans")
+    # check if f_gx, gx requires grad
+    if not gx.requires_grad:
+        raise ValueError("gx does not require grad")
+    if not f_gx.requires_grad:
+        raise ValueError("f_gx does not require grad")
     grad_f_gx = torch.autograd.grad(
         f_gx, gx, grad_outputs=torch.ones_like(f_gx), retain_graph=True
     )[0]
@@ -191,8 +199,11 @@ def _convert_to_device_and_dtype(x, device):
 
 def negative_entropy(x):
     # ensure that x is not zero
-    x = torch.clamp(x, min=1e-17)
+    x = torch.clamp(x, min=1e-10)
     neg_entropy = torch.sum(x * torch.log(x), dim=1)
-    neg_entropy[torch.isnan(neg_entropy)] = torch.tensor(0)
+    neg_entropy = torch.where(torch.isnan(neg_entropy),
+                          torch.zeros_like(neg_entropy),
+                          neg_entropy)
+
 
     return neg_entropy

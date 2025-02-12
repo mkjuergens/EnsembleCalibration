@@ -73,33 +73,7 @@ def create_config_proper_losses(
     """
 
     config = {
-        "KL":{
-            "experiment": exp_name,
-            "test": cal_test,
-            "params": {
-                "optim": optim,
-                "n_samples": n_samples,
-                "n_resamples": n_resamples,
-                "n_classes": n_classes,
-                "n_members": n_members,
-                "obj": kl_kde_obj,
-                "obj_lambda": kl_kde_obj_lambda,
-                "bw": 0.01, # TODO: check this
-                "loss": GeneralizedLogLoss(), # changed
-                "n_epochs": n_epochs,
-                "lr": lr,
-                "batch_size": batch_size,
-                "patience": patience,
-                "hidden_layers": hidden_layers,
-                "hidden_dim": hidden_dim,
-                "x_dep": x_dep,
-                "deg": deg,
-                "device": device,
-                "bounds_p": bounds_p,
-                **kwargs
-            }
-        },
-        "LP": {
+         "LP": {
             "experiment": exp_name,
             "test": cal_test,
             "params": {
@@ -111,7 +85,7 @@ def create_config_proper_losses(
                 "obj": ece_kde_obj,
                 "obj_lambda": ece_kde_obj_lambda,
                 "bw": 0.01, # TODO: check this
-                "loss": GeneralizedBrierLoss(), # changed!!
+                "loss": GeneralizedBrierLoss(cal_loss="lp", cal_weight=0.5, bw=0.01, p=2), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -126,6 +100,32 @@ def create_config_proper_losses(
                 **kwargs
         }
         },
+        "KL":{
+            "experiment": exp_name,
+            "test": cal_test,
+            "params": {
+                "optim": optim,
+                "n_samples": n_samples,
+                "n_resamples": n_resamples,
+                "n_classes": n_classes,
+                "n_members": n_members,
+                "obj": kl_kde_obj,
+                "obj_lambda": kl_kde_obj_lambda,
+                "bw": 0.01, # TODO: check this
+                "loss": GeneralizedLogLoss(cal_loss="kl", cal_weight=0.0, bw=0.1), # changed
+                "n_epochs": n_epochs,
+                "lr": lr,
+                "batch_size": batch_size,
+                "patience": patience,
+                "hidden_layers": hidden_layers,
+                "hidden_dim": hidden_dim,
+                "x_dep": x_dep,
+                "deg": deg,
+                "device": device,
+                "bounds_p": bounds_p,
+                **kwargs
+            }
+        },
         "MMD": {
             "experiment": exp_name,
             "test": cal_test,
@@ -138,7 +138,7 @@ def create_config_proper_losses(
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
                 "bw": 0.01, # TODO: check this
-                "loss": GeneralizedBrierLoss(), # changed!!
+                "loss": GeneralizedBrierLoss(cal_loss="mmd", bw=0.01, cal_weight=0.5), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -164,7 +164,7 @@ def create_config_proper_losses(
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
                 "bw": 0.0001, # TODO: check this
-                "loss": GeneralizedBrierLoss(), # changed!!
+                "loss": GeneralizedBrierLoss(cal_loss="skce", bw=0.001, cal_weight=5.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,

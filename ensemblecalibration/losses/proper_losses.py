@@ -2,13 +2,13 @@ import torch
 
 from torch import nn
 from ensemblecalibration.utils.helpers import calculate_pbar
-
+from .cal_losses import *
 
 
 def create_loss_fn(loss_name: str, calibrator=None, epsilon=1e-8) -> nn.Module:
     """
     Returns a loss function instance given the name.
-    You can also pass an optional calibrator if needed, 
+    You can also pass an optional calibrator if needed,
     but typically the calibrator is separate from the loss.
     """
     loss_name = loss_name.lower()
@@ -20,6 +20,22 @@ def create_loss_fn(loss_name: str, calibrator=None, epsilon=1e-8) -> nn.Module:
     else:
         raise ValueError(f"Unknown loss name: {loss_name}")
 
+
+def create_cal_loss_fn(loss_fn: str, **kwargs) -> nn.Module:
+
+    if loss_fn == "lp":
+        return LpLoss(**kwargs)
+    elif loss_fn == "kl":
+        return KLLoss(**kwargs)
+    elif loss_fn == "skce":
+        return SKCELoss(**kwargs)
+    elif loss_fn == "mmd":
+        return MMDLoss(**kwargs)
+
+    else:
+        return None
+
+
 class BaseCombinerLoss(nn.Module):
     """
     Abstract base class that handles:
@@ -28,18 +44,32 @@ class BaseCombinerLoss(nn.Module):
       3) Computing the final loss (defined in compute_loss).
     """
 
-    def __init__(self, calibrator: nn.Module = None):
+    def __init__(
+        self,
+        cal_loss: str = None,
+        calibrator: nn.Module = None,
+        cal_weight: float = 0.0,
+        **kwargs,
+    ):
         """
         Initializes the base combiner loss.
 
         Parameters
         ----------
+        cal_loss : str
+            Name of the calibration loss function to use.
         calibrator : nn.Module, optional
             If provided, this module is applied to p_bar (e.g. a small neural net)
             to produce calibrated probabilities, by default None.
+        cal_weight : float, optional
+            Weight to apply to the calibration loss, by default 0.0
+        **kwargs : dict
+            Additional arguments to pass to the calibration loss function.
         """
         super().__init__()
         self.calibrator = calibrator
+        self.cal_loss = create_cal_loss_fn(cal_loss, **kwargs)
+        self.cal_weight = cal_weight
 
     def forward(
         self,
@@ -93,7 +123,11 @@ class BaseCombinerLoss(nn.Module):
             p_bar = self.calibrator(p_bar)  # shape (batch_size, n_classes)
 
         # 3) Compute the final loss (child class implements compute_loss)
-        return self.compute_loss(y, p_bar)
+        proper_loss = self.compute_loss(y, p_bar)
+        if self.cal_weight > 0:
+            cal_loss = self.cal_loss(p_preds=p_preds, weights_l=weights_l, y=y)
+            return proper_loss + self.cal_weight * cal_loss
+        return proper_loss
 
     def compute_loss(self, y: torch.Tensor, p_bar: torch.Tensor) -> torch.Tensor:
         """
@@ -125,7 +159,14 @@ class GeneralizedBrierLoss(BaseCombinerLoss):
     Inherits from the base combiner, so it reuses the 'forward' logic
     for combining p_preds, applying calibrator, etc.
     """
-    def __init__(self, calibrator: nn.Module = None):
+
+    def __init__(
+        self,
+        cal_loss: str = None,
+        calibrator: nn.Module = None,
+        cal_weight: float = 0.0,
+        **kwargs,
+    ):
         """
         Initializes the generalized Brier loss module.
 
@@ -134,9 +175,10 @@ class GeneralizedBrierLoss(BaseCombinerLoss):
         calibrator : nn.Module, optional
             Module for calibrating probabilities, by default None
         """
-        super().__init__(calibrator=calibrator)
+        super().__init__(
+            cal_loss=cal_loss, calibrator=calibrator, cal_weight=cal_weight, **kwargs
+        )
         self.__name__ = "brier loss"
-
 
     def compute_loss(self, y: torch.Tensor, p_bar: torch.Tensor) -> torch.Tensor:
         """
@@ -174,7 +216,14 @@ class GeneralizedLogLoss(BaseCombinerLoss):
     Child class for computing the multi-class negative log-likelihood (cross-entropy).
     """
 
-    def __init__(self, calibrator: nn.Module = None, epsilon: float = 1e-8):
+    def __init__(
+        self,
+        cal_loss: str = None,
+        calibrator: nn.Module = None,
+        cal_weight: float = 0.0,
+        epsilon: float = 1e-8,
+        **kwargs,
+    ):
         """
         Initializes the generalized log-loss module.
 
@@ -185,7 +234,7 @@ class GeneralizedLogLoss(BaseCombinerLoss):
         epsilon : float, optional
             Small constant to avoid log(0), by default 1e-8
         """
-        super().__init__(calibrator=calibrator)
+        super().__init__(cal_loss=cal_loss, calibrator=calibrator, cal_weight=cal_weight, **kwargs)
         self.epsilon = epsilon
         self.__name__ = "log loss"
 

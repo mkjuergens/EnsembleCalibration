@@ -11,6 +11,7 @@ from ensemblecalibration.utils.helpers import calculate_pbar
 from ensemblecalibration.cal_estimates.kde_ece import get_ece_kde
 from ensemblecalibration.cal_estimates.skce import skce_ul_tensor, skce_uq_tensor
 from ensemblecalibration.cal_estimates.mmd_kce import mmd_kce, rbf_kernel
+from ensemblecalibration.cal_estimates.kde_kl import get_kl_kde
 
 
 class CalibrationLoss(nn.Module):
@@ -183,6 +184,40 @@ class LpLoss(CalibrationLoss):
 
         else:
             return loss_ece
+        
+
+class KLLoss(CalibrationLoss):
+
+    def __init__(
+            self, bw: float, lambda_bce: float = 0.0
+    ):
+        super().__init__()
+        self.bw = bw
+        self.lambda_bce = lambda_bce
+
+    def forward(
+            self,
+            p_preds: torch.Tensor,
+            weights_l: torch.Tensor,
+            y: torch.Tensor,
+            debug: bool = False,
+    ):
+        
+        device = weights_l.device
+        p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
+        bw = self.bw
+        loss_kl = get_kl_kde(p_bar, y, bw, device=device)
+
+        if self.lambda_bce > 0:
+            reg_loss = self.compute_reg_loss(p_bar, y)
+            loss = loss_kl + self.lambda_bce * reg_loss
+            if debug:
+                return loss, loss_kl, reg_loss
+            else:
+                return loss
+        else:
+            return loss_kl
+
 
 
 class MMDLoss(CalibrationLoss):
@@ -258,79 +293,79 @@ class BrierLoss(nn.Module):
         return brier
 
 
-class GeneralizedBrierLoss(nn.Module):
-    """
-    A flexible Brier loss class that can handle:
-      1) Directly taking the "final" probabilities p_bar and labels y;
-      2) Or taking ensemble preds p_preds & mixture weights, computing p_bar internally.
+# class GeneralizedBrierLoss(nn.Module):
+#     """
+#     A flexible Brier loss class that can handle:
+#       1) Directly taking the "final" probabilities p_bar and labels y;
+#       2) Or taking ensemble preds p_preds & mixture weights, computing p_bar internally.
 
-    Optionally applies an internal calibrator if provided.
-    """
+#     Optionally applies an internal calibrator if provided.
+#     """
 
-    def __init__(self, calibrator: nn.Module = None):
-        """
-        Parameters
-        ----------
-        calibrator : nn.Module, optional
-            If not None, a module (e.g. small neural net)
-                           that takes p_bar and outputs calibrated probabilities.
-        """
-        super().__init__()
-        self.calibrator = calibrator
+#     def __init__(self, calibrator: nn.Module = None):
+#         """
+#         Parameters
+#         ----------
+#         calibrator : nn.Module, optional
+#             If not None, a module (e.g. small neural net)
+#                            that takes p_bar and outputs calibrated probabilities.
+#         """
+#         super().__init__()
+#         self.calibrator = calibrator
 
-    def forward(
-        self,
-        y: torch.Tensor,
-        p_bar: torch.Tensor = None,
-        p_preds: torch.Tensor = None,
-        weights_l: torch.Tensor = None,
-    ) -> torch.Tensor:
-        """computes the Brier score for the two scenarios
-        1) directly taking p_bar and y,
-        2) taking p_preds and weights_l and computing p_bar internally, optionally calibrating it.
+#     def forward(
+#         self,
+#         y: torch.Tensor,
+#         p_bar: torch.Tensor = None,
+#         p_preds: torch.Tensor = None,
+#         weights_l: torch.Tensor = None,
+#     ) -> torch.Tensor:
+#         """computes the Brier score for the two scenarios
+#         1) directly taking p_bar and y,
+#         2) taking p_preds and weights_l and computing p_bar internally, optionally calibrating it.
 
-        Usage scenarios:
-            - if you already have p_bar, y, use: loss(y, p_bar)
-            - if you have p_preds, weights_l, and want to compute p_bar internally, use: loss(y, p_preds, weights
+#         Usage scenarios:
+#             - if you already have p_bar, y, use: loss(y, p_bar)
+#             - if you have p_preds, weights_l, and want to compute p_bar internally, use: loss(y, p_preds, weights
 
-        Parameters
-        ----------
-        y : torch.Tensor
-            tensor of shape (n_samples,) containing labels
-        p_bar : torch.Tensor, optional
-            tensor of predictions of shape (n_samples, n_classes), by default None
-        p_preds : torch.Tensor, optional
-            tensor of (ensemble) predictions of shape (n_smaples, n_classes, n_ens),
-              by default None
-        weights_l : torch.Tensor, optional
-            tensor of weights of shape (n_smaples, n_ens), by default None
+#         Parameters
+#         ----------
+#         y : torch.Tensor
+#             tensor of shape (n_samples,) containing labels
+#         p_bar : torch.Tensor, optional
+#             tensor of predictions of shape (n_samples, n_classes), by default None
+#         p_preds : torch.Tensor, optional
+#             tensor of (ensemble) predictions of shape (n_smaples, n_classes, n_ens),
+#               by default None
+#         weights_l : torch.Tensor, optional
+#             tensor of weights of shape (n_smaples, n_ens), by default None
 
-        Returns
-        -------
-        torch.Tensor
-            Brier score
-        """
-        # 1) If p_bar is not given, compute from ensemble preds
-        if p_bar is None:
-            if p_preds is None or weights_l is None:
-                raise ValueError("Must provide either p_bar, or (p_preds & weights_l).")
-            p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
+#         Returns
+#         -------
+#         torch.Tensor
+#             Brier score
+#         """
+#         # 1) If p_bar is not given, compute from ensemble preds
+#         if p_bar is None:
+#             if p_preds is None or weights_l is None:
+#                 raise ValueError("Must provide either p_bar, or (p_preds & weights_l).")
+#             p_bar = calculate_pbar(weights_l=weights_l, p_preds=p_preds, reshape=False)
 
-        # 2) If we have a calibrator, apply it
-        if self.calibrator is not None:
-            # calibrator should output shape (batch_size, C)
-            p_bar = self.calibrator(p_bar)
+#         # 2) If we have a calibrator, apply it
+#         if self.calibrator is not None:
+#             # calibrator should output shape (batch_size, C)
+#             p_bar = self.calibrator(p_bar)
 
-        # 3) Compute the multi-class Brier score
-        # one-hot encode labels
-        num_classes = p_bar.shape[1]
-        y_onehot = torch.eye(num_classes, device=p_bar.device)[y, :]
-        # sum of squared differences
-        diff_sq = (p_bar - y_onehot) ** 2
-        per_sample_sum = diff_sq.sum(dim=1)  # sum over classes
-        brier = per_sample_sum.mean(dim=0)  # average over batch
+#         # 3) Compute the multi-class Brier score
+#         # one-hot encode labels
+#         num_classes = p_bar.shape[1]
+#         y_onehot = torch.eye(num_classes, device=p_bar.device)[y, :]
+#         # sum of squared differences
+#         diff_sq = (p_bar - y_onehot) ** 2
+#         per_sample_sum = diff_sq.sum(dim=1)  # sum over classes
+#         brier = per_sample_sum.mean(dim=0)  # average over batch
 
-        return brier
+#         return brier
 
 
 if __name__ == "__main__":

@@ -302,7 +302,7 @@ def main_t1_t2(args):
 
         print("Start H1 simulation...")
         # for setting in range(1, args.n_settings + 1):
-        degs_h1 = [0.02, 0.08, 0.1]
+        degs_h1 = [0.02, 0.1, 0.15]
         # set alpha differently for h1
         alpha_h1 = [0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
         results_h1 = []
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--reg", type=bool, default=False, help="adds extra termn in the loss"
     )
-    parser.add_argument("--hidden_dim", type=int, hiddendefault=16, help="hidden dimension")
+    parser.add_argument("--hidden_dim", type=int, default=16, help="hidden dimension")
     parser.add_argument("--x_dep", type=bool, default=True, help="x_dep")
     parser.add_argument("--deg", type=int, default=2, help="degree")
     parser.add_argument(

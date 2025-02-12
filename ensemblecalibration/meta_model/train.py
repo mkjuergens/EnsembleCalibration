@@ -219,7 +219,9 @@ def train_model(
                 p_bar = outputs
                 weights_l = None
 
-            loss = loss_fn(y=y_batch, p_bar=p_bar)  # loss for p_bar
+            loss = loss_fn(
+                y=y_batch, p_bar=p_bar, weights_l=weights_l, p_preds=p_preds_batch
+            )  # loss for p_bar
             loss.backward()
             optimizer_comb.step()
             epoch_loss += loss.item()
@@ -531,28 +533,29 @@ def evaluate_model_cal(model, loader, loss_fn, device="cpu"):
 def evaluate_model_comb(model, loader, loss_fn, device: str = "cpu"):
     model.eval()
     val_loss = 0.0
-    with torch.no_grad():
-        for batch in loader:
-            if len(batch) == 3:
-                p_preds_batch, y_batch, x_batch = batch
-            else:
-                p_preds_batch, y_batch = batch
-                x_batch = None
+    # with torch.no_grad():
+    for batch in loader:
+        if len(batch) == 3:
+            p_preds_batch, y_batch, x_batch = batch
+        else:
+            p_preds_batch, y_batch = batch
+            x_batch = None
 
-            p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
-            y_batch = y_batch.to(device)
-            x_batch = x_batch.to(device)
+        p_preds_batch = p_preds_batch.to(device, dtype=torch.float32)
+        y_batch = y_batch.to(device)
+        x_batch = x_batch.to(device)
 
-            outputs = model(x_batch, p_preds_batch)
-            if isinstance(outputs, tuple) and len(outputs) == 3:
-                p_cal, p_bar, weights_l = outputs
-            else:
-                p_cal = None
-                p_bar = outputs
-                weights_l = None
-
-            loss_val = loss_fn(y=y_batch, p_bar=p_bar)
-            val_loss += loss_val.item()
+        outputs = model(x_batch, p_preds_batch)
+        if isinstance(outputs, tuple) and len(outputs) == 3:
+            p_cal, p_bar, weights_l = outputs
+        else:
+            p_cal = None
+            p_bar = outputs
+            weights_l = None
+        loss_val = loss_fn(
+            y=y_batch, p_bar=p_bar, weights_l=weights_l, p_preds=p_preds_batch
+        )
+        val_loss += loss_val.item()
 
     return val_loss / len(loader)
 
