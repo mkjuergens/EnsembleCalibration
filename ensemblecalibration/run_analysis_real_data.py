@@ -166,6 +166,9 @@ class RealDataExperimentCalTest:
             hidden_dim=self.hidden_dim,
             device=self.device,
         )
+        cal_errors = ["LP", "KL"]
+        # take only LP and KL rom config_params since the others are too computationally expensive
+        config_params = {k: v for k, v in config_params.items() if k in cal_errors}
 
         results = {}
 
