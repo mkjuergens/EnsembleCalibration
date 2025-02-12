@@ -46,6 +46,7 @@ class RealDataExperimentCalTest:
         early_stopping: bool = True,
         patience: int = 10,
         cal_test: callable = npbe_test_vaicenavicius,
+        prefix: str = "results"
     ):
         self.dir_predictions = dir_predictions
         self.dataset_name = dataset_name
@@ -66,6 +67,7 @@ class RealDataExperimentCalTest:
         self.early_stopping = early_stopping
         self.patience = patience
         self.cal_test = cal_test
+        self.prefix = prefix
 
         # define losses, train_modes, calibrators
         self.losses = [GeneralizedBrierLoss(), GeneralizedLogLoss()]
@@ -199,6 +201,7 @@ class RealDataExperimentCalTest:
             )
             p_probs_test = p_bar[idx]
             y_labels_test = y_labels_test[idx]
+            mean_preds_test = mean_preds[idx]
             for cal_error in config_params.keys():
                 decision_lambda, p_val_lambda, stat_lambda = self.cal_test(
                     alpha=alpha,
@@ -217,7 +220,7 @@ class RealDataExperimentCalTest:
 
                 decision_mean, p_val_mean, stat_mean = self.cal_test(
                     alpha=alpha,
-                    p_probs=mean_preds.cpu().numpy(),
+                    p_probs=mean_preds_test.cpu().numpy(),
                     y_labels=y_labels_test.cpu().numpy(),
                     params=config_params[cal_error]["params"],
                 )
@@ -238,7 +241,7 @@ class RealDataExperimentCalTest:
             rows.append(flat_metrics)
 
         df_results = pd.DataFrame(rows)
-        csv_file = f"results_{alpha}_{self.dataset_name}_{self.model_type}_{self.ensemble_type}_{self.ensemble_size}.csv"
+        csv_file = f"{self.prefix}_{alpha}_{self.dataset_name}_{self.model_type}_{self.ensemble_type}_{self.ensemble_size}.csv"
         csv_path = os.path.join(self.output_dir, csv_file)
         df_results.to_csv(csv_path, index=False)
         print(f"Results saved to {csv_path}")
@@ -307,6 +310,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--patience", type=int, default=20, help="patience for early stopping"
     )
+    parser.add_argument("--prefix", type=str, default="results")
 
     args = parser.parse_args()
     experiment = RealDataExperimentCalTest(
@@ -329,6 +333,7 @@ if __name__ == "__main__":
         early_stopping=args.early_stopping,
         patience=args.patience,
         cal_test=npbe_test_vaicenavicius,
+        prefix=args.prefix
     )
     experiment.run(alpha=args.alpha)
 

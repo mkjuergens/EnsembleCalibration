@@ -333,6 +333,7 @@ def main():
                 model_type=args.model_type,
                 ensemble_type="deep_ensemble",
                 device=args.device,
+                dropout_prob=args.dropout_p
             )
             ckpt_path = train_single_model(
                 model=single_model,
@@ -377,6 +378,8 @@ def main():
         # 4) Save results
         os.makedirs(args.save_dir, exist_ok=True)
 
+        if args.ensemble_type == "mc_dropout":
+            args.ensemble_type = f"mc_dropout_{args.dropout_p}"
         # validation set
         np.save(
             os.path.join(
@@ -435,6 +438,7 @@ def main():
             model_type=args.model_type,
             ensemble_type="mc_dropout",
             device=args.device,
+            dropout_prob=args.dropout_p
         )
         ckpt_path = train_single_model(
             model=mc_model,
@@ -448,6 +452,7 @@ def main():
             ensemble_type="mc_dropout",
             model_idx=1,
             model_dir=args.model_dir,
+            project_name = args.project_name
         )
         # Load best model
         mc_model.load_state_dict(torch.load(ckpt_path, map_location=args.device))
