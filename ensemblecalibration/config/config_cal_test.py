@@ -138,7 +138,7 @@ def create_config_proper_losses(
                 "obj": mmd_kce_obj,
                 "obj_lambda": mmd_kce_obj_lambda,
                 "bw": 0.01, # TODO: check this
-                "loss": GeneralizedBrierLoss(cal_loss="mmd", bw=0.01, cal_weight=0.5), # changed!!
+                "loss": GeneralizedBrierLoss(cal_loss="mmd", bw=0.01, cal_weight=0.1), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -164,7 +164,7 @@ def create_config_proper_losses(
                 "obj": skce_obj,
                 "obj_lambda": skce_obj_lambda,
                 "bw": 0.0001, # TODO: check this
-                "loss": GeneralizedBrierLoss(cal_loss="skce", bw=0.001, cal_weight=5.0), # changed!!
+                "loss": GeneralizedBrierLoss(cal_loss="skce", bw=0.001, cal_weight=1.0), # changed!!
                 "n_epochs": n_epochs,
                 "lr": lr,
                 "batch_size": batch_size,
