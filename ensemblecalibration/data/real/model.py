@@ -86,13 +86,14 @@ def get_model(
     num_classes,
     model_type: str = "resnet",
     device="cuda",
-    dropout_prob=0.5,
-    ensemble_type="deep_ensemble",
+    dropout_prob: float = 0.5,
+    ensemble_type: str = "deep_ensemble",
+    pretrained: bool = True,
 ):
     if model_type == "resnet":
-        base_model = models.resnet18(pretrained=True)
+        base_model = models.resnet18(pretrained=pretrained)
     elif model_type == "vgg":
-        base_model = models.vgg16(pretrained=True)
+        base_model = models.vgg16(pretrained=pretrained)
     else:
         raise NotImplementedError("Only resnet and vgg are implemented")
 

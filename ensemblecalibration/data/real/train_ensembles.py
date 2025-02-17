@@ -1,4 +1,5 @@
 import os
+import random
 import argparse
 import torch
 import torch.nn as nn
@@ -13,13 +14,24 @@ from ensemblecalibration.data.real.dataset_utils import load_dataset
 from ensemblecalibration.data.real.model import get_model
 
 
+def set_random_seed(seed_value: int):
+    """
+    Sets the random seed for Python, NumPy, PyTorch (CPU/CUDA), ensuring reproducibility.
+    """
+    random.seed(seed_value)
+    np.random.seed(seed_value)
+    torch.manual_seed(seed_value)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed_value)
+
+
 def train_single_model(
     model: nn.Module,
     trainloader: DataLoader,
     valloader: DataLoader,
     device="cuda",
     epochs=50,
-    patience=5,
+    patience=5, 
     lr=0.01,
     weight_decay=1e-4,
     dataset_name="",
@@ -60,7 +72,7 @@ def train_single_model(
         model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
     )
     scheduler = ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.1, patience=2, verbose=True
+        optimizer, mode="min", factor=0.1, patience=5, verbose=True
     )
 
     best_loss = float("inf")
@@ -281,6 +293,11 @@ def main():
         help="Model architecture.",
     )
     parser.add_argument(
+        "--pretrained",
+        type=bool,
+        default=False
+    )
+    parser.add_argument(
         "--ensemble_type",
         type=str,
         default="deep_ensemble",
@@ -293,13 +310,29 @@ def main():
         default=5,
         help="Number of models in a deep ensemble, or #MC passes in MC-Dropout.",
     )
-    parser.add_argument("--project_name", default="ensemble_training", type=str, help="Name of the wandb project")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Base random seed for repeatability. Different for each ensemble model.",
+    )
+    parser.add_argument(
+        "--project_name",
+        default="ensemble_training",
+        type=str,
+        help="Name of the wandb project",
+    )
     parser.add_argument("--batch_size", type=int, default=128, help="Batch size.")
     parser.add_argument("--epochs", type=int, default=50, help="Training epochs.")
     parser.add_argument(
-        "--patience", type=int, default=5, help="Early stopping patience."
+        "--patience", type=int, default=25, help="Early stopping patience."
     )
-    parser.add_argument("--dropout_p", default=0.5, type=float, help="Dropout probability for the MC Dropout")
+    parser.add_argument(
+        "--dropout_p",
+        default=0.5,
+        type=float,
+        help="Dropout probability for the MC Dropout",
+    )
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate.")
     parser.add_argument("--device", type=str, default="cuda:0", help="Compute device.")
     parser.add_argument(
@@ -328,12 +361,14 @@ def main():
             print(
                 f"\nTraining model {idx+1}/{args.ensemble_size} for {args.ensemble_type} ..."
             )
+            set_random_seed(args.seed + idx)
             single_model = get_model(
                 num_classes=num_classes,
                 model_type=args.model_type,
                 ensemble_type="deep_ensemble",
                 device=args.device,
-                dropout_prob=args.dropout_p
+                dropout_prob=args.dropout_p,
+                pretrained=args.pretrained
             )
             ckpt_path = train_single_model(
                 model=single_model,
@@ -347,7 +382,7 @@ def main():
                 ensemble_type=args.ensemble_type,
                 model_idx=idx + 1,
                 model_dir=args.model_dir,
-                project_name = args.project_name
+                project_name=args.project_name,
             )
             best_paths.append(ckpt_path)
 
@@ -378,8 +413,6 @@ def main():
         # 4) Save results
         os.makedirs(args.save_dir, exist_ok=True)
 
-        if args.ensemble_type == "mc_dropout":
-            args.ensemble_type = f"mc_dropout_{args.dropout_p}"
         # validation set
         np.save(
             os.path.join(
@@ -433,12 +466,13 @@ def main():
         print(
             f"\nTraining a single model with MCDropout for {args.ensemble_size} passes ..."
         )
+        args.ensemble_type = f"mc_dropout_{args.dropout_p}"
         mc_model = get_model(
             num_classes=num_classes,
             model_type=args.model_type,
             ensemble_type="mc_dropout",
             device=args.device,
-            dropout_prob=args.dropout_p
+            dropout_prob=args.dropout_p,
         )
         ckpt_path = train_single_model(
             model=mc_model,
@@ -452,7 +486,7 @@ def main():
             ensemble_type="mc_dropout",
             model_idx=1,
             model_dir=args.model_dir,
-            project_name = args.project_name
+            project_name=args.project_name,
         )
         # Load best model
         mc_model.load_state_dict(torch.load(ckpt_path, map_location=args.device))
