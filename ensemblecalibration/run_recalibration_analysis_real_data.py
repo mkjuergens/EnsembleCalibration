@@ -158,6 +158,10 @@ class RealDataExperimentRecalibration:
 
         # We'll store final results (only tested on test set)
         results = {}  # {(loss_name,train_mode,calibrator) : [metric_dict, ...]}
+        # accuracy for each individual model
+        for i in range(predictions_val.shape[1]):
+            acc = np.mean(np.argmax(predictions_val[:, i, :], axis=1) == labels_val)
+            print(f"Accuracy of model {i} on Validation set: {acc}")
         # calculate accuracy and scores on ground truth
         acc_val = np.mean(np.argmax(predictions_val.mean(axis=1), axis=1) == labels_val)
         print(f"Accuracy on Validation set: {acc_val}")
