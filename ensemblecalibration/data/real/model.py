@@ -116,45 +116,45 @@ def get_model(
         )
 
 
-def get_model(
-    num_classes,
-    model_type: str = "resnet",
-    device="cuda",
-    dropout_prob=0.5,
-    ensemble_type="deep_ensemble",
-):
-    if model_type == "resnet":
-        base_model = models.resnet18(pretrained=True)
-    elif model_type == "vgg":
-        base_model = models.vgg16(pretrained=True)
-    else:
-        raise NotImplementedError("Only resnet and vgg are implemented")
+# def get_model(
+#     num_classes,
+#     model_type: str = "resnet",
+#     device="cuda",
+#     dropout_prob=0.5,
+#     ensemble_type="deep_ensemble",
+# ):
+#     if model_type == "resnet":
+#         base_model = models.resnet18(pretrained=True)
+#     elif model_type == "vgg":
+#         base_model = models.vgg16(pretrained=True)
+#     else:
+#         raise NotImplementedError("Only resnet and vgg are implemented")
 
-    if ensemble_type == "mc_dropout":
-        # 1) Insert dropout in multiple layers within the base model
-        if model_type == "resnet":
-            base_model = insert_dropout_in_resnet(base_model, p=dropout_prob)
-        elif model_type == "vgg":
-            base_model = insert_dropout_in_vgg(base_model, p=dropout_prob)
-        else:
-            raise NotImplementedError("Only resnet and vgg are implemented")
-        # 2) Wrap with MCDropoutModel to add final dropout + linear
-        mc_model = MCDropoutModel(base_model, num_classes, dropout_prob=dropout_prob)
-        return mc_model.to(device)
+#     if ensemble_type == "mc_dropout":
+#         # 1) Insert dropout in multiple layers within the base model
+#         if model_type == "resnet":
+#             base_model = insert_dropout_in_resnet(base_model, p=dropout_prob)
+#         elif model_type == "vgg":
+#             base_model = insert_dropout_in_vgg(base_model, p=dropout_prob)
+#         else:
+#             raise NotImplementedError("Only resnet and vgg are implemented")
+#         # 2) Wrap with MCDropoutModel to add final dropout + linear
+#         mc_model = MCDropoutModel(base_model, num_classes, dropout_prob=dropout_prob)
+#         return mc_model.to(device)
 
-    elif ensemble_type == "deep_ensemble":
-        # Standard final-layer replacement for deep ensemble
-        if isinstance(base_model, models.ResNet):
-            # replace final fc
-            base_model.fc = nn.Linear(base_model.fc.in_features, num_classes)
-        elif isinstance(base_model, models.VGG):
-            # replace last classifier layer
-            base_model.classifier[-1] = nn.Linear(
-                base_model.classifier[-1].in_features, num_classes
-            )
-        return base_model.to(device)
+#     elif ensemble_type == "deep_ensemble":
+#         # Standard final-layer replacement for deep ensemble
+#         if isinstance(base_model, models.ResNet):
+#             # replace final fc
+#             base_model.fc = nn.Linear(base_model.fc.in_features, num_classes)
+#         elif isinstance(base_model, models.VGG):
+#             # replace last classifier layer
+#             base_model.classifier[-1] = nn.Linear(
+#                 base_model.classifier[-1].in_features, num_classes
+#             )
+#         return base_model.to(device)
 
-    else:
-        raise ValueError(
-            "Unsupported ensemble type. Use 'deep_ensemble' or 'mc_dropout'."
-        )
+#     else:
+#         raise ValueError(
+#             "Unsupported ensemble type. Use 'deep_ensemble' or 'mc_dropout'."
+#         )

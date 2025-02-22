@@ -39,6 +39,7 @@ def train_single_model(
     model_idx=1,
     model_dir: str = "models",
     project_name="ensemble-training",
+    scheduler: bool = True
 ) -> str:
     """
     Train a single model (ResNet/VGG or MC-Dropout), with early stopping based on validation loss,
@@ -71,8 +72,11 @@ def train_single_model(
     optimizer = optim.SGD(
         model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
     )
-    scheduler = ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.1, patience=5, verbose=True
+    if scheduler:
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=20,   # reduce LR every 15 epochs
+        gamma=0.1
     )
 
     best_loss = float("inf")
@@ -140,8 +144,8 @@ def train_single_model(
             f"Val Loss={avg_val_loss:.4f}, "
             f"Val Acc={val_accuracy:.2f}%"
         )
-
-        scheduler.step(avg_val_loss)
+        if scheduler:
+            lr_scheduler.step()
 
         # Early stopping
         if avg_val_loss < best_loss:
@@ -166,7 +170,6 @@ def evaluate_deep_ensemble(
     Evaluate a Deep Ensemble on a given dataloader (val or test).
     Returns predictions, instances, labels in np arrays.
     """
-    ensemble_size = len(model_paths)
     ensemble_models = []
 
     for path_ckpt in model_paths:
@@ -298,6 +301,12 @@ def main():
         default=False
     )
     parser.add_argument(
+        "--scheduler",
+        type=bool,
+        default=False,
+        help="whether to use a leanring rate scheduler or not"
+    )
+    parser.add_argument(
         "--ensemble_type",
         type=str,
         default="deep_ensemble",
@@ -361,6 +370,7 @@ def main():
             print(
                 f"\nTraining model {idx+1}/{args.ensemble_size} for {args.ensemble_type} ..."
             )
+            print(f"pretrained: {args.pretrained}")
             set_random_seed(args.seed + idx)
             single_model = get_model(
                 num_classes=num_classes,
@@ -383,6 +393,7 @@ def main():
                 model_idx=idx + 1,
                 model_dir=args.model_dir,
                 project_name=args.project_name,
+                scheduler=args.scheduler
             )
             best_paths.append(ckpt_path)
 
@@ -466,6 +477,7 @@ def main():
         print(
             f"\nTraining a single model with MCDropout for {args.ensemble_size} passes ..."
         )
+        print(f"pretrained: {args.pretrained}")
         args.ensemble_type = f"mc_dropout_{args.dropout_p}"
         mc_model = get_model(
             num_classes=num_classes,
@@ -473,6 +485,8 @@ def main():
             ensemble_type="mc_dropout",
             device=args.device,
             dropout_prob=args.dropout_p,
+            pretrained=args.pretrained
+
         )
         ckpt_path = train_single_model(
             model=mc_model,
@@ -487,6 +501,7 @@ def main():
             model_idx=1,
             model_dir=args.model_dir,
             project_name=args.project_name,
+            scheduler=args.scheduler
         )
         # Load best model
         mc_model.load_state_dict(torch.load(ckpt_path, map_location=args.device))
