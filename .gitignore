@@ -182,3 +182,4 @@ model_preds
 checkpoints_models
 *.yml
 notebooks/old/
+*/old/
