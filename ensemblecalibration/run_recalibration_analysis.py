@@ -25,6 +25,7 @@ from ensemblecalibration.cal_estimates import (
     mmd_kce,
     get_skce_ul,
     get_ece_kde,
+    kl_kde_obj,
 )
 
 
@@ -65,13 +66,15 @@ def run_experiment_full(
     """
     output_dir = config.get("output_dir", "./results")
     os.makedirs(output_dir, exist_ok=True)
+    verbose = config.get("verbose", True)
 
     # read train_params from config
     train_params = config["train_params"]
-    n_repeats = train_params.get("n_repeats", 10)
-    n_epochs = train_params.get("n_epochs", 200)
-    lr = train_params.get("lr", 1e-3)
+    n_repeats = train_params.get("n_repeats", 20)
+    n_epochs = train_params.get("n_epochs", 2000)
+    lr = train_params.get("lr", 1e-4)
     batch_size = train_params.get("batch_size", 64)
+    n_samples = config["dataset"]["n_samples"]
 
     # Suppose you have a list of calibration approaches you want to try:
     # e.g. losses = [GeneralizedBrierLoss(), GeneralizedLogLoss()]
@@ -86,11 +89,12 @@ def run_experiment_full(
     # results[(loss_name, train_mode, cal_name)] = [metric_dict_1, metric_dict_2, ...]
     #   one per repeated dataset
     results = {}
-    # save scores for ground truth 
+    # save scores for ground truth
     results_gt = {}
     exp_name = config["experiment_name"]
 
-    for repeat_idx in range(n_repeats):
+    # use tqdm to iterate over repeats
+    for repeat_idx in tqdm(range(n_repeats)):
         print(f"=== Generating dataset for repeat {repeat_idx+1}/{n_repeats} ===")
 
         # 1) Re-generate a new synthetic dataset
@@ -129,8 +133,8 @@ def run_experiment_full(
                         in_channels=in_channels,
                         n_classes=n_classes,
                         n_ensembles=n_ens,
-                        hidden_dim=train_params['hidden_dim'],
-                        hidden_layers=train_params['hidden_layers'],
+                        hidden_dim=train_params["hidden_dim"],
+                        hidden_layers=train_params["hidden_layers"],
                     )
 
                     # 3) Train model
@@ -146,7 +150,7 @@ def run_experiment_full(
                         batch_size=batch_size,
                         early_stopping=True,
                         patience=train_params["patience"],
-                        verbose=True,
+                        verbose=verbose,
                         subepochs_cal=train_params["subepochs_cal"],
                         subepochs_comb=train_params["subepochs_comb"],
                     )
@@ -180,11 +184,9 @@ def run_experiment_full(
                     if key not in results:
                         results[key] = []
                     results[key].append(metric_dict)
-        
+
         # 5) Evaluate on ground truth
-        metric_gt =measure_calibration_metrics(
-            p_true_val, y_val, dict_params=config
-        )
+        metric_gt = measure_calibration_metrics(p_true_val, y_val, dict_params=config)
         # accuracy
         preds = (p_true_val[:, 1] > 0.5).int().cpu().numpy()
         acc = np.mean(preds == y_val.cpu().numpy())
@@ -227,7 +229,9 @@ def run_experiment_full(
         final_scores[(loss_name, tm, cal_name)] = agg
 
     # 6) Write final CSV
-    csv_path = os.path.join(output_dir, f"calibration_scores_{exp_name}_{n_repeats}.csv")
+    csv_path = os.path.join(
+        output_dir, f"calibration_scores_{exp_name}_{n_repeats}_{n_samples}.csv"
+    )
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
     # figure out all metric fields
@@ -252,8 +256,6 @@ def run_experiment_full(
     print(f"Saved final calibration scores to {csv_path}")
 
 
-
-
 def measure_calibration_metrics(p_cal, y, dict_params: dict = {}):
     """
     Returns a dict of calibration metrics, e.g. {"brier":..., "mmd":..., "skce":..., "ece_kde":...}
@@ -262,13 +264,16 @@ def measure_calibration_metrics(p_cal, y, dict_params: dict = {}):
     # e.g.
     brier_val = brier_obj(p_cal, y)
     mmd_val = mmd_kce(p_cal, y, bw=dict_params["dict_mmd"]["bw"], take_square=False)
-    skce_val = get_skce_ul(p_cal, y, bw=dict_params["dict_skce"]["bw"], take_square=False)
+    skce_val = get_skce_ul(
+        p_cal, y, bw=dict_params["dict_skce"]["bw"], take_square=False
+    )
     ece_val = get_ece_kde(
         p_cal,
         y,
         p=dict_params["dict_kde_ece"]["p"],
         bw=dict_params["dict_kde_ece"]["bw"],
     )
+    kl_val = kl_kde_obj(p_bar=p_cal, y=y, params=dict_params["dict_kl"])
 
     # store them as absolute floats if you prefer
     d = {}
@@ -276,6 +281,7 @@ def measure_calibration_metrics(p_cal, y, dict_params: dict = {}):
     d["mmd"] = float(abs(mmd_val))
     d["skce"] = float(abs(skce_val))
     d["ece_kde"] = float(abs(ece_val))
+    d["kl_kde"] = float(abs(kl_val))
     return d
 
 

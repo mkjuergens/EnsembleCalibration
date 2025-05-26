@@ -45,7 +45,6 @@ def kl_kde_obj_lambda(weights_l, p_probs, y_labels, params, x_dep: bool = False)
 def get_kl_kde(p_bar: torch.tensor, y: torch.tensor, bw: float, device: str = "cpu"):
     # print("Does p_bar require grad?", p_bar.requires_grad)
     # check if p_bar contains nans:
-    print(p_bar)
     if _isnan(p_bar):
         raise ValueError("p_bar contains nans")
     kl_kde = get_bregman_ce(negative_entropy, p_bar, y, bandwidth=bw, device=device)

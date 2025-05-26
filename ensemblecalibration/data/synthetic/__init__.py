@@ -34,8 +34,8 @@ def create_synthetic_dataset(dataset_cfg):
     n_samples = dataset_cfg["n_samples"]
     n_ens = dataset_cfg.get("n_ens", 5)
     scale_noise = dataset_cfg["scale_noise"]
-    kernel_width = dataset_cfg["kernel_width"]
     offset_range = dataset_cfg["offset_range"]
+    kernel_width = dataset_cfg.get("kernel_width", 0.5)
 
     # create the experiment
     exp = BinaryExperiment(
@@ -43,8 +43,8 @@ def create_synthetic_dataset(dataset_cfg):
         n_samples=n_samples,
         n_ens=n_ens,
         scale_noise=scale_noise,
-        kernel_width=kernel_width,
-        offset_range=offset_range
+        offset_range=offset_range,
+        kernel_width=kernel_width
         # add any other needed init args
     )
     exp.generate_data() 
