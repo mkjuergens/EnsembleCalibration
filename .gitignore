@@ -183,3 +183,4 @@ checkpoints_models
 *.yml
 notebooks/old/
 */old/
+src/old/
