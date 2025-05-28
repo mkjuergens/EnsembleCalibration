@@ -2,13 +2,13 @@ import unittest
 import numpy as np
 import torch
 
-from ensemblecalibration.config import create_config_recal
-from ensemblecalibration.config.config_cal_test import config_binary_const_weights
-from ensemblecalibration.cal_test import npbe_test_vaicenavicius, npbe_test_ensemble
-from ensemblecalibration.data.dataset import MLPDataset
-from ensemblecalibration.losses.cal_losses import LpLoss, MMDLoss, SKCELoss
-from ensemblecalibration.cal_estimates import ece_kde_obj, mmd_kce_obj, skce_obj
-from ensemblecalibration.data.synthetic.gp_binary import exp_gp
+from src.config import create_config_recal
+from src.config.config_cal_test import config_binary_const_weights
+from src.cal_test import npbe_test_vaicenavicius, npbe_test_ensemble
+from src.data.dataset import MLPDataset
+from src.losses.cal_losses import LpLoss, MMDLoss, SKCELoss
+from src.cal_estimates import ece_kde_obj, mmd_kce_obj, skce_obj
+from src.data.synthetic.gp_binary import exp_gp
 
 
 class TestCalibrationTest(unittest.TestCase):

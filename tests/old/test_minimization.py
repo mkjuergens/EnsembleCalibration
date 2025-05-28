@@ -2,18 +2,18 @@ import unittest
 
 import numpy as np
 
-from ensemblecalibration.old.calibration.minimization import (
+from src.old.calibration.minimization import (
     solve_cobyla2D,
     solve_neldermead2D,
     solve_pyswarm,
 )
-from ensemblecalibration.old.calibration.calibration_estimates.helpers import (
+from src.old.calibration.calibration_estimates.helpers import (
     calculate_pbar,
     classece_obj_new,
     skce_ul_obj_new,
     skce_uq_obj_new,
 )
-from ensemblecalibration.old.calibration.calibration_estimates.helpers import (
+from src.old.calibration.calibration_estimates.helpers import (
     calculate_pbar,
     classece_obj_new,
     skce_ul_obj_new,

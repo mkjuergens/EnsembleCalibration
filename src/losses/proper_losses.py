@@ -1,7 +1,7 @@
 import torch
 
 from torch import nn
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.helpers import calculate_pbar
 from .cal_losses import *
 
 

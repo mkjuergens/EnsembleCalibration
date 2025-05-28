@@ -9,7 +9,7 @@ import torch
 import numpy as np
 
 import torch.nn.functional as F
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.helpers import calculate_pbar
 
 
 def rbf_kernel(u: torch.Tensor, v: torch.Tensor, bandwidth=1):

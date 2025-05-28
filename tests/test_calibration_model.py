@@ -1,9 +1,9 @@
 import pytest
 
-from ensemblecalibration.meta_model.secondary_model import LinearCalibrator
-from ensemblecalibration.meta_model.primary_model import MLPCalW, MLPCalWConv
-from ensemblecalibration.data.experiments_cal_test import get_experiment
-from ensemblecalibration.data.ensemble.dataset_utils import load_results, load_dataset
+from src.meta_model.secondary_model import LinearCalibrator
+from src.meta_model.primary_model import MLPCalW, MLPCalWConv
+from src.data.experiments_cal_test import get_experiment
+from src.data.ensemble.dataset_utils import load_results, load_dataset
 
 
 def test_MLPCalWConv():

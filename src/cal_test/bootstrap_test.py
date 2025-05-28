@@ -3,8 +3,8 @@ from typing import Union
 import numpy as np
 import torch
 
-from ensemblecalibration.utils.helpers import multinomial_label_sampling
-from ensemblecalibration.utils.minimization import calculate_min, minimize_const_weights
+from src.utils.helpers import multinomial_label_sampling
+from src.utils.minimization import calculate_min, minimize_const_weights
 
 
 def npbe_test_ensemble_v2(
@@ -43,7 +43,6 @@ def npbe_test_ensemble_v2(
         decision: integer defining whether tso reject (1) or accept (0) the null hypothesis
         ( p_vals: array of p values for each predictor )
         ( stats: array onf test statistics for each predictor )
-
     """
 
     # calculate optimal weights
@@ -175,6 +174,9 @@ def npbe_test_vaicenavicius(
     p_val = (stats_h0 > torch.tensor(stat)).float().mean().item()
 
     return decision, p_val, stat
+
+
+
 
 
 # def test_train_val_split(

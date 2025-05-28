@@ -14,9 +14,9 @@ from scipy.spatial import ConvexHull
 import argparse
 
 
-from ensemblecalibration.utils.projections import project_points2D
-from ensemblecalibration.utils.helpers import process_df
-from ensemblecalibration.cal_estimates.utils import create_heatmap_data
+from src.utils.projections import project_points2D
+from src.utils.helpers import process_df
+from src.cal_estimates.utils import create_heatmap_data
 
 
 def plot_ens_comb_cal(

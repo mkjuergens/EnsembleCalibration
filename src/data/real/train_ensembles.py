@@ -1,3 +1,4 @@
+from typing import Optional
 import os
 import random
 import argparse
@@ -10,8 +11,8 @@ import wandb
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
-from ensemblecalibration.data.real.dataset_utils import load_dataset
-from ensemblecalibration.data.real.model import get_model
+from src.data.real.dataset_utils import load_dataset
+from src.data.real.model import get_model
 
 
 def set_random_seed(seed_value: int):
@@ -23,6 +24,174 @@ def set_random_seed(seed_value: int):
     torch.manual_seed(seed_value)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed_value)
+
+def train_single_model(
+    model: nn.Module,
+    trainloader: DataLoader,
+    valloader: DataLoader,
+    device: str = "cuda",
+    epochs: int = 50,
+    patience: int = 5,
+    lr: float = 0.01,
+    weight_decay: float = 1e-4,
+    dataset_name: str = "",
+    ensemble_type: str = "deep_ensemble",
+    model_idx: int = 1,
+    model_dir: str = "models",
+    project_name: str = "ensemble-training",
+    scheduler: bool = True,
+    dropout_p: Optional[float] = None, # Added for MC-Dropout logging
+) -> str:
+    """
+    Train a single model, with early stopping based on validation loss,
+    logging to Weights & Biases.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model to be trained.
+    trainloader : DataLoader
+        DataLoader for the training dataset.
+    valloader : DataLoader
+        DataLoader for the validation dataset.
+    device : str, optional
+        Device to run the training on (default is "cuda").
+    epochs : int, optional
+        Number of training epochs (default is 50).
+    patience : int, optional
+        Number of epochs with no improvement after which training will be stopped (default is 5).
+    lr : float, optional
+        Learning rate for the optimizer (default is 0.01).
+    weight_decay : float, optional
+        Weight decay for the optimizer (default is 1e-4).
+    
+
+    Returns
+    -------
+    str
+    """
+    wandb_config = {
+        "dataset": dataset_name,
+        "ensemble_type": ensemble_type,
+        "model_index": model_idx,
+        "learning_rate": lr,
+        "epochs": epochs,
+        "weight_decay": weight_decay, # Added weight_decay
+        "scheduler_enabled": scheduler,
+    }
+    if ensemble_type == "mc_dropout" and dropout_p is not None:
+        wandb_config["dropout_p"] = dropout_p
+
+    wandb.init(
+        project=project_name,
+        reinit=True,
+        config=wandb_config,
+        tags=[
+            f"dataset:{dataset_name}",
+            f"ensemble_type:{ensemble_type}",
+            f"model:{model_idx}",
+        ],
+    )
+
+    model = model.to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(
+        model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
+    )
+    lr_scheduler_instance = None
+    if scheduler:
+        lr_scheduler_instance = torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=20, gamma=0.1  # reduce LR every 20 epochs
+        )
+
+    best_loss = float("inf")
+    patience_counter = 0
+
+    os.makedirs(model_dir, exist_ok=True)
+
+    # Consistent model path naming
+    model_filename_parts = [
+        f"best_model_{dataset_name}",
+        f"{getattr(model, 'model_type', 'generic')}", # Get model_type if available
+        ensemble_type
+    ]
+    if ensemble_type == "mc_dropout" and dropout_p is not None:
+        model_filename_parts.append(f"p{dropout_p}")
+    model_filename_parts.append(f"model_{model_idx}.pth")
+    best_model_path = os.path.join(model_dir, "_".join(model_filename_parts))
+
+
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+
+        for inputs, labels in tqdm(
+            trainloader, desc=f"[Epoch {epoch+1}/{epochs}] Training", leave=False
+        ):
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+
+        avg_train_loss = running_loss / len(trainloader)
+
+        # Validation
+        model.eval()
+        val_loss = 0.0
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for val_inputs, val_labels in valloader:
+                val_inputs, val_labels = val_inputs.to(device), val_labels.to(device)
+                val_outputs = model(val_inputs)
+                batch_loss = criterion(val_outputs, val_labels)
+                val_loss += batch_loss.item()
+
+                _, predicted = torch.max(val_outputs, 1)
+                total += val_labels.size(0)
+                correct += (predicted == val_labels).sum().item()
+
+        avg_val_loss = val_loss / len(valloader)
+        val_accuracy = 100.0 * correct / total
+
+        wandb.log(
+            {
+                "Epoch": epoch + 1,
+                "Train Loss": avg_train_loss,
+                "Val Loss": avg_val_loss,
+                "Val Accuracy": val_accuracy,
+                "Learning Rate": optimizer.param_groups[0]['lr']
+            }
+        )
+
+        print(
+            f"Epoch {epoch+1}: "
+            f"Train Loss={avg_train_loss:.4f}, "
+            f"Val Loss={avg_val_loss:.4f}, "
+            f"Val Acc={val_accuracy:.2f}%"
+        )
+        if lr_scheduler_instance:
+            lr_scheduler_instance.step()
+
+        if avg_val_loss < best_loss:
+            best_loss = avg_val_loss
+            patience_counter = 0
+            torch.save(model.state_dict(), best_model_path)
+            print(f"New best model saved at epoch {epoch+1} [Val Loss={best_loss:.4f}] to {best_model_path}")
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print("Early stopping triggered.")
+                break
+
+    wandb.finish()
+    return best_model_path
 
 
 def train_single_model(
@@ -296,16 +465,16 @@ def main():
         help="Model architecture.",
     )
     parser.add_argument(
-        "--pretrained",
-        type=bool,
-        default=False
-    )
+    "--pretrained",
+    action='store_true', # Default is False, True if specified
+    help="Use pretrained model weights (if applicable)."
+)
     parser.add_argument(
         "--scheduler",
-        type=bool,
-        default=False,
-        help="whether to use a leanring rate scheduler or not"
+        action='store_true', # Default is False, True if specified
+        help="whether to use a learning rate scheduler or not"
     )
+
     parser.add_argument(
         "--ensemble_type",
         type=str,

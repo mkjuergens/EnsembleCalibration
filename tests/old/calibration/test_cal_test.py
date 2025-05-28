@@ -1,10 +1,10 @@
 import unittest
 import numpy as np
 
-from ensemblecalibration.old.calibration.cal_test_new import _npbe_test_v3_alpha
-from ensemblecalibration.old.calibration.config import config_new_v3
-from ensemblecalibration.old.calibration.experiments import experiment_h0
-from ensemblecalibration.old.sampling.lambda_sampling import uniform_weight_sampling
+from src.old.calibration.cal_test_new import _npbe_test_v3_alpha
+from src.old.calibration.config import config_new_v3
+from src.old.calibration.experiments import experiment_h0
+from src.old.sampling.lambda_sampling import uniform_weight_sampling
 
 class TestCalTestv3(unittest.TestCase):
 

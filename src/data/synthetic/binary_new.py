@@ -4,7 +4,7 @@ from numpy import random
 from scipy.special import expit
 import torch
 
-from ensemblecalibration.utils.helpers import (
+from src.utils.helpers import (
     multinomial_label_sampling,
 )
 

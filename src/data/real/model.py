@@ -4,7 +4,6 @@ from torchvision import models
 from torchvision.models.resnet import BasicBlock, Bottleneck
 
 
-# update: Dropout not only in the last layer
 class DropoutBlockWrapper(nn.Module):
     """
     Wrap a ResNet BasicBlock or Bottleneck with a dropout after the block forward.

@@ -4,7 +4,7 @@ from .mmd_kce import mmd_kce_obj
 from .skce import skce_obj
 from .kde_kl import kl_kde_obj
 
-from ensemblecalibration.utils.helpers import multinomial_label_sampling
+from src.utils.helpers import multinomial_label_sampling
 import numpy as np
 import torch
 

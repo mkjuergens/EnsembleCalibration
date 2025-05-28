@@ -8,7 +8,7 @@ import torch
 import numpy as np
 from torch import nn
 
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.helpers import calculate_pbar
 
 """
 own code

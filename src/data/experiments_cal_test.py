@@ -1,12 +1,12 @@
 from typing import Optional
 import torch
 
-from ensemblecalibration.data.synthetic.gp_binary import exp_gp
-from ensemblecalibration.data.synthetic.binary_new import BinaryExperiment
-from ensemblecalibration.data.synthetic.multiclass_dirichlet_new import (
+from src.data.synthetic.gp_binary import exp_gp
+from src.data.synthetic.binary_new import BinaryExperiment
+from src.data.synthetic.multiclass_dirichlet_new import (
     syn_exp_multiclass,
 )
-from ensemblecalibration.data.dataset import MLPDataset
+from src.data.dataset import MLPDataset
 
 
 def get_experiment(

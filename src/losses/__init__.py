@@ -1,2 +1,2 @@
-from ensemblecalibration.losses.cal_losses import *
-from ensemblecalibration.losses.proper_losses import *
+from src.losses.cal_losses import *
+from src.losses.proper_losses import *

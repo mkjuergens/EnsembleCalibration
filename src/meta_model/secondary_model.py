@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 from torch import nn
 import torch.nn.functional as F
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.helpers import calculate_pbar
 
 
 class LinearCalibrator(nn.Module):

@@ -1,7 +1,7 @@
 import unittest
 
 import torch
-from ensemblecalibration.cal_estimates import (
+from src.cal_estimates import (
     get_skce_ul,
     get_skce_uq,
     get_ece_kde,

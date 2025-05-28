@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import torch.utils.data
 
 from torch import nn
-from ensemblecalibration.losses import CalibrationLoss, BaseCombinerLoss
+from src.losses import CalibrationLoss, BaseCombinerLoss
 
 
 class EarlyStopping:

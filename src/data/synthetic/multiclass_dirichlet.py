@@ -3,11 +3,11 @@ from typing import Union
 import numpy as np
 import torch
 
-from ensemblecalibration.utils.helpers import (
+from src.utils.helpers import (
     calculate_pbar,
     sample_lambda
 )
-from ensemblecalibration.utils.polytope import get_boundary
+from src.utils.polytope import get_boundary
 
 
 def exp_dirichlet(

@@ -1,6 +1,6 @@
-from ensemblecalibration.meta_model.primary_model import *
-from ensemblecalibration.meta_model.secondary_model import *
-from ensemblecalibration.meta_model.train import *
+from src.meta_model.primary_model import *
+from src.meta_model.secondary_model import *
+from src.meta_model.train import *
 
 
 def create_calibrator(calibrator_name: str) -> nn.Module:

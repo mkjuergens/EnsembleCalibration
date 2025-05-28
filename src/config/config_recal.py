@@ -2,7 +2,7 @@ import os
 import yaml
 from torch import optim
 
-from ensemblecalibration.losses.proper_losses import *
+from src.losses.proper_losses import *
 
 
 def create_config_recal(

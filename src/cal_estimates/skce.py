@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from scipy.stats import norm
 
-from ensemblecalibration.utils.distances import tv_distance
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.distances import tv_distance
+from src.utils.helpers import calculate_pbar
 
 
 def skce_obj(

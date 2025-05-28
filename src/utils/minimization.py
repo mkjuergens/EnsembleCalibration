@@ -2,14 +2,14 @@ import numpy as np
 import torch
 from torch import nn
 from scipy.optimize import minimize
-from ensemblecalibration.meta_model import (
+from src.meta_model import (
     get_optim_lambda_mlp,
     MLPCalW,
     DirichletCalibrator,
     CredalSetCalibrator,
 )
-from ensemblecalibration.data.dataset import MLPDataset
-from ensemblecalibration.utils.helpers import (
+from src.data.dataset import MLPDataset
+from src.utils.helpers import (
     calculate_pbar,
     data_split,
 )

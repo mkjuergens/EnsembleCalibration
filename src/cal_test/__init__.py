@@ -1,1 +1,1 @@
-from ensemblecalibration.cal_test.bootstrap_test import *
+from src.cal_test.bootstrap_test import *

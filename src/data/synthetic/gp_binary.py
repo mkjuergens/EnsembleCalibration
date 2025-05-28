@@ -3,7 +3,7 @@ from sklearn.metrics.pairwise import linear_kernel, rbf_kernel, polynomial_kerne
 from numpy import random
 import torch
 
-from ensemblecalibration.utils.helpers import (
+from src.utils.helpers import (
     calculate_pbar,
     multinomial_label_sampling,
     sample_function,

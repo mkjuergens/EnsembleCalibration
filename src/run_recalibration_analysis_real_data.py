@@ -4,20 +4,20 @@ import argparse
 import numpy as np
 import torch
 
-from ensemblecalibration.data.dataset import MLPDataset
-from ensemblecalibration.data.real.dataset_utils import load_results_real_data
-from ensemblecalibration.meta_model import (
+from src.data.dataset import MLPDataset
+from src.data.real.dataset_utils import load_results_real_data
+from src.meta_model import (
     CredalSetCalibrator,
     MLPCalWConv,
     DirichletCalibrator,
     TemperatureScalingCalibrator,
 )
-from ensemblecalibration.losses.proper_losses import (
+from src.losses.proper_losses import (
     GeneralizedBrierLoss,
     GeneralizedLogLoss,
 )
-from ensemblecalibration.meta_model.train import train_model
-from ensemblecalibration.cal_estimates import (
+from src.meta_model.train import train_model
+from src.cal_estimates import (
     brier_obj,
     mmd_kce,
     get_skce_ul,

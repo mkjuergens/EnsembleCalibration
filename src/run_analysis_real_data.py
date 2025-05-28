@@ -4,25 +4,24 @@ import argparse
 import pandas as pd
 import numpy as np
 
-from ensemblecalibration.meta_model import (
+from src.meta_model import (
     CredalSetCalibrator,
     MLPCalWConv,
     DirichletCalibrator,
 )
-from ensemblecalibration.data.dataset import MLPDataset
-from ensemblecalibration.cal_test import npbe_test_vaicenavicius
-from ensemblecalibration.meta_model.train import get_optim_lambda_mlp
-from ensemblecalibration.data.real.dataset_utils import load_results_real_data
-from ensemblecalibration.config.config_cal_test import create_config_proper_losses
-from ensemblecalibration.utils.helpers import calculate_pbar, flatten_dict
-from ensemblecalibration.losses.proper_losses import (
+from src.data.dataset import MLPDataset
+from src.cal_test import npbe_test_vaicenavicius
+from src.meta_model.train import get_optim_lambda_mlp
+from src.data.real.dataset_utils import load_results_real_data
+from src.config.config_cal_test import create_config_proper_losses
+from src.utils.helpers import calculate_pbar, flatten_dict
+from src.losses.proper_losses import (
     GeneralizedBrierLoss,
     GeneralizedLogLoss,
 )
 class RealDataExperimentCalTest:
     """
-    Trains a comb model to learn the optimal combination of ensemble predictions on validation data,
-    then tests the calibration on (separate) test data.
+    class for running the calibration test on real data.
     """
 
     def __init__(
@@ -48,6 +47,52 @@ class RealDataExperimentCalTest:
         cal_test: callable = npbe_test_vaicenavicius,
         prefix: str = "results"
     ):
+        """
+        Initialize the experiment with the necessary parameters.
+
+        Parameters
+        ----------
+        dir_predictions : str
+            directory where predictions of the ensembles are saved
+        dataset_name : str
+            name of dataset that models were trained on, e.g. CIFAR10, CIFAR100
+        model_type : str
+            type of model, e.g. 'resnet', 'vgg'
+        ensemble_type : str
+            type of ensemble. Options are 'deep_ensemble' or 'mc_dropout'.
+        ensemble_size : int
+            size of the ensemble, i.e. number of models in the ensemble or number of MC passes.
+        device : str, optional
+            device, by default "cuda"
+        n_epochs : int, optional
+            number of epochs, by default 50
+        lr : float, optional
+            learning rate, by default 1e-3
+        batch_size : int, optional
+            batch size, by default 64
+        hidden_dim : int, optional
+            hidden dimension, by default 128
+        hidden_layers : int, optional
+            number of hidden layers, by default 1
+        output_dir : str, optional
+            output directory, by default "./calibration_test_results"
+        n_resamples : int, optional
+            number or resampling iterations, by default 100
+        pretrained : bool, optional
+            whether the model is trained , by default True
+        pretrained_model : str, optional
+            _description_, by default "resnet18"
+        verbose : bool, optional
+            _description_, by default False
+        early_stopping : bool, optional
+            _description_, by default True
+        patience : int, optional
+            _description_, by default 10
+        cal_test : callable, optional
+            _description_, by default npbe_test_vaicenavicius
+        prefix : str, optional
+            _description_, by default "results"
+        """
         self.dir_predictions = dir_predictions
         self.dataset_name = dataset_name
         self.model_type = model_type
@@ -150,8 +195,6 @@ class RealDataExperimentCalTest:
         return l_weights
 
     def run(self, alpha: float = 0.01):
-
-        # make output directory if it does not exist
         os.makedirs(self.output_dir, exist_ok=True)
 
         config_params = create_config_proper_losses(

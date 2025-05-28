@@ -6,21 +6,21 @@ import numpy as np
 from tqdm import tqdm
 import csv
 
-from ensemblecalibration.config import load_config
-from ensemblecalibration.data.synthetic import create_synthetic_dataset
-from ensemblecalibration.meta_model import (
+from src.config import load_config
+from src.data.synthetic import create_synthetic_dataset
+from src.meta_model import (
     CredalSetCalibrator,
     MLPCalW,
     DirichletCalibrator,
     TemperatureScalingCalibrator,
 )
-from ensemblecalibration.losses.proper_losses import (
+from src.losses.proper_losses import (
     GeneralizedBrierLoss,
     GeneralizedLogLoss,
 )
-from ensemblecalibration.meta_model.train import train_model
-from ensemblecalibration.utils.plot_functions import plot_ens_comb_cal
-from ensemblecalibration.cal_estimates import (
+from src.meta_model.train import train_model
+from src.utils.plot_functions import plot_ens_comb_cal
+from src.cal_estimates import (
     brier_obj,
     mmd_kce,
     get_skce_ul,

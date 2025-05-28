@@ -6,12 +6,12 @@ from torch import nn
 from torch.nn import BCELoss, NLLLoss
 from torchvision.ops import focal_loss
 
-from ensemblecalibration.utils.distances import tv_distance
-from ensemblecalibration.utils.helpers import calculate_pbar
-from ensemblecalibration.cal_estimates.kde_ece import get_ece_kde
-from ensemblecalibration.cal_estimates.skce import skce_ul_tensor, skce_uq_tensor
-from ensemblecalibration.cal_estimates.mmd_kce import mmd_kce, rbf_kernel
-from ensemblecalibration.cal_estimates.kde_kl import get_kl_kde
+from src.utils.distances import tv_distance
+from src.utils.helpers import calculate_pbar
+from src.cal_estimates.kde_ece import get_ece_kde
+from src.cal_estimates.skce import skce_ul_tensor, skce_uq_tensor
+from src.cal_estimates.mmd_kce import mmd_kce, rbf_kernel
+from src.cal_estimates.kde_kl import get_kl_kde
 
 
 class CalibrationLoss(nn.Module):

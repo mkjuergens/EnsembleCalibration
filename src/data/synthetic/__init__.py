@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import random_split
 
-from ensemblecalibration.data.synthetic.binary_new import BinaryExperiment
-from ensemblecalibration.data.dataset import MLPDataset
+from src.data.synthetic.binary_new import BinaryExperiment
+from src.data.dataset import MLPDataset
 
 def create_synthetic_dataset(dataset_cfg):
     """

@@ -7,18 +7,18 @@ import pandas as pd
 import argparse
 import datetime
 
-from ensemblecalibration.config.config_cal_test import (
+from src.config.config_cal_test import (
     create_config,
     create_config_proper_losses,
 )
-from ensemblecalibration.data.experiments_cal_test import get_experiment
-from ensemblecalibration.cal_test import (
+from src.data.experiments_cal_test import get_experiment
+from src.cal_test import (
     npbe_test_ensemble,
     npbe_test_ensemble_v2,
     npbe_test_ensemble_v0,
 )
-from ensemblecalibration.utils.helpers import save_results, make_serializable
-from ensemblecalibration.utils.plot_functions import plot_error_analysis
+from src.utils.helpers import save_results, make_serializable
+from src.utils.plot_functions import plot_error_analysis
 
 
 def _get_config_from_parser(args: dict, proper_losses: bool = True):

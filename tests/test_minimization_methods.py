@@ -1,8 +1,8 @@
 import unittest
 
-from ensemblecalibration.data.synthetic.gp_binary import exp_gp
-from ensemblecalibration.utils.minimization import minimize_const_weights
-from ensemblecalibration.config.config_cal_test import config_binary_const_weights
+from src.data.synthetic.gp_binary import exp_gp
+from src.utils.minimization import minimize_const_weights
+from src.config.config_cal_test import config_binary_const_weights
 
 
 class TestMinimizationOutput(unittest.TestCase):

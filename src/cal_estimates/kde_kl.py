@@ -11,7 +11,7 @@ import numpy as np
 from torch import nn
 
 from .kde_ece import get_kernel, check_input
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.helpers import calculate_pbar
 
 
 """

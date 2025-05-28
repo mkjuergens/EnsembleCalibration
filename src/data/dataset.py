@@ -6,53 +6,6 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 
 
-# class MLPDataset(Dataset):
-#     """
-#     Dataset containing probabilistic predictions of an ensemble of synthetic classifiers,
-
-#     """
-
-#     def __init__(
-#         self,
-#         x_train: np.ndarray,
-#         P: np.ndarray,
-#         y: np.ndarray,
-#         p_true: Optional[torch.Tensor] = None,
-#         weights_l: Optional[torch.Tensor] = None,
-#     ):
-#         """
-#         Parameters
-#         ----------
-#         x_train : np.ndarray
-#             array of shape (N, F) containing the training data (instances)
-#         P : np.ndarray
-#             tensor of shape (N, M, K) containing probabilistic predictions
-#             for each instance and each predictor
-#         y : np.ndarray
-#             array of shape (N,) containing labels
-#         p_true: torch.Tensor, optional, of shape (N, K)
-#             tensor containing the true probabilities, by default None
-#         weights_l : np.ndarray, optional
-#             array of shape (N, M) containing the weights of the convex combination
-#             of the probabilistic predictions, by default None
-#         """
-#         super().__init__()
-#         self.p_probs = P
-#         self.y_true = y
-#         self.n_classes = P.shape[2]
-#         self.n_ens = P.shape[1]
-#         self.n_features = x_train.shape[1]
-#         self.x_train = x_train
-#         self.weights_l = weights_l
-#         self.p_true = p_true
-
-#     def __len__(self):
-#         return len(self.p_probs)
-
-#     def __getitem__(self, index):
-
-#         return self.p_probs[index], self.y_true[index], self.x_train[index]
-    
 
 class MLPDataset(Dataset):
     """
@@ -97,11 +50,11 @@ class MLPDataset(Dataset):
         else:
             self.y_true = y.long()
         if not isinstance(x_train, torch.Tensor):
-            self.x_train = torch.from_numpy(x_train).float() # (N, F) or (N, C, H, W)
+            self.x_train = torch.from_numpy(x_train).float()  # (N, F) or (N, C, H, W)
         else:
             self.x_train = x_train.float()
-        self.p_true  = None
-        self.weights_l= None
+        self.p_true = None
+        self.weights_l = None
 
         if p_true is not None:
             # Convert to torch tensor if needed
@@ -118,19 +71,14 @@ class MLPDataset(Dataset):
 
         # Basic attributes
         self.n_classes = self.p_probs.shape[2]
-        self.n_ens     = self.p_probs.shape[1]
+        self.n_ens = self.p_probs.shape[1]
 
     def __len__(self):
         return len(self.y_true)
 
     def __getitem__(self, idx):
         # Return a tuple: (p_probs[idx], y_true[idx], x_train[idx])
-        return (
-            self.p_probs[idx], 
-            self.y_true[idx], 
-            self.x_train[idx]
-        )
-
+        return (self.p_probs[idx], self.y_true[idx], self.x_train[idx])
 
 
 class MLPDataModule(pl.LightningDataModule):
@@ -174,7 +122,9 @@ class MLPDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(self.dataset_val, batch_size=self.batch_size, shuffle=False)
 
+
 # stratified sampler for Lp calibration error and CIFAR10
+
 
 class StratifiedSampler:
     def __init__(self, dataset: MLPDataset, batch_size: int, num_classes: int):
@@ -190,18 +140,22 @@ class StratifiedSampler:
     def __iter__(self):
         batch = []
         all_classes = list(self.class_indices.keys())
-        
+
         while len(batch) < len(self.dataset):
             current_batch = []
 
             # Ensure at least two examples from each class in the batch
             for class_idx in all_classes:
                 if len(self.class_indices[class_idx]) >= 2:
-                    samples = np.random.choice(self.class_indices[class_idx], 2, replace=False)
+                    samples = np.random.choice(
+                        self.class_indices[class_idx], 2, replace=False
+                    )
                     current_batch.extend(samples)
 
             # Shuffle remaining examples and fill the batch
-            remaining_indices = [idx for sublist in self.class_indices.values() for idx in sublist]
+            remaining_indices = [
+                idx for sublist in self.class_indices.values() for idx in sublist
+            ]
             np.random.shuffle(remaining_indices)
 
             for idx in remaining_indices:

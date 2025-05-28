@@ -2,8 +2,8 @@ from typing import Union
 import numpy as np
 import torch
 
-from ensemblecalibration.utils.helpers import calculate_pbar, sample_lambda
-from ensemblecalibration.utils.polytope import get_boundary
+from src.utils.helpers import calculate_pbar, sample_lambda
+from src.utils.polytope import get_boundary
 
 
 def syn_exp_multiclass(

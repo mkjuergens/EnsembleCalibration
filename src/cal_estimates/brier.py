@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 import numpy as np
 
-from ensemblecalibration.utils.helpers import calculate_pbar
+from src.utils.helpers import calculate_pbar
 
  
 def brier_obj(p_bar: np.ndarray, y: np.ndarray, params: Optional[dict] = None):
