@@ -83,8 +83,8 @@ def _simulation_h0(
                     y_labels=data[3],
                     params=dict_tests[test]["params"],
                     verbose=verbose,
-                    use_val = True,
-                    use_test = True
+                    use_val=True,
+                    use_test=True,
                 )[0],
                 dtype=np.float64,
             )
@@ -127,8 +127,8 @@ def _simulation_h1(
                     y_labels=data[3],
                     params=dict_tests[test]["params"],
                     verbose=verbose,
-                    use_val = True,
-                    use_test = True
+                    use_val=True,
+                    use_test=True,
                 )[0]
             )
     for test in dict_tests:
@@ -140,60 +140,6 @@ def _simulation_h1(
         res.append(list(results[r]))
 
     return res
-
-
-def is_data_encapsulated(data):
-    """
-    function which checks if the data is encapsulated (list of lists of lists)
-    """
-    # Check if data is a list
-    if isinstance(data, list) and len(data) > 0:
-        # Check if the first element is a list
-        if isinstance(data[0], list):
-            # Check if the elements inside the first element are also lists
-            if len(data[0]) > 0 and isinstance(data[0][0], list):
-                # Data is encapsulated (list of lists of lists)
-                return True
-            else:
-                # Data is not encapsulated (list of lists)
-                return False
-    return False
-
-
-def save_results(results_list, save_dir, file_name: str, col_names: list):
-    """saves a list of results to a csv file. The list has to be in an encapsulated format
-
-    Parameters
-    ----------
-    results_list : list
-        list of results
-    save_dir : str
-        directory where the results will
-    file_name : str
-        name of the file
-    col_names : list
-        list of column names
-    """
-
-    # create directory for results
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    # filename
-    # file_name = prefix + "_{}.csv".format(n_resamples)
-    save_dir_file = os.path.join(save_dir, file_name)
-    # encapulated data if needed
-    if not is_data_encapsulated(results_list):
-        results_list = [results_list]
-    # create dataframe
-    results_df = pd.DataFrame(results_list)
-    # colnames = [t for t in config]
-    # print(colnames)
-    # print(results_df.columns)
-    results_df.columns = col_names
-    # save results
-    results_df.to_csv(save_dir_file, index=False)
-
-    return results_df
 
 
 def main_t1_t2(args):
