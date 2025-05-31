@@ -1,5 +1,6 @@
 import os
 import re
+import json
 
 from typing import Optional
 import numpy as np
@@ -289,7 +290,7 @@ def read_and_plot_error_analysis_full(
     title_2: str = None,
     save_name_1: str = "error_analysis_t1",
     save_name_2: str = "error_analysis_t2",
-    figsize_1: tuple = (8, 10),
+    figsize_1: tuple = (7, 10),
     figsize_2: tuple = (10, 10),
     n_type_1: int = 2,
     alpha_1: np.ndarray = None,
@@ -304,7 +305,7 @@ def read_and_plot_error_analysis_full(
     df_results_t2 = df_results.iloc[n_type_1:, :]
 
     # plot error analysis
-    fig_t1 = plot_error_analysis(
+    fig_t1 = plot_error_analysis_syn(
         df_results_t1,
         list_errors=df_results_t1.columns,
         list_col_titles=list_col_titles[:n_type_1],
@@ -312,7 +313,7 @@ def read_and_plot_error_analysis_full(
         figsize=figsize_1,
         alpha=alpha_1
     )
-    fig_t2 = plot_error_analysis(
+    fig_t2 = plot_error_analysis_syn(
         df_results_t2,
         list_errors=df_results_t2.columns,
         list_col_titles=list_col_titles[n_type_1:],
@@ -323,8 +324,10 @@ def read_and_plot_error_analysis_full(
     )
 
     # save figures
-    fig_t1.savefig(output_path + save_name_1 + ".png", bbox_inches="tight")
-    fig_t2.savefig(output_path + save_name_2 + ".png", bbox_inches="tight")
+    save_path_1 = os.path.join(output_path, save_name_1 + ".png")
+    save_path_2 = os.path.join(output_path, save_name_2 + ".png")
+    fig_t1.savefig(save_path_1, bbox_inches="tight", dpi=300)
+    fig_t2.savefig(save_path_2, bbox_inches="tight", dpi=300)
 
     return fig_t1, fig_t2
 
@@ -342,6 +345,85 @@ def safe_literal_eval(val):
         fixed = re.sub(r'np\.float64\((.*?)\)', r'\1', val)
         return literal_eval(fixed)
     return val
+
+
+def plot_error_analysis_syn(
+    df: pd.DataFrame,
+    list_errors: list,
+    figsize: tuple = (8, 12),
+    title: Optional[str] = None,
+    list_col_titles: list = None,
+    type_1: bool = True,
+    alpha: Optional[np.ndarray] = None,
+):
+    """
+    Flexible plotting: if the dataframe contains an 'alpha' column
+    with JSON-encoded lists, each row can have its own alpha grid.
+    """
+
+    # -------- extract per-row alpha vectors -----------------------
+    def get_alpha(row):
+        if "alpha" in row and isinstance(row["alpha"], str):
+            return np.asarray(json.loads(row["alpha"]))
+        return alpha                      # fallback for legacy CSV
+
+    alphas_per_row = df.apply(get_alpha, axis=1).tolist()
+    # --------------------------------------------------------------
+
+    # fall back if list_col_titles not supplied
+    if list_col_titles is None:
+        list_col_titles = [f"S_{i}" for i in range(len(df))]
+
+    n_rows = len(df)
+    n_metrics = len(list_errors)
+
+    # --- figure/axes boilerplate ---------------------------------
+    fig, ax = plt.subplots(
+        n_metrics, n_rows, figsize=figsize, sharex=True, sharey=True
+    ) if n_metrics > 1 else plt.subplots(
+        n_rows, figsize=figsize, sharex=True, sharey=True
+    )
+
+    # make ax 2D for uniform indexing
+    if n_metrics == 1:
+        ax = np.atleast_2d(ax)
+
+    # -------- main plotting loop ---------------------------------
+    for i, metric in enumerate(list_errors):
+        for j in range(n_rows):
+            # y_values = safe_literal_eval(df[metric].iloc[j])
+            y_values = json.loads(df[metric].iloc[j])
+            # a = alphas_per_row[j]
+            a = json.loads(df["alpha"].iloc[j])
+            if not isinstance(y_values, (list, tuple, np.ndarray)):
+                y_values = [float(y_values)] 
+            # truncate / pad alpha to match y length
+            if len(y_values) < len(a):
+                a = a[: len(y_values)]
+            elif len(y_values) > len(a):
+                a = np.pad(a, (0, len(y_values) - len(a)), "edge")
+
+            ax[i, j].plot(a, y_values, linewidth=3, marker="x",
+                          markersize=8, color="black")
+            if type_1:
+                ax[i, j].plot(a, a, "--", color="grey", alpha=0.5)
+
+            ax[i, j].grid(True, alpha=0.3)
+            ax[i, j].spines[["right", "top"]].set_visible(False)
+
+        ax[i, 0].set_ylabel(metric, fontsize=13)
+
+    # ---- titles & labels ----------------------------------------
+    for j, col_title in enumerate(list_col_titles):
+        if j < ax.shape[1]:
+            ax[0, j].set_title(col_title, fontsize=14)
+
+    fig.supxlabel(r"$\alpha$", fontsize=15, y=0.04)
+    if title:
+        fig.suptitle(title, fontsize=16, y=0.98)
+    fig.tight_layout()
+    return fig
+
 
 def plot_error_analysis(
     df: pd.DataFrame,

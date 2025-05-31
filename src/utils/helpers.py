@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from typing import List, Dict, Any
 from scipy.stats import multinomial
 from sklearn.model_selection import train_test_split
 
@@ -77,7 +78,7 @@ def data_split(
     val_size: float = 0.2,
     split_test: bool = True,
     split_val: bool = True,
-    random_state: int = 42
+    random_state: int = 42,
 ):
     """
     Split the data into train, validation, and test sets based on parameters.
@@ -109,7 +110,11 @@ def data_split(
     if split_val:
         val_size_adjusted = val_size / (1 - test_size) if split_test else val_size
         x_train, x_val, y_train, y_val, p_train, p_val = train_test_split(
-            x_temp, y_temp, p_temp, test_size=val_size_adjusted, random_state=random_state
+            x_temp,
+            y_temp,
+            p_temp,
+            test_size=val_size_adjusted,
+            random_state=random_state,
         )
     else:
         x_train, y_train, p_train = x_temp, y_temp, p_temp
@@ -118,7 +123,7 @@ def data_split(
     return {
         "train": (x_train, y_train, p_train),
         "val": (x_val, y_val, p_val),
-        "test": (x_test, y_test, p_test)
+        "test": (x_test, y_test, p_test),
     }
 
 
@@ -147,10 +152,13 @@ def test_train_val_split(
 
 
 def sample_lambda(
-    x_inst: torch.tensor, n_members: int, x_dep: bool = True, deg: int = 2, variance: int = 5
+    x_inst: torch.tensor,
+    n_members: int,
+    x_dep: bool = True,
+    deg: int = 2,
+    variance: int = 5,
 ):
-    """function to sample the weights for the convex combination of probabilistic predictions.
-    """
+    """function to sample the weights for the convex combination of probabilistic predictions."""
     n_samples = x_inst.shape[0]
 
     if x_dep:
@@ -355,41 +363,57 @@ def save_results(results_list, save_dir, file_name: str, col_names: list):
     results_df.to_csv(save_dir_file, index=False)
 
 
-def save_results_rowwise(
-    rows: list[list[list[float]]],
-    save_dir: str,
-    file_name: str,
-    col_names: list[str],
-    alpha: list[float],
-) -> pd.DataFrame:
-    """saves a list of results to a csv file. The list has to be in an encapsulated format
+# def save_results_rowwise(
+#     rows: list[list[list[float]]],
+#     save_dir: str,
+#     file_name: str,
+#     col_names: list[str],
+#     alpha: list[float],
+# ) -> pd.DataFrame:
+#     """saves a list of results to a csv file. The list has to be in an encapsulated format
 
-    Parameters
-    ----------
-    rows : list[list[list[float]]]
-        list of results, where each row is a list of lists containing the results for each column
-    save_dir : str
-        directory where the results will be saved
-    file_name : str
-        name of the file
-    col_names : list[str]
-        list of column names
-    alpha : list[float]
-        list of alpha values to be saved in the dataframe, same for every row
+#     Parameters
+#     ----------
+#     rows : list[list[list[float]]]
+#         list of results, where each row is a list of lists containing the results for each column
+#     save_dir : str
+#         directory where the results will be saved
+#     file_name : str
+#         name of the file
+#     col_names : list[str]
+#         list of column names
+#     alpha : list[float]
+#         list of alpha values to be saved in the dataframe, same for every row
 
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the results
-    """
+#     Returns
+#     -------
+#     pd.DataFrame
+#         DataFrame containing the results
+#     """
+#     Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+#     df = pd.DataFrame(rows, columns=col_names)
+#     df["alpha"] = json.dumps(alpha)               # same alpha for every row
+#     path = Path(save_dir) / file_name
+#     df.to_csv(path, index=False)
+#     return df
+
+
+def save_results_rowwise(rows, save_dir, file_name, col_names, alpha):
+    from pathlib import Path, PurePath
+    import pandas as pd, json, numpy as np
+
+    if isinstance(rows[0][0], (float, np.floating)):  # single row given
+        rows = [rows]
+
+    records = [{c: json.dumps(v) for c, v in zip(col_names, r)} for r in rows]
+    for rec in records:
+        rec["alpha"] = json.dumps(alpha)
+
+    df = pd.DataFrame.from_records(records)
     Path(save_dir).mkdir(parents=True, exist_ok=True)
-
-    df = pd.DataFrame(rows, columns=col_names)
-    df["alpha"] = json.dumps(alpha)               # same alpha for every row
-    path = Path(save_dir) / file_name
-    df.to_csv(path, index=False)
+    df.to_csv(PurePath(save_dir, file_name), index=False)
     return df
-
 
 
 # Function to make the config serializable
@@ -411,12 +435,12 @@ def make_serializable(obj):
     else:
         # Fallback to string representation
         return repr(obj)
-    
+
 
 def flatten_dict(d, parent_key="", sep="_"):
     """
     Recursively flattens a nested dictionary.
-    
+
     Parameters
     ----------
     d : dict
@@ -425,7 +449,7 @@ def flatten_dict(d, parent_key="", sep="_"):
         A prefix for the key names (used in the recursion).
     sep : str, optional
         Separator between parent and child keys.
-        
+
     Returns
     -------
     flat_dict : dict
@@ -452,7 +476,7 @@ def call_with_filtered_kwargs(func, all_kwargs: dict, **explicit_kwargs):
         dictionary containing all keyword arguments
 
     Returns
-    ------- 
+    -------
     callable
         the result of the function call with the filtered keyword arguments
     """
