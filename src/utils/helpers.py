@@ -1,9 +1,10 @@
-import os
-
+import os, json
+import inspect
 import torch
 import re
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from scipy.stats import multinomial
 from sklearn.model_selection import train_test_split
 
@@ -354,6 +355,43 @@ def save_results(results_list, save_dir, file_name: str, col_names: list):
     results_df.to_csv(save_dir_file, index=False)
 
 
+def save_results_rowwise(
+    rows: list[list[list[float]]],
+    save_dir: str,
+    file_name: str,
+    col_names: list[str],
+    alpha: list[float],
+) -> pd.DataFrame:
+    """saves a list of results to a csv file. The list has to be in an encapsulated format
+
+    Parameters
+    ----------
+    rows : list[list[list[float]]]
+        list of results, where each row is a list of lists containing the results for each column
+    save_dir : str
+        directory where the results will be saved
+    file_name : str
+        name of the file
+    col_names : list[str]
+        list of column names
+    alpha : list[float]
+        list of alpha values to be saved in the dataframe, same for every row
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the results
+    """
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+    df = pd.DataFrame(rows, columns=col_names)
+    df["alpha"] = json.dumps(alpha)               # same alpha for every row
+    path = Path(save_dir) / file_name
+    df.to_csv(path, index=False)
+    return df
+
+
+
 # Function to make the config serializable
 def make_serializable(obj):
     if isinstance(obj, dict):
@@ -401,3 +439,26 @@ def flatten_dict(d, parent_key="", sep="_"):
         else:
             items[new_key] = v
     return items
+
+
+def call_with_filtered_kwargs(func, all_kwargs: dict, **explicit_kwargs):
+    """helper function to call a function with a filtered set of keyword arguments.
+
+    Parameters
+    ----------
+    func : callable
+        function to call
+    all_kwargs : dict
+        dictionary containing all keyword arguments
+
+    Returns
+    ------- 
+    callable
+        the result of the function call with the filtered keyword arguments
+    """
+    sig = inspect.signature(func)
+    # pick only the ones in the function signature
+    filtered = {k: v for k, v in all_kwargs.items() if k in sig.parameters}
+    # then override/extend with the explicit ones
+    filtered.update(explicit_kwargs)
+    return func(**filtered)

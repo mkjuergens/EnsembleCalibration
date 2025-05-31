@@ -15,7 +15,7 @@ setup(
     author="Mira Juergens",
     author_email="mira.juergens@ugent.be",
     url="https://github.com/mkjuergens/EnsembleCalibration",
-    packages=["ensemblecalibration"],
+    packages=["src"],
     install_requires=[
         "numpy",
         "scikit-learn",
@@ -27,8 +27,9 @@ setup(
         "seaborn",
         "statsmodels",
         "tqdm",
-        "composition_stats",
-        "torch"
+        "torch",
+        "torchvision",
+        "pytorch_lightning"
 
     ],
     include_package_data=True,

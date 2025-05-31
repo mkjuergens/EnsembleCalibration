@@ -95,7 +95,7 @@ def npbe_test_ensemble(
     """
 
     # calculate optimal weights
-    _, _, p_bar_test, y_labels_test = calculate_min(
+    _, _, _, p_bar_test, y_labels_test, _ = calculate_min(
         x_inst, p_preds, y_labels, params, verbose=verbose
     )
 

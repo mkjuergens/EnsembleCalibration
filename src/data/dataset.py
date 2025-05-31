@@ -1,10 +1,9 @@
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, Union
 import torch
 import numpy as np
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
-
 
 
 class MLPDataset(Dataset):
@@ -20,10 +19,11 @@ class MLPDataset(Dataset):
     def __init__(
         self,
         x_train: np.ndarray,
-        P: np.ndarray,
-        y: np.ndarray,
+        P: Union[np.ndarray, torch.Tensor],
+        y: Union[np.ndarray, torch.Tensor],
         p_true: Optional[np.ndarray] = None,
         weights_l: Optional[np.ndarray] = None,
+        device: Optional[Union[str, torch.device]] = None,
     ):
         """
         Parameters
@@ -38,43 +38,48 @@ class MLPDataset(Dataset):
             shape (N, K) => ground-truth probabilities if available
         weights_l : np.ndarray, optional
             shape (N, M), optional weights
+        device: Optional[Union[str, torch.device]], optional
+            Device to which the tensors should be moved, by default None
         """
         super().__init__()
-        # Convert to torch tensors, only if needed
-        if not isinstance(P, torch.Tensor):
-            self.p_probs = torch.from_numpy(P).float()
-        else:
-            self.p_probs = P.float()
-        if not isinstance(y, torch.Tensor):
-            self.y_true = torch.from_numpy(y).long()
-        else:
-            self.y_true = y.long()
-        if not isinstance(x_train, torch.Tensor):
-            self.x_train = torch.from_numpy(x_train).float()  # (N, F) or (N, C, H, W)
-        else:
-            self.x_train = x_train.float()
-        self.p_true = None
-        self.weights_l = None
 
-        if p_true is not None:
-            # Convert to torch tensor if needed
-            if not isinstance(p_true, torch.Tensor):
-                self.p_true = torch.from_numpy(p_true).float()
-            else:
-                self.p_true = p_true.float()
-        if weights_l is not None:
-            # Convert to torch tensor if needed
-            if not isinstance(weights_l, torch.Tensor):
-                self.weights_l = torch.from_numpy(weights_l).float()
-            else:
-                self.weights_l = weights_l.float()
+        N = x_train.shape[0]
+
+        self.device = device if device else torch.device("cpu")
+
+        self.p_probs = self._to_tensor(P, dtype=torch.float32)
+        self.x_train = self._to_tensor(x_train, dtype=torch.float32)
+        self.y_true = self._to_tensor(y, dtype=torch.long)
 
         # Basic attributes
+        self.n_samples = N
         self.n_classes = self.p_probs.shape[2]
         self.n_ens = self.p_probs.shape[1]
 
+        self.p_true: Optional[torch.Tensor] = None
+        self.weights_l: Optional[torch.Tensor] = None
+
+        if p_true is not None:
+            # Convert to torch tensor if needed
+            self.p_true = self._to_tensor(p_true, dtype=torch.float32)
+        if weights_l is not None:
+            # Convert to torch tensor if needed
+            self.weights_l = self._to_tensor(weights_l, dtype=torch.float32)
+
+    def _to_tensor(
+        self, data: Union[np.ndarray, torch.Tensor], dtype: torch.dtype
+    ) -> torch.Tensor:
+        """
+        Converts data to a PyTorch tensor of the specified dtype and moves to device
+        ."""
+        if not isinstance(data, torch.Tensor):
+            tensor_data = torch.from_numpy(data)
+        else:
+            tensor_data = data
+        return tensor_data.to(dtype=dtype, device=self.device)
+
     def __len__(self):
-        return len(self.y_true)
+        return self.n_samples
 
     def __getitem__(self, idx):
         # Return a tuple: (p_probs[idx], y_true[idx], x_train[idx])
@@ -171,3 +176,44 @@ class StratifiedSampler:
 
     def __len__(self):
         return len(self.dataset) // self.batch_size
+
+
+if __name__ == "__main__":
+    # Dummy data
+    N_samples = 100
+    N_features = 10
+    N_ensemble = 5
+    N_classes = 3
+
+    # x_train: (N, F) - Features
+    # x_train_img: (N, C, H, W) - Images (e.g., 1, 28, 28 for MNIST-like)
+    X_feat = np.random.rand(N_samples, N_features).astype(np.float32)
+    X_img = np.random.rand(N_samples, 1, 28, 28).astype(np.float32)
+
+    # P: (N, M, K) - Ensemble predictions (softmax outputs)
+    P_ensemble = np.random.rand(N_samples, N_ensemble, N_classes).astype(np.float32)
+    P_ensemble = P_ensemble / P_ensemble.sum(axis=2, keepdims=True) # Normalize to make them probabilities
+
+    # y: (N,) - True labels
+    Y_labels = np.random.randint(0, N_classes, size=N_samples).astype(np.int64)
+
+    # p_true: (N, K) - Optional true probabilities
+    P_true_gt = np.random.rand(N_samples, N_classes).astype(np.float32)
+    P_true_gt = P_true_gt / P_true_gt.sum(axis=1, keepdims=True)
+
+    # weights_l: (N, M) - Optional optimal weights
+    W_optimal = np.random.rand(N_samples, N_ensemble).astype(np.float32)
+    W_optimal = W_optimal / W_optimal.sum(axis=1, keepdims=True) # Normalize to make them convex weights
+
+
+    dataset_feat = MLPDataset(
+        x_train=X_feat,
+        P=P_ensemble,
+        y=Y_labels,
+        p_true=P_true_gt,
+        weights_l=W_optimal,
+        device='cpu' # or 'cuda' if available
+    )
+
+    print(f"Dataset length: {len(dataset_feat)}")
+    sample_item = dataset_feat[0]
