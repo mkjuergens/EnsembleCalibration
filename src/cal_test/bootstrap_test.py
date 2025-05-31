@@ -62,6 +62,39 @@ def npbe_test_ensemble_v2(
     return decision, p_val, stat
 
 
+def npbe_test_ensemble_base(
+    alpha: list[float],
+    x_inst: torch.Tensor | np.ndarray,
+    p_preds: torch.Tensor | np.ndarray,
+    y_labels: torch.Tensor | np.ndarray,
+    params: dict,
+    verbose: bool = False,
+):
+    """
+    Baseline bootstrap test:
+    * no optimisation
+    * uses the simple ensemble mean  (instance-wise average of M predictors).
+    """
+    # --- compute \bar p(x)  --------------------------------------
+    if isinstance(p_preds, np.ndarray):
+        p_bar = p_preds.mean(axis=1)            # (N, K)
+    else:                                       # torch.Tensor
+        p_bar = p_preds.mean(dim=1)             # (N, K)
+        p_bar = p_bar.detach().cpu().numpy()    # convert for Vaicenavicius test
+    if isinstance(y_labels, torch.Tensor):
+        y_labels = y_labels.detach().cpu().numpy()
+
+    # --- run Vaicenavicius single-classifier bootstrap -----------
+    decision, p_val, stat = npbe_test_vaicenavicius(
+        alpha, p_bar, y_labels, params
+    )
+
+    if verbose:
+        print("Baseline (mean) decision:", decision)
+
+    return decision, p_val, stat
+
+
 def npbe_test_ensemble(
     alpha: list,
     x_inst: np.ndarray,

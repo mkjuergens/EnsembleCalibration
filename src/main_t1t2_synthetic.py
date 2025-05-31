@@ -20,7 +20,7 @@ from src.data import MLPDataset
 from src.cal_test import (
     npbe_test_ensemble_v0,
     npbe_test_ensemble_v2,
-    npbe_test_ensemble,
+    npbe_test_ensemble_base
 )
 from src.utils.helpers import (
     save_results_rowwise,
@@ -34,6 +34,7 @@ from src.utils.plot_functions import (
 BOOTSTRAP_TESTS = {
     "v0": npbe_test_ensemble_v0,
     "v2": npbe_test_ensemble_v2,
+    "vanilla": npbe_test_ensemble_base
 }
 
 # -----------------------------------------------------------------------------
@@ -210,7 +211,7 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action="store_true")
 
     # ------------ bootstrap & objectives ---------
-    parser.add_argument("--bootstrap_test", choices=["v0", "v2"], default="v0")
+    parser.add_argument("--bootstrap_test", choices=["v0", "v2", "vanilla"], default="v0")
     parser.add_argument(
         "--objectives",
         nargs="*",
